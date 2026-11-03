@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+dist
+.venv
+__pycache__
+**/__pycache__
+.pytest_cache
+*.zip
+*.log
+.env
+.env.*
+server/.env
+server/data.db
+server/data.db-*

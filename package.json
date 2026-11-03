@@ -1,0 +1,38 @@
+{
+  "name": "excel-master-live",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port ${WEB_PORT:-5173}",
+    "dev:server": "cd server && uvicorn main:app --host 127.0.0.1 --port ${BACKEND_PORT:-8000} --reload",
+    "dev:all": "concurrently -k -n web,api -c blue,green \"pnpm dev\" \"pnpm dev:server\"",
+    "typecheck": "tsc -b",
+    "test:data": "python3 scripts/check_data.py",
+    "test:server": "cd server && python3 -m pytest -q",
+    "test": "pnpm test:data && pnpm test:server",
+    "build": "tsc -b && vite build",
+    "start": "cd server && uvicorn main:app --host 127.0.0.1 --port ${BACKEND_PORT:-8000}",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "^0.469.0",
+    "motion": "^11.15.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.3"
+  }
+}

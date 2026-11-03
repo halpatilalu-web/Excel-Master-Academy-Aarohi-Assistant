@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+.vite
+*.local
+.env
+.env.local
+.env.*.local
+.DS_Store
+*.tsbuildinfo
+# web-builder verification + launch state
+.verify/
+.web-builder/
+# server runtime
+server/data.db
+server/data.db-*
+__pycache__/

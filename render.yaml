@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: excel-master-live
+    runtime: docker
+    plan: free
+    region: Singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    healthCheckPath: /api/health
+    envVars:
+      - key: DEMO_ENABLED
+        value: "0"
+      - key: APP_DB_PATH
+        value: /data/data.db
+      # Optional: add LLM_API_KEY in the Render dashboard if you want online AI.
+      # Without it, Aarohi automatically uses the built-in offline Excel tutor.

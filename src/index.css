@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/* Tailwind v4: tokens live here, no tailwind.config.*. Change the values to
+   the brief's palette; keep the names — every component references them. */
+@theme {
+  --font-display: "Cabinet Grotesk", system-ui, sans-serif;
+  --font-body: "Satoshi", system-ui, sans-serif;
+
+  --color-canvas: oklch(0.985 0.006 150);
+  --color-surface: oklch(1 0 0);
+  --color-ink: oklch(0.22 0.03 250);
+  --color-muted: oklch(0.55 0.02 250);
+  --color-border: oklch(0.9 0.01 250);
+
+  --color-accent: oklch(0.5 0.13 155);
+  --color-accent-dark: oklch(0.4 0.12 155);
+  --color-accent-soft: oklch(0.95 0.04 155);
+
+  --color-good: oklch(0.6 0.15 160);
+  --color-warn: oklch(0.72 0.17 60);
+  --color-danger: oklch(0.6 0.2 25);
+  --color-info: oklch(0.6 0.15 250);
+}
+
+html,
+body {
+  @apply bg-(--color-canvas) text-(--color-ink) font-body antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.hand { font-family: "Caveat", "Segoe Print", cursive; }
+.note { background-image: repeating-linear-gradient(transparent, transparent 31px, rgba(0,0,0,.07) 32px); line-height: 32px; }
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0; margin: 0; border: 0; }
+}
+
+.dark {
+  color-scheme: dark;
+  --color-canvas: oklch(0.18 0.02 250);
+  --color-surface: oklch(0.23 0.025 250);
+  --color-ink: oklch(0.95 0.01 250);
+  --color-muted: oklch(0.7 0.02 250);
+  --color-border: oklch(0.32 0.025 250);
+  --color-accent: oklch(0.68 0.15 155);
+  --color-accent-dark: oklch(0.82 0.13 155);
+  --color-accent-soft: oklch(0.3 0.05 155);
+}
