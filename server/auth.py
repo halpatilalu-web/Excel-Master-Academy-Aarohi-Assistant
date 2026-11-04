@@ -5,9 +5,12 @@
   in the `sessions` table. It is sent as an HttpOnly,
   SameSite=Lax cookie (`Secure` when the request arrived over https). 30 days.
   The same token is also returned in the sign-in body and accepted as
-  `Authorization: Bearer <token>` — that is how the mobile template (Expo,
-  a different origin and no cookie jar on web) authenticates.
-* Login throttle: 5 failed attempts per IP per minute (in-memory).
+  `Authorization: Bearer <token>` — that is how a mobile client (a different
+  origin and no cookie jar on web) authenticates.
+* Login throttle: 5 failed attempts per (IP, email) per minute, plus a per-IP
+  cap on account creation. Counters are cleared on success, pruned as they age
+  and capped in size, so one shared classroom IP cannot lock everybody out and
+  the process cannot grow without bound.
 * Every document route depends on `current_user`, so data is per-user.
 
 * Guest mode: `POST /api/auth/guest` mints an anonymous account (provider
@@ -16,8 +19,9 @@
   later `POST /api/auth/upgrade {email, password}` to turn it into a real
   account without losing anything.
 
-What this is NOT: email verification, password reset, roles/admin, OAuth.
-Tell users so — the web-builder summary template does.
+What this is NOT: email verification, password reset, roles/admin, OAuth
+(the optional `google_auth` service lives in services/oauth.py).
+Tell users so — the README does.
 """
 
 from __future__ import annotations
@@ -30,10 +34,9 @@ import time
 import uuid
 from collections import defaultdict, deque
 
+from db import db, now
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
-
-from db import db, now
 
 router = APIRouter(prefix="/api/auth")
 
@@ -41,9 +44,15 @@ COOKIE = "sid"
 SESSION_TTL_S = 30 * 24 * 3600
 MIN_PASSWORD = 8
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-_SCRYPT = dict(n=2**14, r=8, p=1, dklen=32)
-_MAX_FAILS, _FAIL_WINDOW_S = 5, 60
-_fails: dict[str, deque] = defaultdict(deque)
+_SCRYPT = {"n": 2**14, "r": 8, "p": 1, "dklen": 32}
+
+# Sliding-window buckets: key -> timestamps of recent failures/hits.
+_MAX_FAILS, _FAIL_WINDOW_S = 5, 60           # per (ip, email) login failures
+_MAX_SIGNUPS, _SIGNUP_WINDOW_S = 5, 60       # per ip, real accounts
+_MAX_GUESTS, _GUEST_WINDOW_S = 10, 60        # per ip, anonymous accounts
+_MAX_PW_CHECKS, _PW_WINDOW_S = 5, 60         # per user, /password attempts
+_MAX_BUCKETS = 20_000                        # hard cap on tracked keys
+_buckets: dict[str, deque[float]] = defaultdict(deque)
 
 
 class Credentials(BaseModel):
@@ -54,6 +63,10 @@ class Credentials(BaseModel):
 class PasswordChange(BaseModel):
     current: str
     new: str
+
+
+class ExternalAccountExists(Exception):
+    """The external identity's email already belongs to a password account."""
 
 
 def _hash(password: str, salt: bytes) -> bytes:
@@ -74,6 +87,47 @@ def _token_hash(token: str) -> str:
 def _check_password(pw: str) -> None:
     if len(pw) < MIN_PASSWORD:
         raise HTTPException(400, f"password must be at least {MIN_PASSWORD} characters")
+    if len(pw) > 200:
+        raise HTTPException(400, "password is too long")
+
+
+def _prune_buckets(t: float, window: float, q: deque[float]) -> None:
+    while q and t - q[0] > window:
+        q.popleft()
+
+
+def _limit(key: str, *, max_hits: int, window_s: float, message: str) -> None:
+    """Consume one hit for `key`; raise 429 (with Retry-After) when over budget."""
+    t = time.monotonic()
+    q = _buckets[key]
+    _prune_buckets(t, window_s, q)
+    if len(q) >= max_hits:
+        retry = max(1, int(window_s - (t - q[0])))
+        raise HTTPException(429, message, headers={"Retry-After": str(retry)})
+    q.append(t)
+    if len(_buckets) > _MAX_BUCKETS:
+        # Drop whatever has aged out; never let the map grow without bound.
+        for k in [k for k, v in _buckets.items() if not v]:
+            _buckets.pop(k, None)
+
+
+def _limit_peek(key: str, *, max_hits: int, window_s: float, message: str) -> None:
+    """Like `_limit` but does not consume a hit (used before a password is checked)."""
+    t = time.monotonic()
+    q = _buckets[key]
+    _prune_buckets(t, window_s, q)
+    if len(q) >= max_hits:
+        retry = max(1, int(window_s - (t - q[0])))
+        raise HTTPException(429, message, headers={"Retry-After": str(retry)})
+
+
+def client_ip(request: Request) -> str:
+    # Behind Render/Cloudflare the socket peer is the proxy; prefer the
+    # forwarded chain's first hop (browsers cannot spoof it to the proxy).
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip() or "?"
+    return request.client.host if request.client else "?"
 
 
 def create_user(conn, email: str, password: str) -> str:
@@ -97,12 +151,20 @@ def _new_session(conn, user_id: str) -> str:
     return token
 
 
+def purge_expired_sessions() -> int:
+    """Delete sessions past their expiry. Called on startup."""
+    with db() as conn:
+        cur = conn.execute("DELETE FROM sessions WHERE expires < ?", (now(),))
+        return cur.rowcount or 0
+
+
 def _set_cookie(response: Response, request: Request, token: str) -> None:
     # Over https the cookie is SameSite=None + Secure so sign-in also works when
-    # the app is shown inside the Orvis chat's preview iframe, which is a
-    # different site from the app's own domain (a Lax cookie is silently dropped
-    # there and every request after login comes back 401). Over plain http
-    # (local dev on localhost) browsers reject SameSite=None, so fall back to Lax.
+    # the app is shown inside a preview iframe, which is a different site from
+    # the app's own domain (a Lax cookie is silently dropped there and every
+    # request after login comes back 401). Because that means the cookie rides
+    # along on cross-site requests, main.py rejects cross-origin mutations by
+    # checking Origin/Referer — see `_safety_headers_and_csrf` there.
     https = request.headers.get("x-forwarded-proto", "").lower() == "https" or request.url.scheme == "https"
     response.set_cookie(
         COOKIE, token, httponly=True, samesite="none" if https else "lax", secure=https,
@@ -111,12 +173,21 @@ def _set_cookie(response: Response, request: Request, token: str) -> None:
 
 
 def login_external(conn, email: str, name: str, provider: str, picture: str = "") -> str:
-    """Find-or-create the local user for an identity verified by Orvis (Google
-    login). Linked by email; a brand-new user gets an unusable random password
-    hash, so email/password login keeps working for everyone else."""
+    """Find-or-create the local user for an identity verified by an external
+    provider (Google login).
+
+    Linked by email ONLY if that user was created by the same provider. An
+    existing email/password account is never silently attached to an external
+    identity: the password holder would otherwise lose control of their account
+    to whoever signed in with Google first (and vice versa — pre-registering
+    someone's email with a password would hand the attacker a login on the
+    victim's Google sign-in). Raises `ExternalAccountExists` instead.
+    """
     email = _norm_email(email)
-    row = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    row = conn.execute("SELECT id, provider FROM users WHERE email = ?", (email,)).fetchone()
     if row is not None:
+        if (row["provider"] or "password") != provider:
+            raise ExternalAccountExists(email)
         conn.execute(
             "UPDATE users SET name = COALESCE(NULLIF(?, ''), name), picture = COALESCE(NULLIF(?, ''), picture) WHERE id = ?",
             (name or "", picture or "", row["id"]),
@@ -136,15 +207,6 @@ def start_session(conn, response: Response, request: Request, user_id: str) -> s
     token = _new_session(conn, user_id)
     _set_cookie(response, request, token)
     return token
-
-
-def _throttle(ip: str) -> None:
-    q = _fails[ip]
-    t = time.monotonic()
-    while q and t - q[0] > _FAIL_WINDOW_S:
-        q.popleft()
-    if len(q) >= _MAX_FAILS:
-        raise HTTPException(429, "too many attempts — wait a minute")
 
 
 def session_token(request: Request) -> str:
@@ -168,11 +230,14 @@ def current_user(request: Request) -> dict:
             "JOIN users u ON u.id = s.user_id WHERE s.token = ?",
             (token_hash,),
         ).fetchone()
-        if row is None:
-            raise HTTPException(401, "not signed in")
-        if row["expires"] < now():
+    if row is None:
+        raise HTTPException(401, "not signed in")
+    if row["expires"] < now():
+        # Commit the cleanup on its own: raising inside `with db()` would roll
+        # the DELETE back, so expired rows were never actually removed.
+        with db() as conn:
             conn.execute("DELETE FROM sessions WHERE token = ?", (token_hash,))
-            raise HTTPException(401, "session expired")
+        raise HTTPException(401, "session expired")
     return {
         "id": row["id"], "email": row["email"], "name": row["name"] or "",
         "provider": row["provider"] or "password", "picture": row["picture"] or "",
@@ -181,6 +246,8 @@ def current_user(request: Request) -> dict:
 
 @router.post("/signup", status_code=201)
 def signup(body: Credentials, request: Request, response: Response) -> dict:
+    _limit(f"signup|{client_ip(request)}", max_hits=_MAX_SIGNUPS,
+           window_s=_SIGNUP_WINDOW_S, message="too many new accounts — wait a minute")
     email = _norm_email(body.email)
     _check_password(body.password)
     with db() as conn:
@@ -194,15 +261,19 @@ def signup(body: Credentials, request: Request, response: Response) -> dict:
 
 @router.post("/login")
 def login(body: Credentials, request: Request, response: Response) -> dict:
-    ip = request.client.host if request.client else "?"
-    _throttle(ip)
+    ip = client_ip(request)
     email = _norm_email(body.email)
+    bucket = f"login|{ip}|{email}"
+    _limit_peek(bucket, max_hits=_MAX_FAILS, window_s=_FAIL_WINDOW_S,
+                message="too many attempts — wait a minute")
     with db() as conn:
         row = conn.execute("SELECT id, pw_hash, salt FROM users WHERE email = ?", (email,)).fetchone()
         ok = row is not None and hmac.compare_digest(_hash(body.password, row["salt"]), row["pw_hash"])
         if not ok:
-            _fails[ip].append(time.monotonic())
+            _limit(bucket, max_hits=_MAX_FAILS, window_s=_FAIL_WINDOW_S,
+                   message="too many attempts — wait a minute")
             raise HTTPException(401, "wrong email or password")
+        _buckets.pop(bucket, None)  # a good sign-in clears this email's failures
         token = _new_session(conn, row["id"])
     _set_cookie(response, request, token)
     return {"id": row["id"], "email": email, "token": token}
@@ -214,11 +285,17 @@ def guest(request: Request, response: Response) -> dict:
     guest). One per device/browser: the client calls this only when it holds no
     session, and keeps the returned token. The email is a placeholder that can
     never receive mail or be signed into; `upgrade` replaces it."""
+    _limit(f"guest|{client_ip(request)}", max_hits=_MAX_GUESTS,
+           window_s=_GUEST_WINDOW_S, message="too many guest sessions — wait a minute")
     with db() as conn:
+        email = ""
         for _ in range(5):
-            email = f"guest-{secrets.token_hex(6)}@guest.local"
-            if conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone() is None:
+            candidate = f"guest-{secrets.token_hex(6)}@guest.local"
+            if conn.execute("SELECT 1 FROM users WHERE email = ?", (candidate,)).fetchone() is None:
+                email = candidate
                 break
+        if not email:  # pragma: no cover - needs 5 collisions in a row
+            raise HTTPException(503, "could not allocate a guest account — try again")
         salt = secrets.token_bytes(16)
         uid = uuid.uuid4().hex
         conn.execute(
@@ -234,9 +311,14 @@ def guest(request: Request, response: Response) -> dict:
 def upgrade(body: Credentials, request: Request, user: dict = Depends(current_user)) -> dict:
     """Turn the signed-in GUEST into a real email/password account, keeping its
     data and its current session. 409 when the email is taken; 400 for a
-    non-guest (they already have credentials — use /password)."""
+    non-guest (they already have credentials — use /password).
+
+    The email is not verified (no mail is sent). That is why `login_external`
+    refuses to attach a Google identity to an existing password account."""
     if user.get("provider") != "guest":
         raise HTTPException(400, "this account already has a login")
+    _limit(f"upgrade|{client_ip(request)}", max_hits=_MAX_SIGNUPS,
+           window_s=_SIGNUP_WINDOW_S, message="too many new accounts — wait a minute")
     email = _norm_email(body.email)
     _check_password(body.password)
     with db() as conn:
@@ -265,14 +347,34 @@ def me(user: dict = Depends(current_user)) -> dict:
     return user
 
 
+@router.delete("/account", status_code=204)
+def delete_account(request: Request, response: Response, user: dict = Depends(current_user)) -> Response:
+    """Delete the signed-in account and everything it owns, then sign out.
+
+    Documents (including reserved `_uploads`/`_payments` rows), sessions and the
+    user row go in one transaction. There is no undo — the app offers a JSON
+    export on the Account page for anyone who wants a copy first."""
+    with db() as conn:
+        conn.execute("DELETE FROM docs WHERE owner = ?", (user["id"],))
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user["id"],))
+        conn.execute("DELETE FROM users WHERE id = ?", (user["id"],))
+    response.delete_cookie(COOKIE, path="/")
+    return Response(status_code=204)
+
+
 @router.post("/password")
 def change_password(body: PasswordChange, request: Request, user: dict = Depends(current_user)) -> dict:
     _check_password(body.new)
+    bucket = f"password|{user['id']}"
+    _limit_peek(bucket, max_hits=_MAX_PW_CHECKS, window_s=_PW_WINDOW_S,
+                message="too many password attempts — wait a minute")
     with db() as conn:
         row = conn.execute("SELECT pw_hash, salt FROM users WHERE id = ?", (user["id"],)).fetchone()
         if row is None:
             raise HTTPException(401, "not signed in")
         if not hmac.compare_digest(_hash(body.current, row["salt"]), row["pw_hash"]):
+            _limit(bucket, max_hits=_MAX_PW_CHECKS, window_s=_PW_WINDOW_S,
+                   message="too many password attempts — wait a minute")
             raise HTTPException(401, "current password is wrong")
         salt = secrets.token_bytes(16)
         conn.execute(

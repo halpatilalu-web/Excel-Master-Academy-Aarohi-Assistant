@@ -15,22 +15,26 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import uuid
-from typing import Any, Iterator
-
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from collections import defaultdict, deque
+from collections.abc import Iterator
+from typing import Any
 
 from auth import current_user
 from db import db, now
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from orvis import OrvisError, orvis
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api")
 
 COLLECTION = "chat_messages"
 HISTORY_TURNS = 20            # prior turns sent to the model
+MAX_HISTORY_CHARS = 2_000     # per message, when replaying history to the model
 MAX_MESSAGE_CHARS = 8_000
+MAX_REQUESTS_PER_MINUTE = 20  # per user — every call spends the owner's credits
 MAX_IMAGES = 4
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 _CONV_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -52,20 +56,35 @@ def _conv(cid: str) -> str:
     return cid
 
 
+def _rate_limit(user_id: str) -> None:
+    now = time.monotonic()
+    q = _requests[user_id]
+    while q and now - q[0] > 60:
+        q.popleft()
+    if len(q) >= MAX_REQUESTS_PER_MINUTE:
+        raise HTTPException(429, "too many chat messages — wait a minute",
+                            headers={"Retry-After": "60"})
+    q.append(now)
+
+
 def _rows(conn, owner: str, cid: str, limit: int) -> list[dict[str, Any]]:
+    """Newest `limit` messages of ONE conversation.
+
+    The conversation filter is in SQL (`json_extract`) — filtering in Python
+    after a `LIMIT limit*4` used to drop the model's context as soon as a user
+    had more than a handful of conversations.
+    """
     rows = conn.execute(
-        "SELECT id, body, created FROM docs WHERE owner = ? AND col = ? ORDER BY created DESC, rowid DESC LIMIT ?",
-        (owner, COLLECTION, limit * 4),
+        "SELECT id, body, created FROM docs WHERE owner = ? AND col = ? "
+        "AND COALESCE(json_extract(body, '$.conversation_id'), 'default') = ? "
+        "ORDER BY created DESC, rowid DESC LIMIT ?",
+        (owner, COLLECTION, cid, limit),
     ).fetchall()
     out = []
     for r in rows:
         d = json.loads(r["body"])
-        if d.get("conversation_id", "default") != cid:
-            continue
         d["id"], d["_created"] = r["id"], r["created"]
         out.append(d)
-        if len(out) >= limit:
-            break
     return list(reversed(out))
 
 
@@ -78,6 +97,9 @@ def _save(conn, owner: str, cid: str, role: str, content: str) -> str:
         (COLLECTION, doc_id, owner, body, t, t),
     )
     return doc_id
+
+
+_requests: dict[str, deque[float]] = defaultdict(deque)
 
 
 def _check_images(images: list[str]) -> list[str]:
@@ -106,6 +128,7 @@ def chat(body: ChatIn, user: dict = Depends(current_user)) -> StreamingResponse:
         raise HTTPException(413, f"message too long (max {MAX_MESSAGE_CHARS} chars)")
     if "ai" not in orvis.enabled:
         raise HTTPException(503, "AI is not enabled for this app")
+    _rate_limit(str(user["id"]))
     images = _check_images(body.images)
     # A picture on its own is a perfectly good question ("what is this?").
     if not text and not images:
@@ -114,7 +137,10 @@ def chat(body: ChatIn, user: dict = Depends(current_user)) -> StreamingResponse:
     with db() as conn:
         history = _rows(conn, user["id"], cid, HISTORY_TURNS)
         _save(conn, user["id"], cid, "user", text + (f"\n[{len(images)} image(s) attached]" if images else ""))
-    messages = [{"role": m["role"], "content": m["content"]} for m in history if m.get("role") in ("user", "assistant")]
+    messages = [
+        {"role": m["role"], "content": str(m.get("content", ""))[:MAX_HISTORY_CHARS]}
+        for m in history if m.get("role") in ("user", "assistant")
+    ]
     messages.append(orvis.ai.user_message(text, images=images) if images else {"role": "user", "content": text})
 
     def gen() -> Iterator[str]:
@@ -168,14 +194,12 @@ def history(
 def clear_history(conversation_id: str = "default", user: dict = Depends(current_user)) -> None:
     cid = _conv(conversation_id)
     with db() as conn:
-        rows = conn.execute(
-            "SELECT id, body FROM docs WHERE owner = ? AND col = ?", (user["id"], COLLECTION),
-        ).fetchall()
-        ids = [r["id"] for r in rows if json.loads(r["body"]).get("conversation_id", "default") == cid]
-        for doc_id in ids:
-            conn.execute(
-                "DELETE FROM docs WHERE owner = ? AND col = ? AND id = ?", (user["id"], COLLECTION, doc_id),
-            )
+        # One statement instead of loading every message the user ever wrote.
+        conn.execute(
+            "DELETE FROM docs WHERE owner = ? AND col = ? "
+            "AND COALESCE(json_extract(body, '$.conversation_id'), 'default') = ?",
+            (user["id"], COLLECTION, cid),
+        )
 
 
 @router.post("/chat/check")

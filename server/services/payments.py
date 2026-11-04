@@ -23,20 +23,26 @@ anything. See ``svc-payments.md``.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
-
 from auth import current_user
 from db import db, now
+from fastapi import APIRouter, Depends, HTTPException, Request
 from orvis import OrvisError, orvis
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/payments")
 
 COLLECTION = "_payments"
 MAX_LABEL_CHARS = 120
+
+
+# Set to a paise/cents amount to IGNORE whatever the browser sent and always
+# charge that (a single-price product). For several prices, look the amount up
+# in your own table keyed by `sku` instead of trusting `amount_minor`.
+_SERVER_PRICE_ENV = "PAYMENTS_SERVER_PRICE_MINOR"
 
 
 class OrderIn(BaseModel):
@@ -65,33 +71,31 @@ def _save(conn, owner: str, doc_id: str, body: dict[str, Any]) -> None:
     )
 
 
-def _update(conn, doc_id: str, body: dict[str, Any]) -> None:
+def _update(conn, owner: str, doc_id: str, body: dict[str, Any]) -> None:
     conn.execute(
-        "UPDATE docs SET body = ?, updated = ? WHERE col = ? AND id = ?",
-        (json.dumps(body, ensure_ascii=False), now(), COLLECTION, doc_id),
+        "UPDATE docs SET body = ?, updated = ? WHERE col = ? AND id = ? AND owner = ?",
+        (json.dumps(body, ensure_ascii=False), now(), COLLECTION, doc_id, owner),
     )
 
 
-def _find_by_order(conn, order_id: str, owner: str | None = None) -> tuple[str, dict[str, Any]] | None:
-    """The order document for a Razorpay order id.
+def _find_by_order(conn, order_id: str, owner: str | None = None) -> tuple[str, str, dict[str, Any]] | None:
+    """The order document for a Razorpay order id: ``(owner, id, body)``.
 
-    ``owner=None`` searches every owner — only for the webhook, which is
-    unauthenticated but signed by Orvis. Signed-in routes pass the caller's id.
+    Looked up with `json_extract` (SQLite ≥ 3.9) instead of scanning the newest
+    N rows: a previous `LIMIT 500` meant an order older than the last 500 simply
+    never settled — the customer paid and the webhook answered
+    ``unknown_order``. ``owner=None`` searches every owner, which is only used by
+    the webhook: it is unauthenticated by design but signed by Orvis.
     """
-    if owner is None:
-        rows = conn.execute(
-            "SELECT id, body FROM docs WHERE col = ? ORDER BY created DESC LIMIT 500", (COLLECTION,),
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT id, body FROM docs WHERE col = ? AND owner = ? ORDER BY created DESC LIMIT 500",
-            (COLLECTION, owner),
-        ).fetchall()
-    for r in rows:
-        body = json.loads(r["body"])
-        if body.get("order_id") == order_id:
-            return r["id"], body
-    return None
+    sql = "SELECT owner, id, body FROM docs WHERE col = ? AND json_extract(body, '$.order_id') = ?"
+    params: list[Any] = [COLLECTION, order_id]
+    if owner is not None:
+        sql += " AND owner = ?"
+        params.append(owner)
+    row = conn.execute(sql + " ORDER BY created DESC LIMIT 1", params).fetchone()
+    if row is None:
+        return None
+    return row["owner"], row["id"], json.loads(row["body"])
 
 
 def _friendly(exc: OrvisError) -> str:
@@ -128,12 +132,19 @@ def config(user: dict = Depends(current_user)) -> dict[str, Any]:
 @router.post("/orders")
 def create_order(body: OrderIn, user: dict = Depends(current_user)) -> dict[str, Any]:
     _require_enabled()
-    if body.amount_minor <= 0:
+    amount_minor = body.amount_minor
+    fixed = (os.environ.get(_SERVER_PRICE_ENV) or "").strip()
+    if fixed:
+        try:
+            amount_minor = int(fixed)
+        except ValueError:
+            raise HTTPException(503, "the app owner set an invalid server price")
+    if amount_minor <= 0:
         raise HTTPException(400, "amount_minor must be greater than zero")
     doc_id = uuid.uuid4().hex
     try:
         order = orvis.payments.create_order(
-            body.amount_minor,
+            amount_minor,
             currency=body.currency,
             receipt=f"orvis_{doc_id[:20]}",
             notes={**(body.notes or {}), "user": user["id"]},
@@ -143,7 +154,7 @@ def create_order(body: OrderIn, user: dict = Depends(current_user)) -> dict[str,
 
     record = {
         "order_id": order.get("order_id", ""),
-        "amount_minor": order.get("amount_minor", body.amount_minor),
+        "amount_minor": order.get("amount_minor", amount_minor),
         "currency": order.get("currency", "INR"),
         "label": (body.label or "")[:MAX_LABEL_CHARS],
         "status": "created",
@@ -169,12 +180,12 @@ def verify(body: VerifyIn, user: dict = Depends(current_user)) -> dict[str, Any]
         # flip (or downgrade) that order's status.
         found = _find_by_order(conn, body.order_id, owner=user["id"])
         if found is not None:
-            doc_id, record = found
+            owner, doc_id, record = found
             if record.get("status") != "paid":       # a settled order is never downgraded
                 record["status"] = "paid" if paid else str(result.get("status") or "failed")
             if verified:
                 record["payment_id"] = body.payment_id
-            _update(conn, doc_id, record)
+            _update(conn, owner, doc_id, record)
     return {"paid": paid, "status": result.get("status", ""), "order_id": body.order_id}
 
 
@@ -219,14 +230,17 @@ async def webhook(request: Request) -> dict[str, Any]:
     with db() as conn:
         found = _find_by_order(conn, order_id)
         if found is None:
+            # A money-bearing event we cannot attribute: log it loudly. Silence
+            # here used to mean "customer paid, order stayed created forever".
+            print(f"[payments] webhook for unknown order {order_id!r} (event {event.get('event', '')})", flush=True)
             return {"ok": True, "unknown_order": True}
-        doc_id, record = found
+        owner, doc_id, record = found
         if status == "captured":
             record["status"] = "paid"
         elif status and record.get("status") != "paid":
             record["status"] = status
         record["payment_id"] = str(entity.get("id") or record.get("payment_id", ""))
-        _update(conn, doc_id, record)
+        _update(conn, owner, doc_id, record)
     return {"ok": True, "order_id": order_id, "status": record["status"]}
 
 

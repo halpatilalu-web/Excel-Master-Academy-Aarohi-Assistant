@@ -26,15 +26,17 @@ import re
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
-
 from auth import current_user
 from db import db, now
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 router = APIRouter(prefix="/api")
 
 _MAX_BODY_CHARS = 64_000
 _COL_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+# Client-chosen ids are stored as primary keys, so they get the same treatment
+# as collection names: bounded length, URL-safe characters only.
+_DOC_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 _SORTABLE = {"updated", "created"}
 _MANAGED = ("id", "_created", "_updated")
 
@@ -44,6 +46,12 @@ def _check_col(col: str) -> None:
         raise HTTPException(400, "collection name: letters, digits, _ and - only")
     if col.startswith("_"):
         raise HTTPException(400, "collection names starting with _ are reserved")
+
+
+def _check_doc_id(doc_id: str) -> str:
+    if not _DOC_ID_RE.match(doc_id or ""):
+        raise HTTPException(400, "document id: letters, digits, _ and - only (max 128)")
+    return doc_id
 
 
 def _dump(body: dict[str, Any]) -> str:
@@ -97,7 +105,7 @@ def list_docs(
 @router.post("/c/{col}", status_code=201)
 def create_doc(col: str, body: dict[str, Any], user: dict = Depends(current_user)) -> dict[str, Any]:
     _check_col(col)
-    doc_id = str(body.get("id") or uuid.uuid4().hex)
+    doc_id = _check_doc_id(str(body.get("id") or uuid.uuid4().hex))
     payload = _dump(dict(body))
     t = now()
     with db() as conn:
@@ -116,6 +124,7 @@ def create_doc(col: str, body: dict[str, Any], user: dict = Depends(current_user
 @router.get("/c/{col}/{doc_id}")
 def get_doc(col: str, doc_id: str, user: dict = Depends(current_user)) -> dict[str, Any]:
     _check_col(col)
+    _check_doc_id(doc_id)
     with db() as conn:
         return _doc(_get(conn, user, col, doc_id))
 
@@ -123,6 +132,7 @@ def get_doc(col: str, doc_id: str, user: dict = Depends(current_user)) -> dict[s
 @router.put("/c/{col}/{doc_id}")
 def put_doc(col: str, doc_id: str, body: dict[str, Any], user: dict = Depends(current_user)) -> dict[str, Any]:
     _check_col(col)
+    _check_doc_id(doc_id)
     payload = _dump(dict(body))
     with db() as conn:
         cur = conn.execute(
@@ -137,6 +147,7 @@ def put_doc(col: str, doc_id: str, body: dict[str, Any], user: dict = Depends(cu
 @router.delete("/c/{col}/{doc_id}", status_code=204)
 def delete_doc(col: str, doc_id: str, user: dict = Depends(current_user)) -> Response:
     _check_col(col)
+    _check_doc_id(doc_id)
     with db() as conn:
         cur = conn.execute(
             "DELETE FROM docs WHERE owner = ? AND col = ? AND id = ?", (user["id"], col, doc_id)

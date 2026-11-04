@@ -1,0 +1,19 @@
+# Backend linting: correctness + obvious bug patterns, not formatting opinions.
+line-length = 140
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+  "E501",  # long lines: docstrings/tables are deliberately wide
+  "B008",  # FastAPI uses Depends() in defaults
+  "SIM108", # ternaries are not always clearer
+  # `raise HTTPException(...)` inside `except <UpstreamError>` deliberately drops
+  # the cause: the client gets a written-for-students message, and the real
+  # exception is logged separately. Chaining would put internals in the detail.
+  "B904",
+]
+
+[lint.per-file-ignores]
+"server/tests/*" = ["E402"]  # conftest sets env before importing the app
+"server/*.py" = ["E402"]     # main.py loads .env before importing modules

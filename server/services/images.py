@@ -21,14 +21,14 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import Any, Optional
-
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from typing import Any
 
 from auth import current_user
 from db import db
+from fastapi import APIRouter, Depends, HTTPException
 from orvis import OrvisError, orvis
+from pydantic import BaseModel
+
 from services.uploads import _put
 
 router = APIRouter(prefix="/api/images")
@@ -41,13 +41,13 @@ _EXT = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gi
 
 class GenerateIn(BaseModel):
     prompt: str
-    aspect_ratio: Optional[str] = None
-    size: Optional[str] = None
-    quality: Optional[str] = None
+    aspect_ratio: str | None = None
+    size: str | None = None
+    quality: str | None = None
     # `data:image/...;base64,...` URIs (≤ 2) — e.g. from `fileToDataUrl` in the browser.
     reference_images: list[str] = []
     # Optional client id for this click; a retry with the same id returns the same image, billed once.
-    request_id: Optional[str] = None
+    request_id: str | None = None
 
 
 def _friendly(exc: OrvisError) -> str:
@@ -76,9 +76,9 @@ def _http_error(exc: OrvisError) -> HTTPException:
     return HTTPException(status, _friendly(exc))
 
 
-def generate(user_id: str, prompt: str, *, aspect_ratio: Optional[str] = None, size: Optional[str] = None,
-             quality: Optional[str] = None, reference_images: Optional[list] = None,
-             request_id: Optional[str] = None) -> dict[str, Any]:
+def generate(user_id: str, prompt: str, *, aspect_ratio: str | None = None, size: str | None = None,
+             quality: str | None = None, reference_images: list | None = None,
+             request_id: str | None = None) -> dict[str, Any]:
     """Generate one image owned by ``user_id`` and record it in ``_uploads``.
 
     Returns ``{"id", key, filename, content_type, size, visibility, status, source, prompt, model, "url", "expires_in"}``.

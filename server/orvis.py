@@ -19,25 +19,26 @@ of Orvis credits, 429 = rate/daily budget, 403 = service not enabled.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
-import base64
 import json
 import os
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Iterator, Sequence
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Sequence
+from typing import Any
 
 _ENV_PATH = Path(__file__).resolve().parent / ".env"
 _DEFAULT_TIMEOUT_S = 90
 
 
-def load_env(path: Path = _ENV_PATH, *, override: bool = False) -> Dict[str, str]:
+def load_env(path: Path = _ENV_PATH, *, override: bool = False) -> dict[str, str]:
     """Load KEY=VALUE lines from ``server/.env`` into os.environ (no python-dotenv)."""
-    loaded: Dict[str, str] = {}
+    loaded: dict[str, str] = {}
     try:
         text = Path(path).read_text(encoding="utf-8")
     except OSError:
@@ -71,10 +72,10 @@ class OrvisError(Exception):
 
 
 class _Http:
-    def __init__(self, client: "Orvis") -> None:
+    def __init__(self, client: Orvis) -> None:
         self._c = client
 
-    def _headers(self, extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    def _headers(self, extra: dict[str, str] | None = None) -> dict[str, str]:
         if not self._c.secret_key:
             raise OrvisError(0, "not_configured", "ORVIS_SECRET_KEY missing — run provision-service.py")
         h = {
@@ -86,7 +87,7 @@ class _Http:
         h.update(extra or {})
         return h
 
-    def request(self, method: str, path: str, body: Any = None, *, timeout: Optional[int] = None) -> Any:
+    def request(self, method: str, path: str, body: Any = None, *, timeout: int | None = None) -> Any:
         data = None if body is None else json.dumps(body).encode("utf-8")
         req = urllib.request.Request(self._c.url(path), data=data, method=method, headers=self._headers())
         try:
@@ -98,7 +99,7 @@ class _Http:
         except urllib.error.URLError as exc:
             raise OrvisError(0, "unreachable", f"cannot reach Orvis at {self._c.api_url}: {exc.reason}")
 
-    def stream_sse(self, path: str, body: Any, *, timeout: Optional[int] = None) -> Iterator[Dict[str, Any]]:
+    def stream_sse(self, path: str, body: Any, *, timeout: int | None = None) -> Iterator[dict[str, Any]]:
         """Yield each ``data:`` JSON object of an SSE response; stop at [DONE]."""
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(
@@ -149,19 +150,19 @@ class _AI:
 
     def chat(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         *,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        response_json_schema: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        model: str | None = None,
+        max_tokens: int | None = None,
+        response_json_schema: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Return ``{"content": str, "usage": {...}, "id": str}``.
 
         ``model`` is a tier ("fast" | "smart") unless the owner brought their
         own provider. With ``response_json_schema`` the content is a JSON
         string matching the schema (also returned parsed as ``"json"``).
         """
-        body: Dict[str, Any] = {"messages": messages, "stream": False}
+        body: dict[str, Any] = {"messages": messages, "stream": False}
         if model:
             body["model"] = model
         if max_tokens:
@@ -183,13 +184,13 @@ class _AI:
 
     def chat_stream(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         *,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
     ) -> Iterator[str]:
         """Yield text deltas as they arrive. Raises ``OrvisError`` on a mid-stream error."""
-        body: Dict[str, Any] = {"messages": messages, "stream": True}
+        body: dict[str, Any] = {"messages": messages, "stream": True}
         if model:
             body["model"] = model
         if max_tokens:
@@ -209,7 +210,7 @@ class _AI:
     # never fetches a URL for you.
 
     @staticmethod
-    def image_part(data: Any, media_type: str = "image/jpeg") -> Dict[str, Any]:
+    def image_part(data: Any, media_type: str = "image/jpeg") -> dict[str, Any]:
         """One image content part. ``data`` may be raw bytes, base64 text, or a
         full ``data:`` URI (in which case ``media_type`` is read from it)."""
         if isinstance(data, (bytes, bytearray)):
@@ -221,19 +222,19 @@ class _AI:
 
     @classmethod
     def user_message(
-        cls, text: str, images: Optional[Sequence[Any]] = None, *, media_type: str = "image/jpeg",
-    ) -> Dict[str, Any]:
+        cls, text: str, images: Sequence[Any] | None = None, *, media_type: str = "image/jpeg",
+    ) -> dict[str, Any]:
         """A user turn carrying text plus any images::
 
             reply = orvis.ai.chat([orvis.ai.user_message(q, images=[photo_bytes])])
         """
         if not images:
             return {"role": "user", "content": text}
-        parts: List[Dict[str, Any]] = [{"type": "text", "text": text}] if text else []
+        parts: list[dict[str, Any]] = [{"type": "text", "text": text}] if text else []
         parts.extend(cls.image_part(i, media_type) for i in images)
         return {"role": "user", "content": parts}
 
-    def models(self) -> List[str]:
+    def models(self) -> list[str]:
         data = self._http.request("GET", "/api/v1/platform/v1/models")
         return [m.get("id", "") for m in (data.get("data") or [])]
 
@@ -245,13 +246,13 @@ class _AI:
         self,
         prompt: str,
         *,
-        aspect_ratio: Optional[str] = None,
-        size: Optional[str] = None,
-        quality: Optional[str] = None,
-        reference_images: Optional[Sequence[Any]] = None,
-        idempotency_key: Optional[str] = None,
+        aspect_ratio: str | None = None,
+        size: str | None = None,
+        quality: str | None = None,
+        reference_images: Sequence[Any] | None = None,
+        idempotency_key: str | None = None,
         media_type: str = "image/jpeg",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate one image. ``{"key","url","expires_in","content_type","size_bytes","model","deduped"}``.
 
         ``url`` is a signed link valid ``expires_in`` seconds — store ``key``
@@ -260,7 +261,7 @@ class _AI:
         ``idempotency_key`` so a retried request returns the same image and
         is never billed twice.
         """
-        body: Dict[str, Any] = {"prompt": prompt}
+        body: dict[str, Any] = {"prompt": prompt}
         for name, value in (("aspect_ratio", aspect_ratio), ("size", size), ("quality", quality),
                             ("idempotency_key", idempotency_key)):
             if value:
@@ -269,11 +270,11 @@ class _AI:
             body["reference_images"] = [self.image_part(i, media_type)["image_url"]["url"] for i in reference_images]
         return self._http.request("POST", "/api/v1/platform/ai/image", body, timeout=180) or {}
 
-    def image_url(self, key: str) -> Dict[str, Any]:
+    def image_url(self, key: str) -> dict[str, Any]:
         """A fresh signed link for a generated image: ``{"url","expires_in","content_type"}``."""
         return self._http.request("GET", f"/api/v1/platform/ai/image/download-url?key={_q(key)}", timeout=15) or {}
 
-    def delete_image(self, key: str) -> Dict[str, Any]:
+    def delete_image(self, key: str) -> dict[str, Any]:
         return self._http.request("DELETE", f"/api/v1/platform/ai/image?key={_q(key)}", timeout=15) or {}
 
 
@@ -283,7 +284,7 @@ class _Auth:
     def __init__(self, http: _Http) -> None:
         self._http = http
 
-    def exchange(self, code: str) -> Dict[str, Any]:
+    def exchange(self, code: str) -> dict[str, Any]:
         """One-time login code (from `?orvis_code=`) → verified profile
         ``{"id","provider","subject","email","email_verified","name","picture"}``."""
         data = self._http.request("POST", "/api/v1/platform/auth/exchange", {"code": code}, timeout=15)
@@ -305,13 +306,13 @@ class _Integrations:
         service: str,
         op: str,
         *,
-        path: Optional[Dict[str, Any]] = None,
-        query: Optional[Dict[str, Any]] = None,
+        path: dict[str, Any] | None = None,
+        query: dict[str, Any] | None = None,
         body: Any = None,
-        timeout: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        timeout: int | None = None,
+    ) -> dict[str, Any]:
         """Return ``{"status": upstream_status, "data": parsed_json_or_text}``."""
-        payload: Dict[str, Any] = {}
+        payload: dict[str, Any] = {}
         if path:
             payload["path"] = path
         if query:
@@ -330,28 +331,28 @@ class _Storage:
     yourself (``u/<user_id>/…``) and check ownership before signing a download.
     """
 
-    def __init__(self, http: "_Http") -> None:
+    def __init__(self, http: _Http) -> None:
         self._http = http
 
-    def presign_upload(self, key: str, *, content_type: str, size: int, visibility: str = "private") -> Dict[str, Any]:
+    def presign_upload(self, key: str, *, content_type: str, size: int, visibility: str = "private") -> dict[str, Any]:
         """``{"url", "method":"PUT", "headers", "expires_in", "key"}`` for the browser."""
         return self._http.request("POST", "/api/v1/platform/storage/upload-url", {
             "key": key, "content_type": content_type, "size": int(size), "visibility": visibility,
         }, timeout=20) or {}
 
-    def confirm(self, key: str, *, visibility: str = "private") -> Dict[str, Any]:
+    def confirm(self, key: str, *, visibility: str = "private") -> dict[str, Any]:
         """After the PUT: records real size/type; ``{"key","size_bytes","content_type",…}``."""
         return self._http.request("POST", "/api/v1/platform/storage/confirm", {"key": key, "visibility": visibility}, timeout=30) or {}
 
-    def sign(self, key: str, *, filename: Optional[str] = None) -> Dict[str, Any]:
+    def sign(self, key: str, *, filename: str | None = None) -> dict[str, Any]:
         """A time-limited download URL: ``{"url","expires_in","content_type"}``."""
         q = f"?key={_q(key)}" + (f"&filename={_q(filename)}" if filename else "")
         return self._http.request("GET", "/api/v1/platform/storage/download-url" + q, timeout=15) or {}
 
-    def list(self, prefix: str = "", limit: int = 200) -> Dict[str, Any]:
+    def list(self, prefix: str = "", limit: int = 200) -> dict[str, Any]:
         return self._http.request("GET", f"/api/v1/platform/storage/objects?prefix={_q(prefix)}&limit={int(limit)}", timeout=15) or {}
 
-    def delete(self, key: str) -> Dict[str, Any]:
+    def delete(self, key: str) -> dict[str, Any]:
         return self._http.request("DELETE", "/api/v1/platform/storage/objects/" + key, timeout=15) or {}
 
 
@@ -359,16 +360,16 @@ class _Email:
     """``orvis.email`` — transactional mail (service ``email``). Orvis sends it
     (From "<app> via Orvis", Reply-To the owner) or the owner's own SMTP does."""
 
-    def __init__(self, http: "_Http") -> None:
+    def __init__(self, http: _Http) -> None:
         self._http = http
 
     def send(
         self, to: str, subject: str, *, html: str = "", text: str = "",
-        reply_to: Optional[str] = None, idempotency_key: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        reply_to: str | None = None, idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
         """``{"id", "provider_message_id", "deduped"}``. Pass ``idempotency_key``
         (e.g. ``f"receipt:{order_id}"``) so a retry can never send twice."""
-        body: Dict[str, Any] = {"to": to, "subject": subject, "html": html, "text": text}
+        body: dict[str, Any] = {"to": to, "subject": subject, "html": html, "text": text}
         if reply_to:
             body["reply_to"] = reply_to
         if idempotency_key:
@@ -383,11 +384,11 @@ class _Payments:
     publishable key id. Money settles to the owner and Orvis charges nothing.
     """
 
-    def __init__(self, http: "_Http", client: "Orvis") -> None:
+    def __init__(self, http: _Http, client: Orvis) -> None:
         self._http = http
         self._c = client
 
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> dict[str, Any]:
         """``{"key_id", "currency", "configured", "max_amount_minor"}`` for the widget."""
         return self._http.request("GET", "/api/v1/platform/payments/config", timeout=15) or {}
 
@@ -395,12 +396,12 @@ class _Payments:
         self,
         amount_minor: int,
         *,
-        currency: Optional[str] = None,
-        receipt: Optional[str] = None,
-        notes: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+        currency: str | None = None,
+        receipt: str | None = None,
+        notes: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """Create a Razorpay order. ``amount_minor`` is paise for INR, cents elsewhere."""
-        body: Dict[str, Any] = {"amount_minor": int(amount_minor)}
+        body: dict[str, Any] = {"amount_minor": int(amount_minor)}
         if currency:
             body["currency"] = currency
         if receipt:
@@ -409,7 +410,7 @@ class _Payments:
             body["notes"] = notes
         return self._http.request("POST", "/api/v1/platform/payments/orders", body, timeout=30) or {}
 
-    def verify(self, order_id: str, payment_id: str, signature: str) -> Dict[str, Any]:
+    def verify(self, order_id: str, payment_id: str, signature: str) -> dict[str, Any]:
         """Check the checkout callback. ``{"verified", "paid", "status", …}``;
         only treat the payment as real when BOTH ``verified`` and ``paid``."""
         return self._http.request("POST", "/api/v1/platform/payments/verify", {
@@ -440,7 +441,7 @@ class _Payments:
         if age > tolerance_s:
             return False
         key = hashlib.sha256(self._c.secret_key.strip().encode("utf-8")).hexdigest()
-        expected = hmac.new(key.encode("utf-8"), f"{stamp}.".encode("utf-8") + raw_body, hashlib.sha256)
+        expected = hmac.new(key.encode("utf-8"), f"{stamp}.".encode() + raw_body, hashlib.sha256)
         return hmac.compare_digest(expected.hexdigest(), sent)
 
 
@@ -448,10 +449,10 @@ class Orvis:
     def __init__(
         self,
         *,
-        api_url: Optional[str] = None,
-        secret_key: Optional[str] = None,
-        app_id: Optional[str] = None,
-        services: Optional[str] = None,
+        api_url: str | None = None,
+        secret_key: str | None = None,
+        app_id: str | None = None,
+        services: str | None = None,
         timeout: int = _DEFAULT_TIMEOUT_S,
     ) -> None:
         self.api_url = (api_url or os.environ.get("ORVIS_API_URL") or "").rstrip("/")
@@ -479,7 +480,7 @@ class Orvis:
             raise OrvisError(0, "not_configured", "ORVIS_API_URL missing — run provision-service.py")
         return self.api_url + path
 
-    def health(self) -> Dict[str, Any]:
+    def health(self) -> dict[str, Any]:
         """Unauthenticated platform liveness (used by the verify gate)."""
         req = urllib.request.Request(self.url("/api/v1/platform/health"), headers={"Accept": "application/json"})
         try:

@@ -17,13 +17,12 @@ and gets the owner's sending blocked.
 
 from __future__ import annotations
 
-from typing import Any, Optional
-
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from typing import Any
 
 from auth import current_user
+from fastapi import APIRouter, Depends, HTTPException
 from orvis import OrvisError, orvis
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/email")
 
@@ -52,8 +51,8 @@ def _friendly(exc: OrvisError) -> str:
     return "The email could not be sent. Please try again."
 
 
-def send(to: str, subject: str, *, html: str = "", text: str = "", idempotency_key: Optional[str] = None,
-         reply_to: Optional[str] = None) -> dict[str, Any]:
+def send(to: str, subject: str, *, html: str = "", text: str = "", idempotency_key: str | None = None,
+         reply_to: str | None = None) -> dict[str, Any]:
     """Send one email through Orvis. Raises ``OrvisError``; call from your own routes."""
     if "email" not in orvis.enabled:
         raise OrvisError(503, "service_not_enabled", "email is not enabled for this app")
