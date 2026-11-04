@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+# API responses are JSON and per-user; crawling them wastes bandwidth.
+Disallow: /api/

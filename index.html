@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="en">
+<!-- Hinglish app: the content is Roman-script Hindi + English Excel terms, so
+     screen readers should use the Indian-English voice, not a generic one. -->
+<html lang="hi-IN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,7 +10,8 @@
       name="description"
       content="Basic se Advanced Excel seekho: 32 chapters, practical labs, practice exam, formulas, shortcuts aur Aarohi Excel Saathi."
     />
-    <meta name="theme-color" content="#f6fbf7" />
+    <meta name="theme-color" content="#2e8b57" />
+    <meta name="color-scheme" content="light dark" />
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Excel Master Academy – Excel Practice Course" />
@@ -23,13 +26,23 @@
       content="Basic se Advanced Excel seekho: 32 chapters, practical labs, practice exam, formulas, shortcuts aur Aarohi Excel Saathi."
     />
 
+    <!-- Handwriting font for the lesson notes. Preconnect first so the
+         stylesheet request does not add a DNS/TLS round trip on 3G. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap" rel="stylesheet" />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <p style="font-family: system-ui, sans-serif; padding: 24px">
+        Excel Master Academy chalane ke liye JavaScript on karna zaroori hai. / This practice app needs JavaScript.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

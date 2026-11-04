@@ -1,9 +1,56 @@
 import { useState, type FormEvent } from "react";
 import { Avatar } from "../components/Avatar";
-import { Download, LogOut } from "lucide-react";
+import { Download, LogOut, Trash2 } from "lucide-react";
 import type { Auth } from "../lib/auth";
 import { exportJSON } from "../lib/store";
 import { Button, Card, Field, inputCls } from "../components/ui";
+
+/** Irreversible, so it asks once and spells out what disappears. */
+function DeleteAccountCard({ auth }: { auth: Auth }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function remove() {
+    setBusy(true);
+    setError(null);
+    try {
+      await auth.deleteAccount();
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Account delete nahi hua");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="border-(--color-danger)">
+      <h2 className="font-display font-bold mb-1">Delete account</h2>
+      <p className="text-sm text-(--color-muted) mb-4">
+        Tumhari progress, exam attempts, lab records, certificates aur guest account — sab server se hamesha ke liye mit
+        jayega. Pehle backup export kar sakte ho.
+      </p>
+      {error && (
+        <p role="alert" className="text-sm mb-3 text-(--color-danger)">
+          {error}
+        </p>
+      )}
+      {confirming ? (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="danger" disabled={busy} onClick={() => void remove()}>
+            {busy ? "Delete ho raha hai…" : "Haan, mera account delete karo"}
+          </Button>
+          <Button variant="ghost" disabled={busy} onClick={() => setConfirming(false)}>
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <Button variant="secondary" onClick={() => setConfirming(true)}>
+          <Trash2 size={16} /> Delete my account
+        </Button>
+      )}
+    </Card>
+  );
+}
 
 export function Account({ auth }: { auth: Auth }) {
   const [current, setCurrent] = useState("");
@@ -88,6 +135,7 @@ export function Account({ auth }: { auth: Auth }) {
           {exportMsg && <p role="alert" className="text-sm mb-3 text-(--color-danger)">{exportMsg}</p>}
           <Button variant="secondary" onClick={() => void exportData()}><Download size={16} /> Export backup (JSON)</Button>
         </Card>
+        <DeleteAccountCard auth={auth} />
       </div>
     );
   }
@@ -152,6 +200,8 @@ export function Account({ auth }: { auth: Auth }) {
           </Button>
         </div>
       </Card>
+
+      <DeleteAccountCard auth={auth} />
     </div>
   );
 }

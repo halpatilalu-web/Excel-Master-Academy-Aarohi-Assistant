@@ -6,7 +6,13 @@ import { Card, ProgressBar, Button } from "../components/ui";
 import { DonutChart } from "../components/charts";
 import { StreakBadges } from "../components/StreakBadges";
 
-export function Dashboard({ name, go }: { name: string; go: (v: "chapters" | "exam" | "lab" | "certificate" | "reference") => void }) {
+export function Dashboard({
+  name,
+  go,
+}: {
+  name: string;
+  go: (v: "chapters" | "exam" | "lab" | "certificate" | "reference", chapter?: number) => void;
+}) {
   const { items: prog, loading: progressLoading, error: progressError } = useProgress();
   const { items: exams, loading: examsLoading, error: examsError } = useExams();
   const { items: subs, error: submissionsError } = useSubmissions();
@@ -66,7 +72,12 @@ export function Dashboard({ name, go }: { name: string; go: (v: "chapters" | "ex
             })}
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
-            {next ? <Button onClick={() => go("chapters")}>Chapter {next.n} jaari rakho</Button> : <Button onClick={() => go("exam")}>Final exam do</Button>}
+            {next ? (
+              // Open the chapter the button names, not the chapter list.
+              <Button onClick={() => go("chapters", next.n)}>Chapter {next.n} jaari rakho</Button>
+            ) : (
+              <Button onClick={() => go("exam")}>Final exam do</Button>
+            )}
             <Button variant="secondary" onClick={() => go("lab")}>Practical Lab</Button>
           </div>
         </Card>

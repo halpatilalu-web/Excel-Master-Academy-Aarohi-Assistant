@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Award, Info, Lock, Printer, ShieldCheck } from "lucide-react";
+import { Award, Info, Lock, Printer, ShieldCheck, Trash2 } from "lucide-react";
 import { CHAPTERS } from "../data/chapters";
-import { certFormatValid, certId, useCerts, useExams, useProgress } from "../lib/academy";
+import { certFormatValid, certId, latestCert, useCerts, useExams, useProgress } from "../lib/academy";
 import { Button, Card, Field, inputCls } from "../components/ui";
 
 export function Certificate({ defaultName }: { defaultName: string }) {
   const { items: prog, loading: progressLoading, error: progressError } = useProgress();
   const { items: exams, loading: examsLoading, error: examsError } = useExams();
-  const { items: certs, add } = useCerts();
+  const { items: certs, add, remove } = useCerts();
   const [name, setName] = useState(defaultName);
   const [vid, setVid] = useState("");
   const [formatResult, setFormatResult] = useState<null | boolean>(null);
@@ -17,19 +17,37 @@ export function Certificate({ defaultName }: { defaultName: string }) {
   const done = new Set(prog.map((p) => p.chapter)).size;
   const passed = exams.some((exam) => exam.passed);
   const ready = done === CHAPTERS.length && passed;
-  const cert = certs[0];
+  // Newest by issue date — the server lists by `updated`, which is not the same
+  // thing once a student has issued more than one certificate.
+  const cert = latestCert(certs);
   const loading = progressLoading || examsLoading;
   const loadError = progressError || examsError;
 
-  async function generate() {
+  async function issue(displayName: string) {
     setBusy(true);
     setSaveError(null);
     try {
-      const displayName = name.trim() || defaultName;
+      const clean = displayName.trim() || defaultName;
       const date = new Date().toISOString().slice(0, 10);
-      await add({ name: displayName, date, certId: certId(displayName, date) });
+      await add({ name: clean, date, certId: certId(clean, date) });
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Certificate save nahi hua");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function replaceCurrent() {
+    if (!cert) return;
+    setBusy(true);
+    setSaveError(null);
+    try {
+      const clean = name.trim() || cert.name;
+      const date = new Date().toISOString().slice(0, 10);
+      await remove(cert.id);
+      await add({ name: clean, date, certId: certId(clean, date) });
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Certificate update nahi hua");
     } finally {
       setBusy(false);
     }
@@ -80,7 +98,7 @@ export function Certificate({ defaultName }: { defaultName: string }) {
               {saveError}
             </p>
           )}
-          <Button disabled={busy} onClick={() => void generate()}>
+          <Button disabled={busy} onClick={() => void issue(name)}>
             <Award size={16} /> {busy ? "Ban raha hai…" : "Practice certificate banao"}
           </Button>
         </Card>
@@ -116,9 +134,22 @@ export function Certificate({ defaultName }: { defaultName: string }) {
               </div>
             </div>
           </div>
-          <Button onClick={() => window.print()}>
-            <Printer size={16} /> Print / PDF save
-          </Button>
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <Button onClick={() => window.print()}>
+              <Printer size={16} /> Print / PDF save
+            </Button>
+            <Button variant="secondary" onClick={() => void replaceCurrent()} disabled={busy}>
+              <Award size={16} /> Naam theek karke dobara banao
+            </Button>
+            <Button variant="ghost" onClick={() => void remove(cert.id)}>
+              <Trash2 size={16} /> Delete
+            </Button>
+          </div>
+          {saveError && (
+            <p role="alert" className="text-sm text-(--color-danger)">
+              {saveError}
+            </p>
+          )}
         </>
       )}
 
@@ -132,6 +163,7 @@ export function Certificate({ defaultName }: { defaultName: string }) {
         <div className="flex gap-2 mt-3">
           <input
             className={inputCls}
+            aria-label="Certificate ID"
             placeholder="EMA-2026-XXXXXXXX-00"
             value={vid}
             onChange={(event) => {
