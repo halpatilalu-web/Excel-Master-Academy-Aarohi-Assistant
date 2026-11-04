@@ -8,8 +8,10 @@
  *   // in a component:
  *   const { items, loading, add, update, remove } = useTransactions();
  *
- * Writes are optimistic and roll back on failure. `id`, `_created`,
- * `_updated` are managed by the server.
+ * One cache per collection, shared by every component that asks for it: the
+ * Dashboard used to fetch `progress` and `exams` twice each on every visit
+ * because it and StreakBadges both called the hook. Writes are optimistic and
+ * roll back on failure; `id`, `_created`, `_updated` are managed by the server.
  */
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "./api";
@@ -20,87 +22,149 @@ export interface Doc {
   _updated?: number;
 }
 
+interface State<T> {
+  items: T[];
+  loading: boolean;
+  error: string | null;
+}
+
+const states = new Map<string, State<unknown>>();
+const listeners = new Map<string, Set<() => void>>();
+const inflight = new Map<string, Promise<void>>();
+
+function stateOf<T>(key: string): State<T> {
+  let state = states.get(key) as State<T> | undefined;
+  if (!state) {
+    state = { items: [], loading: true, error: null };
+    states.set(key, state as State<unknown>);
+  }
+  return state;
+}
+
+function setState<T>(key: string, patch: Partial<State<T>>) {
+  const next = { ...stateOf<T>(key), ...patch };
+  states.set(key, next as State<unknown>);
+  listeners.get(key)?.forEach((listener) => listener());
+}
+
+function subscribe(key: string, listener: () => void): () => void {
+  let set = listeners.get(key);
+  if (!set) {
+    set = new Set();
+    listeners.set(key, set);
+  }
+  set.add(listener);
+  return () => {
+    set!.delete(listener);
+    if (!set!.size) listeners.delete(key);
+  };
+}
+
+/** Drop every cached collection (sign-out, account switch, test reset). */
+export function clearStoreCache(): void {
+  for (const key of states.keys()) states.delete(key);
+  inflight.clear();
+  for (const set of listeners.values()) set.forEach((listener) => listener());
+}
+
+async function refreshKey(key: string, path: string): Promise<void> {
+  const running = inflight.get(key);
+  if (running) return running; // de-duplicate concurrent refreshes
+  const task = (async () => {
+    try {
+      setState<unknown>(key, { items: await api.get<unknown[]>(path), error: null });
+    } catch (error) {
+      setState<unknown>(key, { error: (error as Error).message });
+    } finally {
+      setState<unknown>(key, { loading: false });
+      inflight.delete(key);
+    }
+  })();
+  inflight.set(key, task);
+  return task;
+}
+
 export function createStore<T extends Doc>(collection: string) {
   const base = `/api/c/${encodeURIComponent(collection)}`;
+  const key = collection;
 
   return function useCollection() {
-    const [items, setItems] = useState<T[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    const refresh = useCallback(async () => {
-      try {
-        setItems(await api.get<T[]>(base));
-        setError(null);
-      } catch (e) {
-        setError((e as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    }, []);
+    const [snapshot, setSnapshot] = useState<State<T>>(() => stateOf<T>(key));
 
     useEffect(() => {
-      void refresh();
-      // Re-fetch after the user signs in (AuthGate fires this).
-      const onAuth = () => void refresh();
+      setSnapshot(stateOf<T>(key));
+      const off = subscribe(key, () => setSnapshot(stateOf<T>(key)));
+      void refreshKey(key, base);
+      // Re-fetch after a different user signs in.
+      const onAuth = () => void refreshKey(key, base);
       window.addEventListener("auth:signed-in", onAuth);
-      return () => window.removeEventListener("auth:signed-in", onAuth);
-    }, [refresh]);
-
-    const add = useCallback(async (doc: Omit<T, "id" | "_created" | "_updated"> & { id?: string }) => {
-      const created = await api.post<T>(base, doc);
-      setItems((cur) => [created, ...cur]);
-      return created;
+      return () => {
+        off();
+        window.removeEventListener("auth:signed-in", onAuth);
+      };
     }, []);
+
+    const refresh = useCallback(() => refreshKey(key, base), []);
+
+    const add = useCallback(
+      async (doc: Omit<T, "id" | "_created" | "_updated"> & { id?: string }) => {
+        const created = await api.post<T>(base, doc);
+        setState<T>(key, { items: [created, ...stateOf<T>(key).items] });
+        return created;
+      },
+      [],
+    );
 
     const update = useCallback(
       async (id: string, patch: Partial<T>) => {
-        const current = items.find((d) => d.id === id);
+        // Read the CURRENT list, not the list from the render that created this
+        // callback: two fast clicks used to resurrect a stale row.
+        const current = stateOf<T>(key).items.find((doc) => doc.id === id);
         if (!current) throw new Error(`no ${collection} document with id ${id}`);
         const merged = { ...current, ...patch, id } as T;
-        setItems((cur) => cur.map((d) => (d.id === id ? merged : d)));
+        setState<T>(key, { items: stateOf<T>(key).items.map((doc) => (doc.id === id ? merged : doc)) });
         try {
           const saved = await api.put<T>(`${base}/${encodeURIComponent(id)}`, merged);
-          setItems((cur) => cur.map((d) => (d.id === id ? saved : d)));
+          setState<T>(key, { items: stateOf<T>(key).items.map((doc) => (doc.id === id ? saved : doc)) });
           return saved;
-        } catch (e) {
-          setItems((cur) => cur.map((d) => (d.id === id ? current : d)));
-          throw e;
+        } catch (error) {
+          setState<T>(key, { items: stateOf<T>(key).items.map((doc) => (doc.id === id ? current : doc)) });
+          throw error;
         }
       },
-      [items],
+      [],
     );
 
-    const remove = useCallback(
-      async (id: string) => {
-        const prev = items;
-        setItems((cur) => cur.filter((d) => d.id !== id));
-        try {
-          await api.del(`${base}/${encodeURIComponent(id)}`);
-        } catch (e) {
-          setItems(prev);
-          throw e;
-        }
-      },
-      [items],
-    );
+    const remove = useCallback(async (id: string) => {
+      const previous = stateOf<T>(key).items;
+      setState<T>(key, { items: previous.filter((doc) => doc.id !== id) });
+      try {
+        await api.del(`${base}/${encodeURIComponent(id)}`);
+      } catch (error) {
+        // Restore the removed row without clobbering unrelated changes.
+        const after = stateOf<T>(key).items;
+        const restored = previous.filter((doc) => !after.some((current) => current.id === doc.id));
+        setState<T>(key, { items: [...after, ...restored] });
+        throw error;
+      }
+    }, []);
 
     const upsert = useCallback(
       async (doc: T) => {
-        if (items.some((d) => d.id === doc.id)) return update(doc.id, doc);
+        if (stateOf<T>(key).items.some((item) => item.id === doc.id)) return update(doc.id, doc);
         try {
           return await add(doc);
         } catch (error) {
           if (!(error instanceof ApiError) || error.status !== 409) throw error;
           const saved = await api.put<T>(`${base}/${encodeURIComponent(doc.id)}`, doc);
-          setItems((cur) => [saved, ...cur.filter((d) => d.id !== doc.id)]);
+          setState<T>(key, { items: [saved, ...stateOf<T>(key).items.filter((item) => item.id !== doc.id)] });
           return saved;
         }
       },
-      [items, add, update],
+      [add, update],
     );
 
-    return { items, loading, error, refresh, add, update, remove, upsert };
+    return { items: snapshot.items, loading: snapshot.loading, error: snapshot.error, refresh, add, update, remove, upsert };
   };
 }
 

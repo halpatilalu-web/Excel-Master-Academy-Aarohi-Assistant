@@ -34,14 +34,20 @@ export function Lab() {
       let feedback =
         "Practice record save ho gaya. Is version mein file ki content server par upload/review nahi hoti — apni file apne paas rakho.";
 
-      if (ext === "csv") {
-        const text = (await file.text()).toLowerCase();
-        const missing = need.filter((word) => !text.includes(word.toLowerCase()));
+      if (ext === "csv" && need.length > 0) {
+        // Only the HEADER row is checked. Scanning the whole file meant any
+        // stray mention in a data row counted as a correct column name.
+        const headerLine = (await file.text()).split(/\r?\n/, 1)[0] ?? "";
+        const header = headerLine.toLowerCase();
+        const missing = need.filter((word) => !header.includes(word.toLowerCase()));
         status = "Auto-checked";
-        score = need.length ? Math.round(((need.length - missing.length) / need.length) * 100) : 100;
+        score = Math.round(((need.length - missing.length) / need.length) * 100);
         feedback = missing.length
-          ? `Basic check: yeh zaroori naam/column nahi mila — ${missing.join(", ")}.`
-          : "Basic check: sab zaroori naam/column mil gaye. Values/formulas khud bhi verify karo.";
+          ? `Basic check (sirf header row): yeh zaroori column nahi mila — ${missing.join(", ")}.`
+          : "Basic check (sirf header row): sab zaroori column mil gaye. Values/formulas khud bhi verify karo.";
+      } else if (ext === "csv") {
+        feedback =
+          "Is lab mein auto-check nahi hai — practice record save ho gaya. Apni workbook apne paas rakho.";
       }
 
       await add({

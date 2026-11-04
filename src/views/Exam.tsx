@@ -1,126 +1,123 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Clock, RotateCcw } from "lucide-react";
-import { CHAPTERS, QUESTION_BANK, type ExamQ, type Level } from "../data/chapters";
-import { EXTRA_QUESTIONS } from "../data/questions";
-import { PASS_PCT, useExams } from "../lib/academy";
+import { CHAPTERS } from "../data/chapters";
+import { useExams } from "../lib/academy";
+import {
+  DURATION_SECONDS,
+  QUESTION_COUNT,
+  buildExam,
+  gradeExam,
+  mmss,
+  PASS_PCT,
+  type ExamQuestion,
+} from "../lib/exam";
 import { Button, Card, Pill, ProgressBar } from "../components/ui";
 
-const QUESTION_COUNT = 20;
-const DURATION_SECONDS = 20 * 60;
-const LEVEL_QUOTAS: Record<Level, number> = { Basic: 6, Intermediate: 8, Advanced: 6 };
+const STORAGE_KEY = "ema_exam_in_progress_v1";
+const MAX_ATTEMPTS_SHOWN = 8;
 
-interface Q extends ExamQ {
-  opts: { t: string; ok: boolean }[];
+interface Draft {
+  qs: ExamQuestion[];
+  ans: number[];
+  endAt: number;
 }
 
-function shuffle<T>(items: readonly T[]): T[] {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
+function loadDraft(): Draft | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Draft;
+    if (!Array.isArray(parsed?.qs) || !parsed.qs.length || !Array.isArray(parsed.ans)) return null;
+    if (!Number.isFinite(parsed.endAt) || parsed.endAt <= Date.now()) return null;
+    return parsed;
+  } catch {
+    return null;
   }
-  return out;
 }
 
-function uniqueQuestions(): ExamQ[] {
-  const seen = new Map<string, ExamQ>();
-  for (const question of [...QUESTION_BANK, ...EXTRA_QUESTIONS]) {
-    const key = question.q.trim().toLowerCase().replace(/\s+/g, " ");
-    if (!seen.has(key)) seen.set(key, question);
+function saveDraft(draft: Draft | null) {
+  try {
+    if (draft) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    else sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* private mode / quota — the exam still works, it just cannot be resumed */
   }
-  return [...seen.values()];
 }
-
-function build(): Q[] {
-  const bank = uniqueQuestions();
-  const selected: ExamQ[] = [];
-  const leftovers: ExamQ[] = [];
-
-  (Object.keys(LEVEL_QUOTAS) as Level[]).forEach((level) => {
-    const pool = shuffle(bank.filter((q) => q.level === level));
-    selected.push(...pool.slice(0, LEVEL_QUOTAS[level]));
-    leftovers.push(...pool.slice(LEVEL_QUOTAS[level]));
-  });
-
-  if (selected.length < QUESTION_COUNT) {
-    selected.push(...shuffle(leftovers).slice(0, QUESTION_COUNT - selected.length));
-  }
-
-  return shuffle(selected)
-    .slice(0, QUESTION_COUNT)
-    .map((q) => ({ ...q, opts: shuffle(q.o.map((t, i) => ({ t, ok: i === q.a }))) }));
-}
-
-const mmss = (seconds: number) =>
-  `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 
 export function Exam() {
   const { items: past, loading, error: loadError, add } = useExams();
-  const [qs, setQs] = useState<Q[] | null>(null);
+  const [qs, setQs] = useState<ExamQuestion[] | null>(null);
   const [ans, setAns] = useState<number[]>([]);
   const [index, setIndex] = useState(0);
   const [left, setLeft] = useState(DURATION_SECONDS);
-  const [res, setRes] = useState<{
-    score: number;
-    byLevel: Record<string, [number, number]>;
-    seconds: number;
-  } | null>(null);
+  const [res, setRes] = useState<{ score: number; byLevel: Record<string, [number, number]>; seconds: number } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [resumed, setResumed] = useState(false);
   const finishedRef = useRef(false);
   const endAtRef = useRef(0);
+  const ansRef = useRef<number[]>([]);
+  ansRef.current = ans;
 
   const total = qs?.length ?? QUESTION_COUNT;
 
-  function start() {
-    const built = build();
-    setQs(built);
-    setAns(Array(built.length).fill(-1));
+  function start(questions = buildExam()) {
+    finishedRef.current = false;
+    endAtRef.current = Date.now() + DURATION_SECONDS * 1000;
+    setQs(questions);
+    setAns(Array(questions.length).fill(-1));
     setIndex(0);
     setLeft(DURATION_SECONDS);
     setRes(null);
     setSaveError(null);
-    finishedRef.current = false;
-    endAtRef.current = Date.now() + DURATION_SECONDS * 1000;
+    setResumed(false);
+    saveDraft({ qs: questions, ans: Array(questions.length).fill(-1), endAt: endAtRef.current });
   }
+
+  // Resume an attempt that a reload/tab-kill interrupted (school devices do that
+  // a lot) instead of silently losing twenty minutes of work.
+  useEffect(() => {
+    const draft = loadDraft();
+    if (!draft) return;
+    finishedRef.current = false;
+    endAtRef.current = draft.endAt;
+    setQs(draft.qs);
+    setAns(draft.ans);
+    setLeft(Math.max(0, Math.ceil((draft.endAt - Date.now()) / 1000)));
+    setResumed(true);
+  }, []);
+
+  // Persist answers as the student moves through the paper.
+  useEffect(() => {
+    if (!qs || res) return;
+    saveDraft({ qs, ans, endAt: endAtRef.current });
+  }, [qs, ans, res]);
 
   const finish = useCallback(() => {
     if (finishedRef.current || !qs) return;
     finishedRef.current = true;
 
-    const byLevel: Record<string, [number, number]> = {};
-    let score = 0;
-    qs.forEach((question, k) => {
-      const ok = ans[k] >= 0 && question.opts[ans[k]]?.ok;
-      if (ok) score++;
-      byLevel[question.level] = [
-        (byLevel[question.level]?.[0] ?? 0) + (ok ? 1 : 0),
-        (byLevel[question.level]?.[1] ?? 0) + 1,
-      ];
-    });
-
+    const outcome = gradeExam(qs, ansRef.current);
     const remaining = Math.max(0, Math.ceil((endAtRef.current - Date.now()) / 1000));
     const seconds = Math.min(DURATION_SECONDS, Math.max(0, DURATION_SECONDS - remaining));
-    const pct = Math.round((score / qs.length) * 100);
 
-    setRes({ score, byLevel, seconds });
+    setRes({ score: outcome.score, byLevel: outcome.byLevel, seconds });
+    saveDraft(null);
     add({
-      score,
-      total: qs.length,
-      pct,
-      passed: pct >= PASS_PCT,
+      score: outcome.score,
+      total: outcome.total,
+      pct: outcome.pct,
+      passed: outcome.passed,
       date: new Date().toISOString(),
       seconds,
-      byLevel,
+      byLevel: outcome.byLevel,
     }).catch((error: unknown) => {
       setSaveError(error instanceof Error ? error.message : "Result save nahi hua");
     });
-  }, [add, ans, qs]);
+  }, [add, qs]);
 
   useEffect(() => {
     if (!qs || res) return;
-    const tick = () => {
-      setLeft(Math.max(0, Math.ceil((endAtRef.current - Date.now()) / 1000)));
-    };
+    const tick = () => setLeft(Math.max(0, Math.ceil((endAtRef.current - Date.now()) / 1000)));
     tick();
     const timer = setInterval(tick, 250);
     return () => clearInterval(timer);
@@ -140,8 +137,9 @@ export function Exam() {
             <li>Har baar duplicate-free random sawal aur random options</li>
             <li>Time: 20 minute — khatam hote hi auto-submit</li>
             <li>Practice pass ke liye {PASS_PCT}% chahiye</li>
+            <li>Page refresh ho jaye to attempt wahin se resume hota hai</li>
           </ul>
-          <Button className="mt-4" onClick={start}>
+          <Button className="mt-4" onClick={() => start()}>
             Exam shuru karo
           </Button>
         </Card>
@@ -157,7 +155,7 @@ export function Exam() {
           <Card>
             <h2 className="font-display font-bold mb-3">Pichhle attempts</h2>
             <div className="divide-y divide-(--color-border)">
-              {past.map((attempt) => (
+              {past.slice(0, MAX_ATTEMPTS_SHOWN).map((attempt) => (
                 <div key={attempt.id} className="flex items-center justify-between py-2 text-sm">
                   <span>{new Date(attempt.date).toLocaleString()}</span>
                   <span className="flex items-center gap-2">
@@ -167,6 +165,11 @@ export function Exam() {
                 </div>
               ))}
             </div>
+            {past.length > MAX_ATTEMPTS_SHOWN && (
+              <p className="text-xs text-(--color-muted) mt-2">
+                Sirf aakhri {MAX_ATTEMPTS_SHOWN} attempts dikh rahe hain ({past.length} total).
+              </p>
+            )}
           </Card>
         )}
       </div>
@@ -174,13 +177,12 @@ export function Exam() {
   }
 
   if (res) {
-    const pct = Math.round((res.score / total) * 100);
-    const passed = pct >= PASS_PCT;
+    const outcome = gradeExam(qs, ans);
     return (
       <div className="space-y-5 max-w-3xl">
         <Card className="text-center">
-          <Pill tone={passed ? "good" : "danger"}>{passed ? "PASS" : "FAIL"}</Pill>
-          <div className="font-display text-5xl font-extrabold mt-3">{pct}%</div>
+          <Pill tone={outcome.passed ? "good" : "danger"}>{outcome.passed ? "PASS" : "FAIL"}</Pill>
+          <div className="font-display text-5xl font-extrabold mt-3">{outcome.pct}%</div>
           <p className="text-sm text-(--color-muted)">
             {res.score}/{total} sahi · samay {mmss(res.seconds)}
           </p>
@@ -202,7 +204,7 @@ export function Exam() {
               </div>
             ))}
           </div>
-          <Button className="mt-5" onClick={start}>
+          <Button className="mt-5" onClick={() => start()}>
             <RotateCcw size={16} /> Dobara try karo
           </Button>
         </Card>
@@ -241,22 +243,30 @@ export function Exam() {
   const question = qs[index];
   return (
     <div className="space-y-4 max-w-3xl">
-      <div className="flex items-center justify-between sticky top-0 bg-(--color-canvas) py-2 z-10">
+      <div className="flex items-center justify-between sticky top-16 md:top-0 bg-(--color-canvas) py-2 z-10">
         <span className="text-sm font-semibold">
           Sawal {index + 1}/{total}
         </span>
-        <span className={`flex items-center gap-1.5 font-mono font-bold ${left < 120 ? "text-red-600" : ""}`}>
-          <Clock size={16} /> {mmss(Math.max(0, left))}
+        <span className={`flex items-center gap-1.5 font-mono font-bold ${left < 120 ? "text-red-600" : ""}`} aria-live="off">
+          <Clock size={16} /> {mmss(left)}
         </span>
       </div>
 
+      {resumed && (
+        <p role="status" className="text-sm rounded-xl border border-amber-200 bg-amber-50 text-amber-800 px-4 py-2">
+          Pichhla attempt resume ho gaya — answers wahin se hain jahan tumne chhoda tha.
+        </p>
+      )}
+
       <Card>
         <p className="font-semibold">{question.q}</p>
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 space-y-2" role="group" aria-label={`Sawal ${index + 1} ke options`}>
           {question.opts.map((option, k) => (
             <button
               key={k}
-              onClick={() => setAns(ans.map((answer, j) => (j === index ? k : answer)))}
+              type="button"
+              aria-pressed={ans[index] === k}
+              onClick={() => setAns((current) => current.map((answer, j) => (j === index ? k : answer)))}
               className={`w-full text-left rounded-xl border px-4 py-3 text-sm ${
                 ans[index] === k
                   ? "border-(--color-accent) bg-(--color-accent-soft) font-semibold"
@@ -273,6 +283,9 @@ export function Exam() {
         {qs.map((_, k) => (
           <button
             key={k}
+            type="button"
+            aria-label={`Sawal ${k + 1}`}
+            aria-current={k === index ? "true" : undefined}
             onClick={() => setIndex(k)}
             className={`w-8 h-8 rounded-lg text-xs font-semibold ${
               k === index

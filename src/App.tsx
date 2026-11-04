@@ -24,7 +24,7 @@ import { SearchBox, type Hit } from "./components/SearchBox";
 import { CHAPTERS } from "./data/chapters";
 import { useAuth } from "./lib/auth";
 import { useDark } from "./lib/prefs";
-import { Aarohi } from "./views/Aarohi";
+
 import { Account } from "./views/Account";
 import { Certificate } from "./views/Certificate";
 import { Chapters } from "./views/Chapters";
@@ -32,9 +32,17 @@ import { Dashboard } from "./views/Dashboard";
 import { Exam } from "./views/Exam";
 import { ExcelNotes } from "./views/ExcelNotes";
 import { Lab } from "./views/Lab";
-import { Reference, type RefTab } from "./views/Reference";
+import type { RefTab } from "./views/Reference";
 
+// Route-level splitting: these three pull in the biggest data files (formulas,
+// shortcuts, VBA, the offline tutor) and are not needed for the dashboard.
 const ChartsDash = lazy(() => import("./views/ChartsDash"));
+const Reference = lazy(() => import("./views/Reference").then((m) => ({ default: m.Reference })));
+const Aarohi = lazy(() => import("./views/Aarohi").then((m) => ({ default: m.Aarohi })));
+
+function ViewLoading() {
+  return <p className="text-(--color-muted) p-4">Loading…</p>;
+}
 
 const APP_NAME = "Excel Master Academy";
 
@@ -179,12 +187,12 @@ export default function App() {
               {view === "home" && (
                 <Dashboard
                   name={displayName}
-                  go={(next) => {
+                  go={(next, chapterNumber) => {
                     if (next === "reference") {
                       setRefTab("shortcuts");
                       setRefQuery("");
                     }
-                    navigate(next);
+                    navigate(next, chapterNumber ?? null);
                   }}
                 />
               )}
@@ -197,20 +205,26 @@ export default function App() {
               {view === "lab" && <Lab />}
               {view === "exam" && <Exam />}
               {view === "reference" && (
-                <Reference
-                  tab={refTab}
-                  onTab={setRefTab}
-                  initialQuery={refQuery}
-                  go={(chapterNumber) => navigate("chapters", chapterNumber ?? null)}
-                />
+                <Suspense fallback={<ViewLoading />}>
+                  <Reference
+                    tab={refTab}
+                    onTab={setRefTab}
+                    initialQuery={refQuery}
+                    go={(chapterNumber) => navigate("chapters", chapterNumber ?? null)}
+                  />
+                </Suspense>
               )}
               {view === "charts" && (
-                <Suspense fallback={<p className="text-(--color-muted)">Loading…</p>}>
+                <Suspense fallback={<ViewLoading />}>
                   <ChartsDash />
                 </Suspense>
               )}
               {view === "notes" && <ExcelNotes />}
-              {view === "aarohi" && <Aarohi />}
+              {view === "aarohi" && (
+                <Suspense fallback={<ViewLoading />}>
+                  <Aarohi />
+                </Suspense>
+              )}
               {view === "certificate" && <Certificate defaultName={displayName} />}
               {view === "account" && <Account auth={auth} />}
             </motion.div>

@@ -14,11 +14,10 @@ from __future__ import annotations
 import secrets
 from urllib.parse import quote, urlencode, urlparse
 
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import RedirectResponse
-
 import auth as auth_mod
 from db import db
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from orvis import OrvisError, orvis
 
 router = APIRouter(prefix="/api/auth/oauth")
@@ -75,12 +74,18 @@ def callback(request: Request, orvis_code: str = "", state: str = "", orvis_erro
     email = str(user.get("email") or "").strip().lower()
     if not email:
         return fail("no_email")
-    # Accounts are linked by email, so never accept an explicitly unverified one.
-    if user.get("email_verified") is False:
+    # Accounts are linked by email, so only a claim that says "verified" counts.
+    # (`is False` used to let a provider that omits the flag through.)
+    if user.get("email_verified") is not True:
         return fail("email_not_verified")
     resp = RedirectResponse(return_to, status_code=302)
-    with db() as conn:
-        uid = auth_mod.login_external(conn, email, str(user.get("name") or ""), "google", str(user.get("picture") or ""))
-        auth_mod.start_session(conn, resp, request, uid)
+    try:
+        with db() as conn:
+            uid = auth_mod.login_external(conn, email, str(user.get("name") or ""), "google", str(user.get("picture") or ""))
+            auth_mod.start_session(conn, resp, request, uid)
+    except auth_mod.ExternalAccountExists:
+        # An email/password account already owns this address. Linking silently
+        # would hand one side control of the other's data.
+        return fail("account_exists")
     resp.delete_cookie(STATE_COOKIE, path="/api/auth/oauth")
     return resp

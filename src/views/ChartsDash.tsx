@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Download, RotateCcw } from "lucide-react";
 import { CHARTS, type ChartInfo } from "../data/charts";
+import { downloadText } from "../data/labs";
 import { DASHBOARDS, DASH_PARTS, DASH_RULES, type DashTemplate } from "../data/dashboards";
 import { DemoChart } from "../components/DemoChart";
 import { CountUp } from "../components/CountUp";
@@ -33,13 +34,19 @@ function ChartCard({ c }: { c: ChartInfo }) {
   );
 }
 
-async function download(t: DashTemplate) {
-  const X = await import("xlsx");
-  const ws = X.utils.aoa_to_sheet([t.headers, ...t.rows]);
-  ws["!cols"] = t.headers.map(() => ({ wch: 16 }));
-  const wb = X.utils.book_new();
-  X.utils.book_append_sheet(wb, ws, "Data");
-  X.writeFile(wb, `${t.id}-practice-data.xlsx`);
+const csvCell = (value: string | number) => {
+  const text = String(value);
+  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+};
+
+/**
+ * Practice data as CSV. This used to pull in `xlsx` (429 kB, two high-severity
+ * advisories with no published fix) just to write one sheet; Excel opens CSV
+ * natively, so the dependency is gone.
+ */
+function download(t: DashTemplate) {
+  const csv = [t.headers, ...t.rows].map((row) => row.map(csvCell).join(",")).join("\n");
+  downloadText(`${t.id}-practice-data.csv`, csv);
 }
 
 function Template({ t }: { t: DashTemplate }) {
@@ -70,7 +77,7 @@ function Template({ t }: { t: DashTemplate }) {
       </div>
       <h4 className="font-semibold mt-4 mb-1">Steps</h4>
       <ol className="text-sm list-decimal pl-5 space-y-1 text-(--color-muted)">{t.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
-      <Button className="mt-4" onClick={() => void download(t)}><Download size={16} /> Sample .xlsx download</Button>
+      <Button className="mt-4" onClick={() => download(t)}><Download size={16} /> Sample .csv download</Button>
     </Card>
   );
 }
@@ -98,7 +105,7 @@ export default function ChartsDash() {
             <div className="grid sm:grid-cols-2 gap-4">{DASH_PARTS.map((p) => <Card key={p.t}><h3 className="font-bold mb-1">{p.t}</h3><p className="text-sm text-(--color-muted)">{p.d}</p></Card>)}</div>
           </div>}
           {tab === "templates" && <div className="space-y-5">{DASHBOARDS.map((t) => <Template key={t.id} t={t} />)}</div>}
-          {tab === "practice" && <div className="grid sm:grid-cols-2 gap-4">{DASHBOARDS.map((t) => <Card key={t.id}><h3 className="font-bold">{t.emoji} {t.name}</h3><p className="text-xs text-(--color-muted) my-2">{t.rows.length} rows · {t.headers.join(", ")}</p><Button variant="secondary" onClick={() => void download(t)}><Download size={16} /> Download .xlsx</Button></Card>)}</div>}
+          {tab === "practice" && <div className="grid sm:grid-cols-2 gap-4">{DASHBOARDS.map((t) => <Card key={t.id}><h3 className="font-bold">{t.emoji} {t.name}</h3><p className="text-xs text-(--color-muted) my-2">{t.rows.length} rows · {t.headers.join(", ")}</p><Button variant="secondary" onClick={() => download(t)}><Download size={16} /> Download .csv</Button></Card>)}</div>}
         </motion.div>
       </AnimatePresence>
     </div>

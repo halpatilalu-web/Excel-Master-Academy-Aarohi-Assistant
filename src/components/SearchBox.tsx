@@ -35,7 +35,12 @@ export function SearchBox({ open, onClose, onPick }: { open: boolean; onClose: (
           <motion.div initial={{ y: -20, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: -20 }} onClick={(e) => e.stopPropagation()} className="w-full max-w-xl bg-(--color-surface) border border-(--color-border) rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex items-center gap-2 px-4 border-b border-(--color-border)">
               <Search size={18} className="text-(--color-muted)" />
-              <input ref={ref} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Formula, shortcut ya chapter dhoondhein…" className="flex-1 bg-transparent py-3.5 text-sm outline-none" />
+              <input
+                ref={ref}
+                aria-label="Formula, shortcut ya chapter dhoondhein"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Formula, shortcut ya chapter dhoondhein…" className="flex-1 bg-transparent py-3.5 text-sm outline-none" />
               <kbd className="text-xs text-(--color-muted)">Esc</kbd>
             </div>
             <div className="max-h-96 overflow-y-auto">

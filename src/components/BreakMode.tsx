@@ -14,9 +14,12 @@ export function BreakMode({ open, onDone }: { open: boolean; onDone: () => void 
   const [hero, setHero] = useState(0);
   const [left, setLeft] = useState(BREAK_SECONDS);
   const endAt = useRef(0);
+  const doneRef = useRef<HTMLButtonElement | null>(null);
+  const returnFocusTo = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    returnFocusTo.current = document.activeElement as HTMLElement | null;
     setHero(Math.floor(Math.random() * HEROES.length));
     endAt.current = Date.now() + BREAK_SECONDS * 1000;
     setLeft(BREAK_SECONDS);
@@ -28,8 +31,14 @@ export function BreakMode({ open, onDone }: { open: boolean; onDone: () => void 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onDone();
     };
+    const focusTimer = setTimeout(() => doneRef.current?.focus(), 50);
     addEventListener("keydown", onKey);
-    return () => { clearInterval(id); removeEventListener("keydown", onKey); };
+    return () => {
+      clearInterval(id);
+      removeEventListener("keydown", onKey);
+      clearTimeout(focusTimer);
+      returnFocusTo.current?.focus?.();
+    };
   }, [open, onDone]);
 
   const h = HEROES[hero];
@@ -38,17 +47,22 @@ export function BreakMode({ open, onDone }: { open: boolean; onDone: () => void 
   return (
     <AnimatePresence>
       {open && (
-        <motion.div role="dialog" aria-modal="true" className={`fixed inset-0 z-[100] bg-gradient-to-br ${h.bg} text-white flex flex-col items-center justify-center p-6 text-center overflow-hidden select-none`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="break-title"
+ className={`fixed inset-0 z-[100] bg-gradient-to-br ${h.bg} text-white flex flex-col items-center justify-center p-6 text-center overflow-hidden select-none`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           {Array.from({ length: 10 }, (_, i) => (
             <motion.span key={i} className="absolute text-3xl opacity-40" style={{ left: `${(i * 11) % 95}%` }} initial={{ y: "110vh" }} animate={{ y: "-20vh", rotate: 360 }} transition={{ repeat: Infinity, duration: 7 + (i % 4) * 2, delay: i * 0.6, ease: "linear" }}>{h.side[i % 3]}</motion.span>
           ))}
-          <p className="font-display font-extrabold text-xl mb-4 relative">😴 Break Time — {h.name}</p>
+          <p id="break-title" className="font-display font-extrabold text-xl mb-4 relative">😴 Break Time — {h.name}</p>
           <motion.img src={`/break/${h.id}.jpg`} alt={h.name} className="w-56 h-56 sm:w-72 sm:h-72 rounded-3xl object-cover shadow-2xl relative border-4 border-white/70" animate={{ y: [0, -14, 0], rotate: [-2, 2, -2] }} transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }} />
           <p className="mt-6 max-w-md text-lg relative">{h.line}</p>
           <p className="font-display font-extrabold text-6xl mt-4 tabular-nums relative">{mm}:{ss}</p>
           <div className="w-64 h-2 rounded-full bg-white/25 mt-3 overflow-hidden relative"><div className="h-full bg-white transition-all" style={{ width: `${pct}%` }} /></div>
           <motion.p key={Math.floor(left / 30)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-5 text-sm max-w-sm relative">{TIPS[Math.floor(left / 30) % TIPS.length]}</motion.p>
           <button
+            ref={doneRef}
             onClick={onDone}
             className="mt-6 relative bg-white text-black font-bold rounded-2xl px-6 py-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/70"
           >

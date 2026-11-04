@@ -7,6 +7,10 @@ Works anywhere. Configure ONE of these in server/.env:
   LLM_BASE_URL=https://api.openai.com/v1  (optional, default shown)
   LLM_MODEL=gpt-4o-mini                   (optional)
 If LLM_API_KEY is missing, falls back to the Orvis platform AI when available.
+
+Cost control: this endpoint spends real money per call, and guest accounts are
+free to create — so it is limited per user AND per IP, with a global ceiling,
+and the total conversation size is capped before anything leaves the process.
 """
 from __future__ import annotations
 
@@ -15,12 +19,11 @@ import os
 import time
 import urllib.request
 from collections import defaultdict, deque
-from typing import List, Literal
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from auth import client_ip, current_user
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-
-from auth import current_user
 
 router = APIRouter(prefix="/api")
 
@@ -45,26 +48,47 @@ class Msg(BaseModel):
 
 
 class Body(BaseModel):
-    messages: List[Msg] = Field(min_length=1, max_length=20)
+    messages: list[Msg] = Field(min_length=1, max_length=20)
 
 
-_MAX_REQUESTS_PER_MINUTE = 20
+_MAX_REQUESTS_PER_MINUTE = 20      # per signed-in user (a guest counts as one)
+_MAX_REQUESTS_PER_IP = 40          # per client IP, across all its guests
+_MAX_REQUESTS_GLOBAL = 120         # whole process, all users
+_MAX_TOTAL_CHARS = 24_000          # what actually gets sent to the model
 _requests: dict[str, deque[float]] = defaultdict(deque)
+_WINDOW_S = 60.0
 
 
-def _rate_limit(user_id: str) -> None:
+def _rate_limit(key: str, limit: int, message: str) -> None:
     now = time.monotonic()
-    q = _requests[user_id]
-    while q and now - q[0] > 60:
+    q = _requests[key]
+    while q and now - q[0] > _WINDOW_S:
         q.popleft()
-    if len(q) >= _MAX_REQUESTS_PER_MINUTE:
-        raise HTTPException(429, "too many assistant requests — wait a minute")
+    if len(q) >= limit:
+        retry = max(1, int(_WINDOW_S - (now - q[0])))
+        raise HTTPException(429, message, headers={"Retry-After": str(retry)})
     q.append(now)
+    if len(_requests) > 20_000:
+        for k in [k for k, v in _requests.items() if not v]:
+            _requests.pop(k, None)
 
 
-def _clean(msgs: List[Msg]) -> list[dict]:
+def _clean(msgs: list[Msg]) -> list[dict]:
     out = [{"role": "assistant" if m.role in ("assistant", "bot") else "user", "content": m.content.strip()} for m in msgs if m.content.strip()]
     return out[-20:]
+
+
+def _trim(messages: list[dict]) -> list[dict]:
+    """Keep the newest turns that fit the budget (always keeps the last one)."""
+    kept: list[dict] = []
+    total = 0
+    for message in reversed(messages):
+        size = len(message["content"])
+        if kept and total + size > _MAX_TOTAL_CHARS:
+            break
+        kept.append(message)
+        total += size
+    return list(reversed(kept))
 
 
 def _via_openai(messages: list[dict]) -> str:
@@ -93,14 +117,19 @@ def _via_orvis(messages: list[dict]) -> str:
 
 
 @router.post("/assistant")
-def assistant(body: Body, user: dict = Depends(current_user)):
-    _rate_limit(str(user.get("id") or "anonymous"))
-    messages = _clean(body.messages)
+def assistant(body: Body, request: Request, user: dict = Depends(current_user)):
+    uid = str(user.get("id") or "anonymous")
+    _rate_limit(f"user|{uid}", _MAX_REQUESTS_PER_MINUTE, "too many assistant requests — wait a minute")
+    _rate_limit(f"ip|{client_ip(request)}", _MAX_REQUESTS_PER_IP, "too many assistant requests from this network — wait a minute")
+    _rate_limit("global", _MAX_REQUESTS_GLOBAL, "Aarohi is busy right now — try again in a minute")
+    messages = _trim(_clean(body.messages))
     if not messages:
         raise HTTPException(400, "empty conversation")
     try:
         if os.environ.get("LLM_API_KEY"):
             return {"reply": _via_openai(messages), "source": "llm"}
         return {"reply": _via_orvis(messages), "source": "orvis"}
-    except Exception as exc:  # frontend falls back to offline tutor
-        raise HTTPException(502, f"assistant unavailable: {type(exc).__name__}")
+    except Exception as exc:
+        # Log the detail for the operator, show the student something actionable.
+        print(f"[assistant] upstream failure: {type(exc).__name__}: {exc}", flush=True)
+        raise HTTPException(502, "Aarohi abhi online nahi hai — built-in Excel notes se jawab mil raha hai.")
