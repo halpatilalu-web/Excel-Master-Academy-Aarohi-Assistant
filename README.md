@@ -1,13 +1,15 @@
-# Excel Master Academy
+# Excel Master Academy — Complete Excel Diploma Course
 
-A Hinglish, self-paced Excel practice course:
+A bilingual (Hindi + English), self-paced **Excel Diploma Practice Course**:
 
-- 32 chapters from Basic to Advanced
-- Formula, shortcut and VBA reference libraries
-- Practical lab datasets with basic CSV checks
-- Balanced 20-question practice exams
-- Charts and dashboard lessons with downloadable practice workbooks
-- Aarohi, a friendly illustrated Indian Excel creator/study companion with selectable avatar scenes, learning roleplay, and voice input/output
+- **40 chapters across 8 Diploma Modules** from Basic Excel to Advanced Formulas, Data Cleaning, Conditional Formatting, Data Validation, XLOOKUP & INDEX-MATCH, Pivot Dashboards, Power Query, and VBA Macros
+- **Bilingual Hindi + English switcher** (`Hindi + English`, `Hindi`, `English`) across chapters, notes, infographics, videos, 3D lessons, practice sheets, and sample papers
+- **All 40 Handwritten Notebook Pages + 8 Professional Visual Infographics**
+- **8 Animated Video Lessons + 8 AI-Generated 3D Excel Illustrations**
+- **6 Interactive 3D Excel Lessons** (3D Pivot Cube, 3D Sheet Stack, 3D Lookup Laser, 3D Conditional Chart Cityscape, 3D Power Query Pipeline, 3D VBA Macro Robot)
+- **In-Browser Live Practice Spreadsheet** + 10 downloadable `.xlsx` / `.csv` corporate project datasets
+- **5 Solved Diploma Sample Papers**, **8 Module Topic Quizzes**, and **Timed 20-Question Final Practice Exam**
+- **Aarohi Live AI Assistant** (floating chat + voice assistant on every screen & full-screen AI studio)
 - A clearly labelled **self-attested practice certificate**
 
 > This is a learning/practice application. Its certificate is **not** an externally

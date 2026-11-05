@@ -142,7 +142,7 @@ export function Layout<K extends string>({
       )}
 
       <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-10 pt-20 md:pt-8 pb-16">
-        <div className="max-w-5xl mx-auto">{children}</div>
+        <div className="max-w-6xl mx-auto">{children}</div>
       </main>
     </div>
   );

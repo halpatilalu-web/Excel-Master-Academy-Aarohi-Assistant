@@ -182,7 +182,24 @@ Ctrl+Space kya select karta hai?|Poora column|Poori row|Sheet|Cell|0|2
 Shift+Space kya select karta hai?|Poori row|Poora column|Sheet|Cell|0|2
 Ctrl+Alt+V kya kholta hai?|Paste Special|Paste|Print|Open|0|3
 Ctrl+K kya karta hai?|Hyperlink daalna|Copy|Cut|Save|0|3
-Alt+Down Arrow kya karta hai?|Dropdown list kholta hai|Delete|Sort|Save|0|21`;
+Alt+Down Arrow kya karta hai?|Dropdown list kholta hai|Delete|Sort|Save|0|21
+TEXTSPLIT function kya karta hai?|Delimiter ke aadhar par text ko cells mein baantta hai|Cells merge karta hai|Sheet delete karta hai|Print karta hai|0|33
+IFNA function kis error ko pakadta hai?|Sirf #N/A error ko|Sabhi numbers ko|Bold text ko|Blank row ko|0|33
+CLEAN aur TRIM mein kya farq hai?|CLEAN non-printable chars hatata hai aur TRIM extra spaces|Dono chart banate hain|Dono जोड़te hain|Koi farq nahi|0|33
+Conditional Formatting mein formula rule kis chinh se shuru hota hai?|= (Equal sign)|# (Hash)|@ (At)|$ (Dollar)|0|34
+Manage Rules mein 'Stop If True' kab kaam aata hai?|Jab pehle rule ke baad agla rule rokna ho|File band karne mein|Macro chalane mein|Print rokne mein|0|34
+Data Validation mein duplicate rokne ka custom formula?|COUNTIF($A$2:$A$100,A2)=1|SUM(A2:A100)=0|MAX(A:A)|TODAY()|0|35
+Data Validation Error Alert mein kaun sa mode galat value bilkul save nahi hone deta?|Stop|Warning|Information|Comment|0|35
+XLOOKUP mein boolean multiplication (Cond1)*(Cond2) kya deta hai?|1 jab dono TRUE hon warna 0|Text string|Date|Error|0|36
+Two-way lookup mein INDEX ke saath kya lagta hai?|Row ke liye MATCH aur Column ke liye MATCH|Sirf SUM|Sirf TRIM|PROPER|0|36
+Power Query mein Left Outer Join ka matlab?|Pehli table ki saari rows aur doosri ki matching rows|Sirf khali rows|Sirf headers|Chart banana|0|37
+Folder se saari monthly CSV ek saath lane ka tarika?|Data → Get Data → From File → From Folder|Copy Paste 50 baar|Insert Picture|Page Setup|0|37
+TEXTBEFORE("INV-2026-99","-") ka result kya aayega?|INV|2026|99|-|0|38
+HSTACK function kya karta hai?|Arrays ko agal-bagal (horizontally) jodata hai|Rows chhupata hai|Font badalta hai|Sheet lock karta hai|0|38
+VBA mein For Each loop kab best hai?|Collection ke har cell ya har worksheet par chalne ke liye|Sirf ek cell jodna|Chart colour|Zoom karna|0|39
+VBA mein Application.ScreenUpdating = False kyun likhte hain?|Macro ki speed badhane aur screen flicker rokne ke liye|Excel band karne ke liye|Password lagane ke liye|Data mitane ke liye|0|39
+Executive MIS Dashboard mein raw data aur dashboard kahan rakhte hain?|Alag-alag dedicated sheets mein|Ek hi cell mein|Header footer mein|Comment box mein|0|40
+Slicer ko 3 alag Pivot Tables se kaise jodte hain?|Slicer → Report Connections|Ctrl+B|Merge Cells|Goal Seek|0|40`;
 
 const levelOf = (n: number) => CHAPTERS.find((c) => c.n === n)?.level ?? "Basic";
 

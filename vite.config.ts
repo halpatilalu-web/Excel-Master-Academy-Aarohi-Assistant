@@ -13,6 +13,7 @@ declare const process: { env: Record<string, string | undefined>; cwd(): string 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    allowedHosts: true,
     // No full-screen error overlay. A preview is a dev server, but the people
     // looking at it are the owner and whoever they shared the link with —
     // neither can act on a stack trace, and the agent is told what broke

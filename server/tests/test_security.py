@@ -109,3 +109,17 @@ def test_session_token_is_hashed_at_rest() -> None:
 
         assert raw_token not in stored
         assert hashlib.sha256(raw_token.encode()).hexdigest() in stored
+
+
+def test_assistant_builtin_bilingual_reply() -> None:
+    with guest_client() as guest:
+        assert guest.post("/api/auth/guest").status_code == 201
+        response = guest.post(
+            "/api/assistant",
+            json={"messages": [{"role": "user", "content": "XLOOKUP samjhao"}]},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert "XLOOKUP" in body["reply"]
+        assert body["source"] == "builtin"
+

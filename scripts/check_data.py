@@ -42,12 +42,13 @@ def main() -> None:
 
     chapters_text = (DATA / "chapters.ts").read_text(encoding="utf-8")
     chapter_numbers = [int(n) for n in re.findall(r'\bC\((\d+),\s*"(?:Basic|Intermediate|Advanced)"', chapters_text)]
-    if chapter_numbers != list(range(1, 33)):
-        errors.append(f"chapters.ts must define chapters 1..32 in order; got {chapter_numbers}")
+    total_chapters = 40
+    if chapter_numbers != list(range(1, total_chapters + 1)):
+        errors.append(f"chapters.ts must define chapters 1..{total_chapters} in order; got {chapter_numbers}")
 
     chapter_questions = re.findall(r'Q\("([^"]+)"', chapters_text)
-    if len(chapter_questions) != 64:
-        errors.append(f"chapters.ts should contain 64 quick-check questions; got {len(chapter_questions)}")
+    if len(chapter_questions) != total_chapters * 2:
+        errors.append(f"chapters.ts should contain {total_chapters * 2} quick-check questions; got {len(chapter_questions)}")
     chapter_dupes = [q for q, count in collections.Counter(q.strip().lower() for q in chapter_questions).items() if count > 1]
     if chapter_dupes:
         errors.append(f"duplicate chapter quiz questions: {chapter_dupes[:5]}")
@@ -75,8 +76,8 @@ def main() -> None:
             continue
         if not 0 <= answer <= 3:
             errors.append(f"questions.ts line {line_no}: answer must be 0..3")
-        if not 1 <= chapter <= 32:
-            errors.append(f"questions.ts line {line_no}: chapter must be 1..32")
+        if not 1 <= chapter <= total_chapters:
+            errors.append(f"questions.ts line {line_no}: chapter must be 1..{total_chapters}")
         if not all(parts[:5]):
             errors.append(f"questions.ts line {line_no}: question/options must not be empty")
 
@@ -90,8 +91,8 @@ def main() -> None:
         if len(parts) != 5:
             errors.append(f"formulas.ts row {line_no}: expected 5 fields, got {len(parts)}")
             continue
-        if not parts[4].isdigit() or not 0 <= int(parts[4]) <= 32:
-            errors.append(f"formulas.ts row {line_no}: chapter must be 0..32")
+        if not parts[4].isdigit() or not 0 <= int(parts[4]) <= total_chapters:
+            errors.append(f"formulas.ts row {line_no}: chapter must be 0..{total_chapters}")
 
     shortcuts = lines_from_blocks((DATA / "shortcuts.ts").read_text(encoding="utf-8"))
     for line_no, line in enumerate(shortcuts, start=1):
@@ -116,7 +117,7 @@ def main() -> None:
     cross_dupes = sum(1 for q in extra_questions if q.strip().lower() in chapter_set)
     print(
         "Course data OK: "
-        f"32 chapters, {len(chapter_questions)} chapter questions, "
+        f"{total_chapters} chapters, {len(chapter_questions)} chapter questions, "
         f"{len(extra_questions)} extra questions ({cross_dupes} cross-bank duplicates deduped by Exam), "
         f"{len(formulas)} formulas, {len(shortcuts)} shortcuts, {len(vba_blocks)} VBA snippets."
     )
