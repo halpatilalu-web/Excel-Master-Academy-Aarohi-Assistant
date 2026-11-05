@@ -9,7 +9,6 @@ that never provisioned a service.
 from __future__ import annotations
 
 from fastapi import APIRouter, FastAPI
-
 from orvis import orvis
 
 from services import ai, email, images, oauth, payments, uploads

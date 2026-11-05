@@ -27,12 +27,11 @@ import re
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-
 from auth import current_user
 from db import db, now
+from fastapi import APIRouter, Depends, HTTPException
 from orvis import OrvisError, orvis
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/uploads")
 
@@ -91,8 +90,10 @@ def _owned(user_id: str, doc_id: str, rec: dict[str, Any]) -> bool:
     if rec.get("source") == "ai_image":
         return bool(_AI_KEY.match(key)) and doc_id == uuid.uuid5(uuid.NAMESPACE_URL, f"{user_id}:{key}").hex
     prefix = f"u/{user_id}/"
+    if not key.startswith(prefix):
+        return False
     rest = key[len(prefix):]
-    return key.startswith(prefix) and bool(_SEGMENT.match(rest)) and rest not in (".", "..")
+    return bool(_SEGMENT.match(rest)) and rest not in (".", "..")
 
 
 def _get(conn, owner: str, doc_id: str) -> dict[str, Any] | None:
@@ -157,7 +158,8 @@ def list_uploads(user: dict = Depends(current_user)) -> list[dict[str, Any]]:
                             (user["id"], COLLECTION)).fetchall()
     out = []
     for r in rows:
-        d = json.loads(r["body"]); d["id"], d["created"] = r["id"], r["created"]
+        d = json.loads(r["body"])
+        d["id"], d["created"] = r["id"], r["created"]
         out.append(d)
     return out
 

@@ -1,10 +1,16 @@
 {
   "name": "Excel Master Academy",
-  "short_name": "Excel Master Academy",
-  "description": "Excel practice course: Basic se Advanced",
+  "short_name": "Excel Academy",
+  "description": "Excel practice course: Basic se Advanced — chapters, labs, exam aur Aarohi study saathi.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f6fbf7",
-  "theme_color": "#f6fbf7",
-  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+  "theme_color": "#2e8b57",
+  "lang": "hi-IN",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
 }

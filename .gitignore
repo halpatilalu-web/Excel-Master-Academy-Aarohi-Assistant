@@ -12,7 +12,13 @@ dist-ssr
 # web-builder verification + launch state
 .verify/
 .web-builder/
+# python venv (created by README step 2)
+.venv/
+venv/
+
 # server runtime
 server/data.db
 server/data.db-*
+# docker volume mount (docker run -v "$PWD/data:/data")
+/data/
 __pycache__/

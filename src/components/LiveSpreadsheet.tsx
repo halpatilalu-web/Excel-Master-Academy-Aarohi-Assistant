@@ -513,31 +513,54 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
     setGradeMsg(null);
   }
 
-  async function downloadWorkbook() {
-    const XLSX = await import("xlsx");
+  function downloadWorkbook() {
+    const esc = (v: string) =>
+      v.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+    const toXmlSheet = (name: string, rows: string[][]) =>
+      `<Worksheet ss:Name="${esc(name)}"><Table>${rows
+        .map(
+          (row) =>
+            `<Row>${row
+              .map((cell) => {
+                if (cell.startsWith("=")) {
+                  return `<Cell ss:Formula="${esc(cell)}"><Data ss:Type="String"></Data></Cell>`;
+                }
+                const num = Number(cell);
+                const isNum = cell !== "" && Number.isFinite(num);
+                return `<Cell><Data ss:Type="${isNum ? "Number" : "String"}">${esc(cell)}</Data></Cell>`;
+              })
+              .join("")}</Row>`,
+        )
+        .join("")}</Table></Worksheet>`;
+
     const aoa: string[][] = [];
     for (let r = 1; r <= 5; r++) {
       aoa.push(sheet.cols.map((c) => grid[`${c}${r}`] ?? ""));
     }
-    const wsPractice = XLSX.utils.aoa_to_sheet(aoa);
-    wsPractice["!cols"] = sheet.cols.map(() => ({ wch: 18 }));
-
-    const guideAoa = [
+    const guideAoa: string[][] = [
       ["Excel Diploma Practice Workbook", sheet.titleEn],
       ["English Goal", sheet.goalEn],
       ["Hindi Goal", sheet.goalHi],
       ["Formula Hints", sheet.hintFormula],
-      [],
+      [""],
       ["Target Cell", "Expected Value", "Model Formula"],
       ...sheet.checks.map((c) => [c.cell, c.expected, c.formulaSample]),
     ];
-    const wsGuide = XLSX.utils.aoa_to_sheet(guideAoa);
-    wsGuide["!cols"] = [{ wch: 24 }, { wch: 36 }, { wch: 36 }];
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, wsPractice, "Practice_Sheet");
-    XLSX.utils.book_append_sheet(wb, wsGuide, "Instructions_Key");
-    XLSX.writeFile(wb, `${sheet.id}-diploma-practice.xlsx`);
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<?mso-application progid="Excel.Sheet"?>',
+      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">',
+      toXmlSheet("Practice_Sheet", aoa),
+      toXmlSheet("Instructions_Key", guideAoa),
+      "</Workbook>",
+    ].join("");
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" }));
+    a.download = `${sheet.id}-diploma-practice.xls`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   return (

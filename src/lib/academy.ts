@@ -1,13 +1,22 @@
 import { createStore, type Doc } from "./store";
+
 export interface Progress extends Doc { chapter: number }
-export interface ExamResult extends Doc { score: number; total: number; pct: number; passed: boolean; date: string; seconds: number; byLevel: Record<string, [number, number]> }
+export interface ExamResult extends Doc {
+  score: number;
+  total: number;
+  pct: number;
+  passed: boolean;
+  date: string;
+  seconds: number;
+  byLevel: Record<string, [number, number]>;
+}
 export interface Submission extends Doc { labId: string; fileName: string; size: number; date: string; status: "Auto-checked" | "Saved (practice)" | "Pending review" | "Reviewed"; score?: number; feedback?: string }
 export interface Cert extends Doc { certId: string; name: string; date: string }
 export const useProgress = createStore<Progress>("progress");
 export const useExams = createStore<ExamResult>("exams");
 export const useSubmissions = createStore<Submission>("submissions");
 export const useCerts = createStore<Cert>("certs");
-export const PASS_PCT = 60;
+export { PASS_PCT } from "./exam";
 
 export function certId(name: string, date: string) {
   let h = 5381;
@@ -27,3 +36,11 @@ export function certFormatValid(id: string) {
 
 /** @deprecated Use certFormatValid — the old name overstated what is checked. */
 export const certValid = certFormatValid;
+
+/** The newest certificate by issue date (not by last-modified, which the server sorts by). */
+export function latestCert(certs: Cert[]): Cert | undefined {
+  return [...certs].sort((a, b) => (a.date === b.date ? (b._created ?? 0) - (a._created ?? 0) : b.date.localeCompare(a.date)))[0];
+}
+
+/** Highest exam score, 0 when the student never took one. */
+export const bestScore = (exams: ExamResult[]): number => exams.reduce((max, exam) => Math.max(max, exam.pct), 0);

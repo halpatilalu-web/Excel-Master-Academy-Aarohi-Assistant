@@ -456,7 +456,7 @@ export function Exam() {
                   : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
               }`}
             >
-              <Zap size={16} /> 8 Module Topic Quizzes
+              <Zap size={16} /> {DIPLOMA_MODULES.length} Module Topic Quizzes
             </button>
             <button
               type="button"
@@ -467,7 +467,7 @@ export function Exam() {
                   : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
               }`}
             >
-              <FileText size={16} /> 5 Solved Sample Papers
+              <FileText size={16} /> {SAMPLE_PAPERS.length} Solved Sample Papers
             </button>
           </div>
         </>

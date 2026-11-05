@@ -1,15 +1,14 @@
+"""Regression tests for the security-sensitive parts of the app server."""
+
 from __future__ import annotations
 
 import hashlib
 import os
 import sqlite3
 
-from fastapi.testclient import TestClient
-
 from auth import create_user
-from conftest import guest_client
 from db import db
-from main import app
+from fastapi.testclient import TestClient
 from seed import seed
 
 
@@ -19,20 +18,23 @@ def test_health(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_guest_progress_is_scoped_to_its_owner() -> None:
-    with guest_client() as first, guest_client() as second:
-        assert first.post("/api/auth/guest").status_code == 201
-        assert second.post("/api/auth/guest").status_code == 201
+def test_health_reports_a_broken_database(client: TestClient, tmp_path, monkeypatch) -> None:
+    # Point the app at a directory: opening it as a SQLite file fails.
+    monkeypatch.setenv("APP_DB_PATH", str(tmp_path))
+    response = client.get("/api/health")
+    assert response.status_code == 503
+    assert response.json()["status"] == "error"
 
-        created = first.post("/api/c/progress", json={"id": "chapter-1", "chapter": 1})
-        assert created.status_code == 201
 
-        first_items = first.get("/api/c/progress")
-        second_items = second.get("/api/c/progress")
-        assert first_items.status_code == 200
-        assert second_items.status_code == 200
-        assert [item["chapter"] for item in first_items.json()] == [1]
-        assert second_items.json() == []
+def test_guest_progress_is_scoped_to_its_owner(client: TestClient) -> None:
+    with TestClient(client.app) as second_client:
+        assert client.post("/api/auth/guest").status_code == 201
+        assert second_client.post("/api/auth/guest").status_code == 201
+
+        assert client.post("/api/c/progress", json={"id": "chapter-1", "chapter": 1}).status_code == 201
+
+        assert [item["chapter"] for item in client.get("/api/c/progress").json()] == [1]
+        assert second_client.get("/api/c/progress").json() == []
 
 
 def test_assistant_requires_authentication(client: TestClient) -> None:
@@ -43,14 +45,20 @@ def test_assistant_requires_authentication(client: TestClient) -> None:
     assert response.status_code == 401
 
 
-def test_assistant_rejects_oversized_conversation() -> None:
-    with guest_client() as guest:
-        assert guest.post("/api/auth/guest").status_code == 201
-        response = guest.post(
-            "/api/assistant",
-            json={"messages": [{"role": "user", "content": "hello"}] * 21},
-        )
-        assert response.status_code == 422
+def test_assistant_rejects_oversized_conversation(guest: TestClient) -> None:
+    response = guest.post(
+        "/api/assistant",
+        json={"messages": [{"role": "user", "content": "hello"}] * 21},
+    )
+    assert response.status_code == 422
+
+
+def test_assistant_errors_do_not_leak_internals(guest: TestClient) -> None:
+    response = guest.post("/api/assistant", json={"messages": [{"role": "user", "content": "hi"}]})
+    assert response.status_code == 502
+    detail = response.json()["detail"]
+    assert "Error" not in detail and "Orvis" not in detail
+    assert "Aarohi" in detail
 
 
 def test_spa_fallback_does_not_serve_server_files(client: TestClient) -> None:
@@ -95,31 +103,33 @@ def test_weak_password_and_invalid_email_are_rejected(client: TestClient) -> Non
     assert invalid.status_code == 400
 
 
-def test_session_token_is_hashed_at_rest() -> None:
-    with guest_client() as guest:
-        assert guest.post("/api/auth/guest").status_code == 201
-        raw_token = guest.cookies.get("sid")
-        assert raw_token
+def test_session_token_is_hashed_at_rest(guest: TestClient) -> None:
+    raw_token = guest.cookies.get("sid")
+    assert raw_token
 
-        conn = sqlite3.connect(os.environ["APP_DB_PATH"])
-        try:
-            stored = {row[0] for row in conn.execute("SELECT token FROM sessions")}
-        finally:
-            conn.close()
+    conn = sqlite3.connect(os.environ["APP_DB_PATH"])
+    try:
+        stored = {row[0] for row in conn.execute("SELECT token FROM sessions")}
+    finally:
+        conn.close()
 
-        assert raw_token not in stored
-        assert hashlib.sha256(raw_token.encode()).hexdigest() in stored
+    assert raw_token not in stored
+    assert hashlib.sha256(raw_token.encode()).hexdigest() in stored
 
 
-def test_assistant_builtin_bilingual_reply() -> None:
-    with guest_client() as guest:
-        assert guest.post("/api/auth/guest").status_code == 201
-        response = guest.post(
-            "/api/assistant",
-            json={"messages": [{"role": "user", "content": "XLOOKUP samjhao"}]},
-        )
-        assert response.status_code == 200
-        body = response.json()
-        assert "XLOOKUP" in body["reply"]
-        assert body["source"] == "builtin"
+def test_assistant_builtin_bilingual_reply(guest: TestClient) -> None:
+    response = guest.post(
+        "/api/assistant",
+        json={"messages": [{"role": "user", "content": "XLOOKUP samjhao"}]},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "XLOOKUP" in body["reply"]
+    assert body["source"] == "builtin"
 
+
+def test_security_headers_are_set(client: TestClient) -> None:
+    response = client.get("/api/health")
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["Referrer-Policy"] == "same-origin"
+    assert response.headers["Cache-Control"] == "no-store"

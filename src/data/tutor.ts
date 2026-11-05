@@ -204,8 +204,8 @@ const KB: Entry[] = [
   {
     id: "safety",
     keys: ["selfie", "tumhari photo", "photo bhejo", "photo bhej", "flirt", "romantic", "seductive", "girlfriend"],
-    en: "🇬🇧 I'm an illustrated AI study companion for Excel Master Academy, so I don't share personal photos or engage in romantic roleplay.",
-    hi: "🇮🇳 Main ek AI illustrated Excel study saathi hoon — personal photos ya romantic roleplay nahi karti. Chalo wapas Excel Diploma topics, interview prep ya live formulas par focus karein!",
+    en: "🇬🇧 I'm an illustrated avatar AI study companion for Excel Master Academy, so I don't share personal photos or engage in romantic roleplay.",
+    hi: "🇮🇳 Main ek AI illustrated avatar Excel study saathi hoon — personal photos ya romantic roleplay nahi karti. Chalo wapas Excel Diploma topics, interview prep ya live formulas par focus karein!",
     example: "Try asking about `XLOOKUP`, `Power Query`, `VBA PDF Macro`, or `Interview Roleplay`!",
     followUp: "Kaun sa Excel topic aaj master karna hai?",
   },

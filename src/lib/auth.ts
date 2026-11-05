@@ -6,6 +6,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 import { finishPopupLogin, onPopupLoginDone } from "./orvis";
+import { adoptUser, resetUserLocalState } from "./prefs";
+import { clearStoreCache } from "./store";
 
 export interface User {
   id: string;
@@ -22,10 +24,16 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
 
+  /** Remember whose local state (chat, streak, badges) is on this device. */
+  const adopt = (next: User | null) => adoptUser(next?.id);
+
   const refresh = useCallback(async () => {
     try {
-      setUser(await api.get<User>("/api/auth/me"));
+      const next = await api.get<User>("/api/auth/me");
+      adopt(next);
+      setUser(next);
     } catch {
+      adopt(null);
       setUser(null);
     } finally {
       setChecking(false);
@@ -45,6 +53,7 @@ export function useAuth() {
   }, [refresh]);
 
   const signedIn = (u: User) => {
+    adopt(u);
     setUser(u);
     window.dispatchEvent(new Event("auth:signed-in")); // stores re-fetch
     return u;
@@ -61,8 +70,15 @@ export function useAuth() {
     [],
   );
   const logout = useCallback(async () => {
-    await api.post<{ ok: boolean }>("/api/auth/logout");
-    setUser(null);
+    try {
+      await api.post<{ ok: boolean }>("/api/auth/logout");
+    } finally {
+      // Whatever happens server-side, this browser must forget the student.
+      clearStoreCache();
+      adoptUser(null);
+      resetUserLocalState();
+      setUser(null);
+    }
   }, []);
   const changePassword = useCallback(
     (current: string, next: string) =>
@@ -77,8 +93,28 @@ export function useAuth() {
     setUser(u);
     return u;
   }, []);
+  /** Delete the account and everything it owns (irreversible). */
+  const deleteAccount = useCallback(async () => {
+    await api.del("/api/auth/account");
+    clearStoreCache();
+    adoptUser(null);
+    resetUserLocalState();
+    setUser(null);
+  }, []);
 
-  return { user, checking, login, signup, logout, changePassword, refresh, guest, upgrade, isGuest: user?.provider === "guest" };
+  return {
+    user,
+    checking,
+    login,
+    signup,
+    logout,
+    changePassword,
+    refresh,
+    guest,
+    upgrade,
+    deleteAccount,
+    isGuest: user?.provider === "guest",
+  };
 }
 
 export type Auth = ReturnType<typeof useAuth>;

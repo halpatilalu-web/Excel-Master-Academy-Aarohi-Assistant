@@ -303,7 +303,7 @@ export function Aarohi() {
         </div>
 
         <div className="px-4 pb-2 flex gap-2 overflow-x-auto">
-          {[...SUGGESTIONS, ...ROLEPLAY_SUGGESTIONS].map((suggestion) => (
+          {Array.from(new Set([...SUGGESTIONS, ...ROLEPLAY_SUGGESTIONS])).map((suggestion) => (
             <button
               type="button"
               key={suggestion}

@@ -662,12 +662,12 @@ export function ProToolkit({
                 hi="AI प्रॉम्प्ट बिल्डर, कलर थ्योरी स्टूडियो, 12-एरर डॉक्टर और इंटरव्यू तैयारी"
               />
             </h1>
-            <p className="text-sm text-emerald-100 mt-1.5 leading-relaxed">
+            <div className="text-sm text-emerald-100 mt-1.5 leading-relaxed">
               <Bilingual
                 en="Generate structured Excel automation prompts, preview corporate report color palettes with HEX/RGB codes, fix all 12 Excel errors instantly, train 400 shortcuts, and ace MIS interviews!"
                 hi="सटीक AI ऑटोमेशन प्रॉम्प्ट बनाएं, कॉर्पोरेट कलर पैलेट्स लाइव देखें, 12 एरर्स का इलाज सीखें, 400 शॉर्टकट्स का गेम खेलें और MIS इंटरव्यू क्रैक करें!"
               />
-            </p>
+            </div>
           </div>
         </div>
 
@@ -890,9 +890,9 @@ export function ProToolkit({
                 <div className="font-bold text-sm text-slate-900">
                   <Bilingual en={rule.titleEn} hi={rule.titleHi} />
                 </div>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                <div className="text-xs text-slate-600 mt-1 leading-relaxed">
                   <Bilingual en={rule.descEn} hi={rule.descHi} />
-                </p>
+                </div>
               </Card>
             ))}
           </div>
@@ -1121,9 +1121,9 @@ export function ProToolkit({
               <code className="block font-mono text-sm text-rose-950 mt-1.5 font-semibold">
                 {activeError.brokenFormula}
               </code>
-              <p className="text-xs text-slate-700 mt-2 leading-relaxed">
+              <div className="text-xs text-slate-700 mt-2 leading-relaxed">
                 <Bilingual en={activeError.whyEn} hi={activeError.whyHi} />
-              </p>
+              </div>
             </div>
 
             <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
@@ -1163,12 +1163,12 @@ export function ProToolkit({
                       hi={`400 Excel शॉर्टकट्स — स्पीड प्रैक्टिस गेम (${SHORTCUTS.length} शॉर्टकट्स)`}
                     />
                   </h2>
-                  <p className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-500">
                     <Bilingual
                       en="Pick the right keyboard shortcut to build muscle memory and boost your streak!"
                       hi="सही शॉर्टकट चुनें और अपनी ऑफिस स्पीड 5 गुना बढ़ाएं!"
                     />
-                  </p>
+                  </div>
                 </div>
               </div>
 

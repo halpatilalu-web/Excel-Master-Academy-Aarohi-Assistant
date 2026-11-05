@@ -1,3 +1,5 @@
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
-python-multipart>=0.0.12
+# Exact pins: the Docker image must build the same way next month. Bump
+# deliberately (and re-run the backend tests) rather than on every rebuild.
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.33

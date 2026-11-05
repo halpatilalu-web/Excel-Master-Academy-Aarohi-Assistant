@@ -1,122 +1,144 @@
-# Live deploy guide — sabse easy tareeka
+# Deploy guide
 
-Is app ko live karne ke liye **GitHub + Render** use karo.
+Is app ko live karne ke do tareeke hain:
 
-- GitHub: code store karega
-- Render: app ko internet par live link dega
-- GitHub Pages: is full app ke liye kaam nahi karega, kyunki backend/database chahiye
+| Tareeka | Kab use karo |
+|---|---|
+| **Render + `render.yaml`** (blueprint) | Sabse aasaan — repo connect karo, Render Dockerfile se build karke chalayega |
+| **Docker kahin bhi** (Fly, Railway, VPS, EC2) | Jab tumhe apna server/disk control chahiye |
 
-Repo me deploy files ready hain:
+Dono me ek hi image chalti hai: frontend build + FastAPI, ek hi port par.
+GitHub Pages is app ke liye kaam nahi karega — backend aur database chahiye.
 
-- `Dockerfile` — frontend + backend ek saath build/run karta hai
-- `render.yaml` — Render automatic settings padh lega
-
-Tumhe build/start command manually likhne ki zarurat nahi hai.
+> ⚠️ **Free plan ka database persist nahi hota.** Render free instance ka
+> filesystem restart/sleep/redeploy par reset ho jata hai, to `APP_DB_PATH=/data/data.db`
+> ka data chala jayega. Testing ke liye theek hai, real students ke liye **paid
+> instance + Persistent Disk** lo (neeche step 4).
 
 ---
 
-## Step 1: GitHub par new repository banao
-
-1. GitHub par login karo.
-2. **New repository** banao.
-3. Naam example: `Excel-Master-Live-Fixed`
-4. Repository empty rakho — README, .gitignore ya license add mat karo.
-
-## Step 2: Code GitHub par bhejo
-
-Sabse easy tareeka **GitHub Desktop** hai:
-
-1. Zip extract karo.
-2. GitHub Desktop install/open karo.
-3. **File → Add local repository** me extracted `Excel-Master-Live` folder select karo.
-4. Agar GitHub Desktop bole ki repository nahi hai, to **create a repository** option choose karo.
-   - Dhyaan do: `.git` folder zip se remove kiya gaya tha, isliye new repository banana normal hai.
-5. Summary me likho: `Excel Master Live fixed rewrite`
-6. **Commit to main** dabao.
-7. **Publish repository** dabao aur Step 1 me banaya repo/account select karo.
-
-Agar command line aati hai, to yeh bhi use kar sakte ho:
+## 1. Code GitHub par bhejo
 
 ```bash
-cd Excel-Master-Live
-git init
-git add .
-git commit -m "Excel Master Live fixed rewrite"
-git branch -M main
-git remote add origin https://github.com/TUMHARA-USERNAME/TUMHARA-REPO.git
+git remote add origin https://github.com/<tumhara-username>/<repo>.git
 git push -u origin main
 ```
 
-Check kar lo ki GitHub repo ke home page par `Dockerfile` aur `render.yaml` dikh rahe hain.
+(Repo pehle se git repository hai — zip se extract karne ki zarurat nahi. `.git`
+folder ko delete mat karo.)
 
-## Step 3: Render par live karo
+CI (`.github/workflows/ci.yml`) push/PR par khud chalega: build, frontend tests,
+Ruff, content validator, backend tests, dependency audit aur `docker build`.
+Red X aaye to merge mat karo.
 
-1. [render.com](https://render.com) par jao.
-2. **Get Started / Sign Up** → **GitHub se login** karo.
-3. Render dashboard me **New +** dabao.
-4. **Blueprint** select karo.
-5. Apna GitHub repo select karo.
-6. Render ko repo ki permission do.
-7. Render `render.yaml` padhkar `excel-master-live` web service dikhayega.
-8. Service name chaaho to badal sakte ho.
-9. **Apply / Create** dabao.
-10. 5–10 minute wait karo. Logs me build chalega.
-11. Upar green **Live** link milega, example:
+## 2. Render par blueprint banao
 
-```text
-https://excel-master-live-xxxx.onrender.com
+1. [render.com](https://render.com) → GitHub se sign in.
+2. **New +** → **Blueprint** → apna repo choose karo.
+3. Render `render.yaml` padhkar `excel-master-live` service dikhayega → **Apply**.
+4. Build 5–10 minute lega. Green **Live** link milega.
+
+`render.yaml` already set karta hai:
+
+```yaml
+runtime: docker
+dockerfilePath: ./Dockerfile
+healthCheckPath: /api/health     # real SQLite probe, sirf "server zinda hai" nahi
+envVars:
+  - key: APP_DB_PATH   value: /data/data.db
+  - key: DEMO_ENABLED  value: "0"
 ```
 
-Wahi tumhara public app link hai.
+## 3. Optional: Aarohi ko online AI do
 
-## Step 4: Live app test karo
-
-Live link kholkar check karo:
-
-1. Dashboard khulta hai ya nahi
-2. Ek chapter complete karke refresh karo — progress save rehna chahiye
-3. Practice Exam start hota hai ya nahi
-4. Aarohi me `VLOOKUP samjhao` poochho
-5. Account page open hota hai ya nahi
-
-Aarohi bina AI key ke offline Excel tutor mode me chalegi.
-
-Online AI chahiye to Render service → **Environment** me add karo:
+Render → service → **Environment**:
 
 ```text
-LLM_API_KEY=apni-api-key
+LLM_API_KEY=sk-...
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini
 ```
 
-API key GitHub code me kabhi mat daalna.
+Key sirf Render ke environment me rakho — code, `.env` ya GitHub me kabhi nahi.
+Key na ho to Aarohi built-in offline Excel tutor se jawab deti hai (koi error nahi).
 
----
+`/api/assistant` rate limited hai (20/min per user, 40/min per IP, 120/min per
+process). Guest account banana free hai, isliye bina limit ke key ka paisa ud
+jayega — limit hatao mat.
 
-## Important warning — free plan
+## 4. Persistent disk (real students ke liye zaroori)
 
-`render.yaml` abhi **free plan** par set hai taaki tum pehle try kar sako.
+Render → service → **Settings** → instance type **Starter** ya upar → **Disks** →
+**Add Disk**:
 
-Free plan ki 2 limitations hain:
+```text
+Name: data
+Mount path: /data
+Size: 1 GB (SQLite ke liye kaafi)
+```
 
-1. 15 minute tak use na hone par app sleep ho sakta hai; pehla open slow hoga.
-2. SQLite database persistent disk par nahi hai, isliye sleep/restart/redeploy par student progress reset ho sakta hai.
+`APP_DB_PATH=/data/data.db` already set hai, to data restart ke baad bacha rahega.
+Ek hi instance chalao: SQLite multi-replica ke liye nahi hai (rate limits bhi
+process memory me hote hain).
 
-Real students ke liye live karne se pehle:
+## 5. Deploy ke baad test karo
 
-- Render paid instance lo jisme **Persistent Disk** mile
-- Disk ko `/data` par mount karo
-- `APP_DB_PATH=/data/data.db` rehne do
+1. Link kholo — dashboard dikhna chahiye (pehla load free plan par slow ho sakta hai).
+2. Ek chapter complete karke **page refresh** karo — progress bacha hona chahiye.
+3. Practice Exam start karo, ek answer do, refresh karo — attempt resume hona chahiye.
+4. Aarohi me `VLOOKUP samjhao` poochho.
+5. Account page: backup export, phir (test account par) **Delete my account**.
+6. `https://<app>/api/health` → `{"status":"ok"}`.
 
-Ya phir baad me database ko PostgreSQL par migrate karna hoga. Abhi testing/demo ke liye free setup sahi hai.
+## 6. Backup
 
-## Agar deploy fail ho
+Do level ke backup rakho:
 
-Render → apni service → **Logs** kholo aur last error dekho. Common checks:
+- **Student**: Account page → *Export backup (JSON)* (poora data ek file me).
+- **Operator**: `/data/data.db` ka periodic copy (Render disk snapshot ya
+  `sqlite3 data.db ".backup /tmp/backup.db"`). Backup se pehle `-wal`/`-shm` files
+  bhi copy karo ya `.backup` command use karo.
 
-- GitHub repo root me `Dockerfile` hai?
-- GitHub repo root me `render.yaml` hai?
-- Zip ke andar wala folder galti se nested to nahi ho gaya? Repo me `Excel-Master-Live/Dockerfile` nahi, seedha `Dockerfile` dikhna chahiye.
-- `DEMO_ENABLED=0` hai?
+Restore: service band karo → `data.db` replace karo → start.
 
-Error samajh na aaye to logs ka last hissa copy karke bhej do.
+## 7. Custom domain / HTTPS
+
+Render apna HTTPS certificate de deta hai — kuch nahi karna. Session cookie
+`Secure; SameSite=None` tab hi set hota hai jab request https se aaye, isliye
+app ko **https par hi** chalao.
+
+Agar SPA kisi dusre host se serve kar rahe ho (CDN) aur API alag host par hai, to
+us origin ko allow karo:
+
+```text
+APP_ALLOWED_ORIGINS=https://excel.example.com
+```
+
+Warna cookie-wale writes 403 (`cross-origin request blocked`) aayenge.
+
+## 8. Docker (Render ke bahar)
+
+```bash
+docker build -t excel-master-academy .
+docker run -p 8000:8000 \
+  -v "$PWD/data:/data" \
+  -e APP_DB_PATH=/data/data.db \
+  -e LLM_API_KEY=sk-... \
+  excel-master-academy
+```
+
+Image non-root (`uid 10001`) chalti hai, isliye mounted `/data` us user ka writable
+hona chahiye (`chown -R 10001 /host/path`).
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| Deploy fail, "no such file" | Repo root me `Dockerfile` aur `render.yaml` hone chahiye (nested folder nahi) |
+| App khulta hai, data save nahi hota | `APP_DB_PATH` writable hai? Health endpoint 503 de raha hai? Disk mount hua? |
+| Login ke baad har request 401 | HTTPS par ho? Cookie `Secure` hai; `APP_ALLOWED_ORIGINS` sahi hai? |
+| Writes par 403 `cross-origin request blocked` | Browser ka origin app ke host se alag hai — `APP_ALLOWED_ORIGINS` set karo |
+| Aarohi har baar offline tutor se jawab deti hai | `LLM_API_KEY` set hai? Server logs me `[assistant] upstream failure` dekho |
+| 429 on login | Us (IP, email) par 5 galat attempts — ek minute ruko |
+| 429 on guest | Ek IP se 10 guests/minute ki limit hai — wait karo |
+| Build me `tsc` fail | `pnpm typecheck` locally chalao; CI bhi yahi check karta hai |

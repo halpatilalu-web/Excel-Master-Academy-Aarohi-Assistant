@@ -1,11 +1,15 @@
 # Build the React frontend, then serve it together with the FastAPI backend.
 FROM node:20-alpine AS frontend
 
+# Pinned in package.json ("packageManager"), so Corepack provisions the same
+# pnpm the lockfile was written with.
+
+
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack enable && corepack pnpm install --frozen-lockfile
 
-COPY index.html vite.config.ts tsconfig.json tsconfig.app.json tsconfig.node.json ./
+COPY index.html vite.config.ts vitest.config.ts tsconfig.json tsconfig.app.json tsconfig.node.json ./
 COPY public ./public
 COPY src ./src
 RUN corepack pnpm build

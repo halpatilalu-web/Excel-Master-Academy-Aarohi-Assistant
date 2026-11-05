@@ -2,17 +2,34 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-// This file runs under Node, but the template ships no @types/node (nothing
-// outside the offline pnpm store can be installed). Declare the one global
-// it reads so `tsc -b` type-checks it without the package.
-declare const process: { env: Record<string, string | undefined>; cwd(): string };
-
 // The backend port is read from the environment at dev-server start — it is
 // deliberately NOT baked into this file, so clones/forks of this project can
 // run side-by-side on their own ports (pass BACKEND_PORT when launching).
+const BACKEND_PORT = process.env.BACKEND_PORT ?? "8000";
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        // One 519 kB bundle meant a cheap Android phone downloaded the whole
+        // course before showing the dashboard. Split the two big vendors out so
+        // they cache across deploys and the first paint is smaller.
+        manualChunks: {
+          react: ["react", "react-dom"],
+          motion: ["motion", "motion/react"],
+        },
+      },
+    },
+  },
   server: {
+    // 0.0.0.0 so container/remote previews work; override with HOST=127.0.0.1.
+    host: process.env.HOST ?? "0.0.0.0",
+    port: Number(process.env.WEB_PORT ?? 5173),
+    // Vite 6 rejects requests whose Host header is not localhost ("Blocked
+    // request. This host is not allowed"), which is exactly what a proxied
+    // preview/tunnel sends. The dev server only ever serves this repo's own
+    // source, so any Host is fine; production never uses Vite at all.
     allowedHosts: true,
     // No full-screen error overlay. A preview is a dev server, but the people
     // looking at it are the owner and whoever they shared the link with —
@@ -36,10 +53,18 @@ export default defineConfig({
     },
     proxy: {
       "/api": {
-        target: `http://127.0.0.1:${process.env.BACKEND_PORT ?? "8000"}`,
-        changeOrigin: true,
+        target: `http://127.0.0.1:${BACKEND_PORT}`,
+        // Keep the browser's Host header: the server compares Origin and Host
+        // to reject cross-origin cookie mutations (see server/main.py), and
+        // rewriting Host here made every dev write look cross-origin.
+        changeOrigin: false,
         ws: true,
       },
     },
+  },
+  preview: {
+    host: process.env.HOST ?? "0.0.0.0",
+    port: Number(process.env.WEB_PORT ?? 4173),
+    allowedHosts: true,
   },
 });

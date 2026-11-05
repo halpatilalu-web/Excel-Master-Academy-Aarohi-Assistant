@@ -198,24 +198,54 @@ export function downloadText(name: string, text: string) {
   URL.revokeObjectURL(a.href);
 }
 
-export async function downloadLabXlsx(l: Lab) {
-  const XLSX = await import("xlsx");
-  const dataRows = Array.from({ length: l.count }, (_, i) => l.rows(i));
-  const wsData = XLSX.utils.aoa_to_sheet([l.header, ...dataRows]);
-  wsData["!cols"] = l.header.map(() => ({ wch: 18 }));
+const xmlEscape = (v: string | number) =>
+  String(v)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 
-  const wsInstructions = XLSX.utils.aoa_to_sheet([
+function buildSheetXml(name: string, rows: (string | number)[][]): string {
+  const xmlRows = rows
+    .map(
+      (row) =>
+        `<Row>${row
+          .map((cell) => {
+            const isNum = typeof cell === "number" && Number.isFinite(cell);
+            return `<Cell><Data ss:Type="${isNum ? "Number" : "String"}">${xmlEscape(cell)}</Data></Cell>`;
+          })
+          .join("")}</Row>`,
+    )
+    .join("");
+  return `<Worksheet ss:Name="${xmlEscape(name)}"><Table>${xmlRows}</Table></Worksheet>`;
+}
+
+export async function downloadLabXlsx(l: Lab) {
+  const dataRows: (string | number)[][] = [
+    l.header,
+    ...Array.from({ length: l.count }, (_, i) => l.rows(i)),
+  ];
+  const instructionRows: (string | number)[][] = [
     ["Excel Master Academy — Diploma Project Dataset"],
     ["Project Title", l.title],
     ["Linked Chapter", `Chapter ${l.chapter}`],
     ["Instructions (English)", l.taskEn],
     ["Instructions (Hindi)", l.task],
     ["Required Check Columns", l.need.length ? l.need.join(", ") : "Open Dashboard Project"],
-  ]);
-  wsInstructions["!cols"] = [{ wch: 24 }, { wch: 68 }];
+  ];
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, wsData, "Project_Data");
-  XLSX.utils.book_append_sheet(wb, wsInstructions, "Instructions_HI_EN");
-  XLSX.writeFile(wb, l.file.replace(/\.csv$/i, ".xlsx"));
+  const workbookXml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<?mso-application progid="Excel.Sheet"?>',
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">',
+    buildSheetXml("Project_Data", dataRows),
+    buildSheetXml("Instructions_HI_EN", instructionRows),
+    "</Workbook>",
+  ].join("");
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([workbookXml], { type: "application/vnd.ms-excel;charset=utf-8" }));
+  a.download = l.file.replace(/\.csv$/i, ".xls");
+  a.click();
+  URL.revokeObjectURL(a.href);
 }

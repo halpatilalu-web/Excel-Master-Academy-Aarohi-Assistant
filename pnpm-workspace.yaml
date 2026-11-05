@@ -1,2 +1,4 @@
-allowBuilds:
-  esbuild: true
+# Single-package workspace: this file exists for pnpm *settings* only.
+# esbuild (used by Vite) needs its install script to run.
+onlyBuiltDependencies:
+  - esbuild
