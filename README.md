@@ -2,13 +2,15 @@
 
 A bilingual (Hindi + English), self-paced **Excel Diploma Practice Course**:
 
-- **40 chapters across 8 Diploma Modules** from Basic Excel to Advanced Formulas, Data Cleaning, Conditional Formatting, Data Validation, XLOOKUP & INDEX-MATCH, Pivot Dashboards, Power Query, and VBA Macros
-- **Bilingual Hindi + English switcher** (`Hindi + English`, `Hindi`, `English`) across chapters, notes, infographics, videos, 3D lessons, practice sheets, and sample papers
-- **All 40 Handwritten Notebook Pages + 8 Professional Visual Infographics**
-- **8 Animated Video Lessons + 8 AI-Generated 3D Excel Illustrations**
+- **45 chapters across 9 Diploma Modules** from Basic Excel to Advanced Formulas, Data Cleaning, Conditional Formatting, Data Validation, XLOOKUP & INDEX-MATCH, Pivot Dashboards, Power Query, VBA Macros, Report Color Theory, All 12 Error Auditing, Database (`DSUM`/`DGET`), Indian GST/Payroll Accounts, and AI Automation
+- **Bilingual Hindi + English switcher** (`Hindi + English`, `Hindi`, `English`) across chapters, notes, infographics, videos, 3D lessons, practice sheets, toolkit, and sample papers
+- **All 45 Handwritten Notebook Pages + 10 Professional Visual Infographics** + **Personal Student Auto-Saved Study Scratchpad** per chapter
+- **🧰 Pro Toolkit & Career Hub**: Interactive **5-Part Excel AI Automation Prompt Builder**, **Report Color Theory & Live HEX/RGB Palette Studio**, **All 12 Excel Errors Diagnostic Doctor**, **400-Shortcut Speed Flashcard Trainer**, and **Corporate MIS Interview Q&A Bank**
+- **269 Formulas** (including full `Database` & `Audit` categories + Best-For vs Limitations comparison matrix + ⭐ Favorites), **400 Shortcut Keys**, and **40 VBA Automation Macros**
+- **8 Animated Video Lessons + 10 AI-Generated 3D Excel Illustrations**
 - **6 Interactive 3D Excel Lessons** (3D Pivot Cube, 3D Sheet Stack, 3D Lookup Laser, 3D Conditional Chart Cityscape, 3D Power Query Pipeline, 3D VBA Macro Robot)
-- **In-Browser Live Practice Spreadsheet** + 10 downloadable `.xlsx` / `.csv` corporate project datasets
-- **5 Solved Diploma Sample Papers**, **8 Module Topic Quizzes**, and **Timed 20-Question Final Practice Exam**
+- **7 In-Browser Live Practice Spreadsheets** (including **Live GST Tax Invoice CGST/SGST/IGST**) + 11 downloadable `.xlsx` / `.csv` corporate project datasets
+- **6 Solved Diploma Sample Papers**, **9 Module Topic Quizzes**, and **Timed 20-Question Final Practice Exam**
 - **Aarohi Live AI Assistant** (floating chat + voice assistant on every screen & full-screen AI studio)
 - A clearly labelled **self-attested practice certificate**
 

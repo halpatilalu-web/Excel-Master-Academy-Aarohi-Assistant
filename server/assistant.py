@@ -152,6 +152,22 @@ _BUILTIN_TOPICS: list[tuple[tuple[str, ...], str]] = [
         "🔀 **IF & IFS Logical Formulas**\n\n🇬🇧 **English:** Automate decisions with `=IF(test, true_val, false_val)` or multi-tier `=IFS(...)`.\n🇮🇳 **Hindi:** Grade formula: `=IFS(B2>=80,\"A\", B2>=60,\"B\", B2>=40,\"C\", TRUE,\"F\")`",
     ),
     (
+        ("gst", "cgst", "sgst", "igst", "reverse gst"),
+        "🧾 **GST Tax Invoice & Reverse GST**\n\n🇬🇧 **English:** Intra-state (`BuyerState = HomeState`) splits 18% into **9% CGST + 9% SGST**; Inter-state charges **18% IGST**. Extract base price from MRP via `=Total / (1 + 18%)`.\n🇮🇳 **Hindi:** Same state mein `=IF(C2=$G$1, ROUND(D2*9%,2), 0)` se CGST/SGST aur alag state mein 18% IGST lagao! MRP ₹1,180 se base keemat = `=1180/1.18` (₹1,000).",
+    ),
+    (
+        ("#null!", "#calc!", "#connect!", "#blocked!", "12 error"),
+        "🚑 **All 12 Excel Errors Doctor**\n\n🇬🇧 **English:** `#NULL!` = missing `:` (`=SUM(A1 A10)`); `#SPILL!` = cells below aren't empty; `#CALC!` = empty `FILTER` (add 3rd arg `\"None\"`); `#CONNECT!` = offline data link; `#BLOCKED!` = Trust Center security.\n🇮🇳 **Hindi:** `=SUM(A1:A10)` mein colon lagao (`#NULL!` hat jayega), aur `FILTER` ke aakhir mein `\"No Match\"` zaroor do (`#CALC!` nahi aayega)!",
+    ),
+    (
+        ("color theory", "colour theory", "palette"),
+        "🎨 **Report Color Theory**\n\n🇬🇧 **English:** Stick to **2–3 main shades** + high text contrast + neutral canvas (`#FFFFFF` / `#F4F6F7`). Top palettes: Navy `#1B4F72`, Dark Green `#145A32`, or Charcoal `#2C3E50` + Teal `#0E9AA7`.\n🇮🇳 **Hindi:** Rainbow sheet mat banao! 2-3 shades rakho aur laal/peela rang sirf KPI alert ke liye bacha kar rakho.",
+    ),
+    (
+        ("dsum", "dget", "daverage"),
+        "🗄️ **Database Functions (`DSUM` & `DGET`)**\n\n🇬🇧 **English:** `=DSUM(A1:E500, \"Sales\", G1:H2)` sums rows matching a visible Criteria Table. `DGET` extracts a unique match and alerts `#NUM!` if duplicate IDs exist!\n🇮🇳 **Hindi:** Auditors `DGET` isliye pasand karte hain kyunki duplicate Employee ID hone par woh turant `#NUM!` dikha kar galti pakadwa deta hai!",
+    ),
+    (
         ("interview", "roleplay", "mock"),
         "🎤 **Mock Interview Mode Ready!**\n\n🇬🇧 **Question 1:** You have `EmpID` in Column C and `Department` in Column A. Why does `VLOOKUP` fail here, and what exact `XLOOKUP` or `INDEX-MATCH` formula solves it?\n🇮🇳 Apna jawab formula ke saath likho — main turant interviewer feedback dungi!",
     ),

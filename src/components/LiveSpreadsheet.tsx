@@ -9,7 +9,8 @@ export type PracticeSheetId =
   | "sheet-validation"
   | "sheet-sumifs"
   | "sheet-lookup"
-  | "sheet-dashboard";
+  | "sheet-dashboard"
+  | "sheet-gst";
 
 interface PracticeTask {
   id: PracticeSheetId;
@@ -174,6 +175,38 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
       { cell: "F2", expected: "580000", formulaSample: "=SUM(B2:B4)", label: "Total Revenue" },
       { cell: "F3", expected: "240000", formulaSample: "=MAX(B2:B4)", label: "Max Revenue" },
       { cell: "F4", expected: "205000", formulaSample: "=SUM(D2:D4)", label: "Total Profit" },
+    ],
+  },
+  {
+    id: "sheet-gst",
+    emoji: "🧾",
+    titleEn: "7. GST Tax Invoice (CGST, SGST, IGST & Grand Total)",
+    titleHi: "7. GST Tax Invoice (CGST 9%, SGST 9%, IGST 18% aur Bill Total)",
+    goalEn: 'Home State is "Gujarat". If Buyer State (B2:B4) = "Gujarat", charge 9% CGST in D & 9% SGST in E, else 18% IGST in F, and Invoice Total in G (=SUM(C2:F2))!',
+    goalHi: 'Home State "Gujarat" hai. Agar State (B2:B4) = "Gujarat" ho to D mein 9% CGST aur E mein 9% SGST lagao, warna F mein 18% IGST aur G mein =SUM(C2:F2) se Bill Total nikalo!',
+    hintFormula: '=IF(B2="Gujarat",C2*0.09,0)  |  =IF(B2="Gujarat",0,C2*0.18)  |  =SUM(C2:F2)',
+    cols: ["A", "B", "C", "D", "E", "F", "G"],
+    dropdownCells: {
+      B2: ["Gujarat", "Maharashtra", "Delhi"],
+      B3: ["Gujarat", "Maharashtra", "Delhi"],
+      B4: ["Gujarat", "Maharashtra", "Delhi"],
+    },
+    initialGrid: {
+      A1: "Client", B1: "BuyerState", C1: "Taxable", D1: "CGST_9%", E1: "SGST_9%", F1: "IGST_18%", G1: "BillTotal",
+      A2: "Surat Textiles", B2: "Gujarat", C2: "10000", D2: '=IF(B2="Gujarat",C2*0.09,0)', E2: "", F2: "", G2: "",
+      A3: "Mumbai Traders", B3: "Maharashtra", C3: "20000", D3: "", E3: "", F3: "", G3: "",
+      A4: "Rajkot Mart", B4: "Gujarat", C4: "15000", D4: "", E4: "", F4: "", G4: "",
+    },
+    checks: [
+      { cell: "D2", expected: "900", formulaSample: '=IF(B2="Gujarat",C2*0.09,0)', label: "Row 2 CGST" },
+      { cell: "E2", expected: "900", formulaSample: '=IF(B2="Gujarat",C2*0.09,0)', label: "Row 2 SGST" },
+      { cell: "F2", expected: "0", formulaSample: '=IF(B2="Gujarat",0,C2*0.18)', label: "Row 2 IGST" },
+      { cell: "G2", expected: "11800", formulaSample: "=SUM(C2:F2)", label: "Row 2 Total" },
+      { cell: "D3", expected: "0", formulaSample: '=IF(B3="Gujarat",C3*0.09,0)', label: "Row 3 CGST" },
+      { cell: "E3", expected: "0", formulaSample: '=IF(B3="Gujarat",C3*0.09,0)', label: "Row 3 SGST" },
+      { cell: "F3", expected: "3600", formulaSample: '=IF(B3="Gujarat",0,C3*0.18)', label: "Row 3 IGST" },
+      { cell: "G3", expected: "23600", formulaSample: "=SUM(C3:F3)", label: "Row 3 Total" },
+      { cell: "G4", expected: "17700", formulaSample: '=IF(B4="Gujarat",C4*1.18,C4*1.18)', label: "Row 4 Total" },
     ],
   },
 ];

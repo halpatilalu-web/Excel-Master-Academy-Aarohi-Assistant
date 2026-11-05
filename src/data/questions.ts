@@ -199,7 +199,18 @@ HSTACK function kya karta hai?|Arrays ko agal-bagal (horizontally) jodata hai|Ro
 VBA mein For Each loop kab best hai?|Collection ke har cell ya har worksheet par chalne ke liye|Sirf ek cell jodna|Chart colour|Zoom karna|0|39
 VBA mein Application.ScreenUpdating = False kyun likhte hain?|Macro ki speed badhane aur screen flicker rokne ke liye|Excel band karne ke liye|Password lagane ke liye|Data mitane ke liye|0|39
 Executive MIS Dashboard mein raw data aur dashboard kahan rakhte hain?|Alag-alag dedicated sheets mein|Ek hi cell mein|Header footer mein|Comment box mein|0|40
-Slicer ko 3 alag Pivot Tables se kaise jodte hain?|Slicer → Report Connections|Ctrl+B|Merge Cells|Goal Seek|0|40`;
+Slicer ko 3 alag Pivot Tables se kaise jodte hain?|Slicer → Report Connections|Ctrl+B|Merge Cells|Goal Seek|0|40
+Color wheel par aas-paas wale colours (jaise Blue aur Green) kya kehlate hain?|Analogous colors|Error colors|Hidden colors|Random colors|0|41
+Monochromatic color palette ka kya matlab hai?|Ek hi base colour ke alag-alag light aur dark shades|10 alag neon colours|Sirf kala rang|Bina text ki sheet|0|41
+Excel mein #CALC! error kab aata hai?|Jab FILTER khali array de ya unsupported nested array calculation ho|Column chhota hone par|File save karne par|Bold karne par|0|42
+Excel mein #CONNECT! error kyun aata hai?|External data source ya network connection tootne par|Font badalne par|Row add karne par|Print karne par|0|42
+Formula ke input cells ko teer (arrows) se kaun sa tool dikhata hai?|Trace Precedents|Flash Fill|Goal Seek|Wrap Text|0|42
+DSUM function ko shartein dene ke liye kya banana padta hai?|Header ke saath alag Criteria Range|Pie chart|Macro module|Page break|0|43
+ISFORMULA(B2) kya check karta hai?|B2 cell ke andar formula likha hai ya nahi|B2 bold hai ya nahi|B2 ka rang|B2 ki width|0|43
+CUMIPMT function kya nikalta hai?|Do kishton ke beech chukaya gaya kul byaaj (Total Interest)|Aaj ki tarikh|Text ki lambai|Duplicate naam|0|44
+Same state (Intra-state) GST bill mein 18% tax kaise lagta hai?|9% CGST + 9% SGST|36% IGST|0% Tax|Sirf TDS|0|44
+Attendance sheet mein Half-Day ('HD') ko 0.5 din ginne ka tarika?|COUNTIF(range,"HD")*0.5|SUM(range)|PROPER(range)|NOW()|0|44
+VBA se Outlook reminder email bhejne ke liye kaun sa object banate hain?|CreateObject("Outlook.Application")|Range("A1").Clear|ActiveSheet.PrintOut|MsgBox|0|45`;
 
 const levelOf = (n: number) => CHAPTERS.find((c) => c.n === n)?.level ?? "Basic";
 

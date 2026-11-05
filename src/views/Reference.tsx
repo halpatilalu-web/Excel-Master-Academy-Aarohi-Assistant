@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Search } from "lucide-react";
+import { Check, Copy, Search, Star } from "lucide-react";
 import { CHAPTERS } from "../data/chapters";
-import { FORMULAS, FORMULA_CATS } from "../data/formulas";
+import { FORMULAS, FORMULA_CATS, FORMULA_COMPARISONS } from "../data/formulas";
 import { SHORTCUTS, SHORTCUT_CATS, shortcutCatLabel } from "../data/shortcuts";
 import { VBA } from "../data/vba";
+import { Bilingual } from "../lib/lang";
 import { Card, Pill, inputCls } from "../components/ui";
 
-export type RefTab = "formulas" | "shortcuts" | "vba";
+export type RefTab = "formulas" | "shortcuts" | "vba" | "compare";
 
 function CopyBtn({ text }: { text: string }) {
   const [ok, setOk] = useState(false);
@@ -42,16 +43,50 @@ export function Reference({ tab, go, onTab, initialQuery = "" }: { tab: RefTab; 
   const [cat, setCat] = useState("All");
   const [os, setOs] = useState<"win" | "mac">("win");
   const [lvl, setLvl] = useState("All");
+  const [favs, setFavs] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("ema_fav_formulas") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const toggleFav = (key: string) => {
+    setFavs((prev) => {
+      const next = prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key];
+      try {
+        localStorage.setItem("ema_fav_formulas", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
   const s = q.trim().toLowerCase();
 
-  const formulas = useMemo(() => FORMULAS.filter((f) => (cat === "All" || f.cat === cat) && (!s || `${f.name} ${f.syntax} ${f.hindi}`.toLowerCase().includes(s))), [cat, s]);
+  const formulas = useMemo(
+    () =>
+      FORMULAS.filter(
+        (f) =>
+          (cat === "All" || (cat === "★ Starred" ? favs.includes(f.name) : f.cat === cat)) &&
+          (!s || `${f.name} ${f.syntax} ${f.hindi}`.toLowerCase().includes(s))
+      ),
+    [cat, s, favs]
+  );
   const shortcuts = useMemo(() => SHORTCUTS.filter((x) => (cat === "All" || x.cat === cat) && (!s || `${x.win} ${x.mac} ${x.desc}`.toLowerCase().includes(s))), [cat, s]);
   const vba = useMemo(() => VBA.filter((v) => (lvl === "All" || v.level === lvl) && (!s || `${v.title} ${v.hindi} ${v.code}`.toLowerCase().includes(s))), [lvl, s]);
+  const comparisons = useMemo(
+    () =>
+      FORMULA_COMPARISONS.filter(
+        (c) =>
+          (cat === "All" || c.cat === cat) &&
+          (!s || `${c.name} ${c.bestForEn} ${c.bestForHi} ${c.limitEn} ${c.limitHi}`.toLowerCase().includes(s))
+      ),
+    [cat, s]
+  );
 
   const tabs: { k: RefTab; l: string; n: number }[] = [
-    { k: "formulas", l: "Formula Library", n: FORMULAS.length },
-    { k: "shortcuts", l: "Shortcut Keys", n: SHORTCUTS.length },
-    { k: "vba", l: "VBA Code", n: VBA.length },
+    { k: "formulas", l: "Formula Encyclopedia", n: FORMULAS.length },
+    { k: "compare", l: "⚖️ Best-For & Limitations", n: FORMULA_COMPARISONS.length },
+    { k: "shortcuts", l: "400 Shortcut Keys", n: SHORTCUTS.length },
+    { k: "vba", l: "VBA Automation", n: VBA.length },
   ];
   const pick = (t: RefTab) => { onTab(t); setCat("All"); setQ(""); };
 
@@ -76,13 +111,22 @@ export function Reference({ tab, go, onTab, initialQuery = "" }: { tab: RefTab; 
 
       {tab === "formulas" && (
         <>
-          <Chips items={FORMULA_CATS} value={cat} onPick={setCat} label={(c) => c} />
+          <Chips items={[`★ Starred`, ...FORMULA_CATS]} value={cat} onPick={setCat} label={(c) => c === "★ Starred" ? `★ Starred (${favs.length})` : c} />
           <p className="text-xs text-(--color-muted)">{formulas.length} formulas</p>
           <div className="grid md:grid-cols-2 gap-3">
             {formulas.map((f) => (
               <Card key={f.cat + f.name} className="!p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-display font-extrabold">{f.name}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      aria-label="Bookmark formula"
+                      onClick={() => toggleFav(f.name)}
+                      className="text-amber-500 hover:scale-110 transition"
+                    >
+                      <Star size={16} fill={favs.includes(f.name) ? "currentColor" : "none"} />
+                    </button>
+                    <span className="font-display font-extrabold">{f.name}</span>
+                  </div>
                   <Pill tone="info">{f.cat}</Pill>
                 </div>
                 <div className="mt-2 flex items-start gap-1 bg-(--color-accent-soft) rounded-lg px-2.5 py-1.5">
@@ -151,6 +195,30 @@ export function Reference({ tab, go, onTab, initialQuery = "" }: { tab: RefTab; 
             ))}
           </div>
           <p className="text-xs text-(--color-muted)">Use karne ke liye: Alt+F11 → Insert → Module → code paste → F5.</p>
+        </>
+      )}
+
+      {tab === "compare" && (
+        <>
+          <Chips items={["Lookup", "Logical", "Statistical", "Cleaning"]} value={cat} onPick={setCat} label={(c) => c} />
+          <div className="grid md:grid-cols-2 gap-3">
+            {comparisons.map((c) => (
+              <Card key={c.name} className="!p-4 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-display font-extrabold text-base">{c.name}</span>
+                  <Pill tone="info">{c.cat} • {c.worksWith}</Pill>
+                </div>
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-xs">
+                  <div className="font-bold text-emerald-900">✓ Best For:</div>
+                  <Bilingual en={c.bestForEn} hi={c.bestForHi} compact />
+                </div>
+                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200/80 text-xs">
+                  <div className="font-bold text-rose-900">✗ Limitation / Watch Out:</div>
+                  <Bilingual en={c.limitEn} hi={c.limitHi} compact />
+                </div>
+              </Card>
+            ))}
+          </div>
         </>
       )}
     </div>

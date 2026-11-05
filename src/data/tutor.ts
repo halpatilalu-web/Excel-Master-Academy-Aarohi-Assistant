@@ -167,6 +167,41 @@ const KB: Entry[] = [
     followUp: "Apna jawab likho — hum milkar poora project discuss karenge!",
   },
   {
+    id: "color-theory",
+    keys: ["color theory", "colour theory", "palette", "report color", "complementary", "monochromatic"],
+    en: "🇬🇧 **Excel Report Color Theory:** Follow the **2–3 Main Shades Rule** — 1 dark corporate header (#1B4F72 Navy or #145A32 Dark Green) + 1 chart accent + neutral white/light-gray backgrounds.",
+    hi: "🇮🇳 **Report Color Theory:** Rainbow sheet mat banao! Sirf 2–3 shades rakho, gahre header par safed bold text lagao, aur laal/peela rang sirf KPI alerts ke liye bacha kar rakho.",
+    example:
+      "• **Executive Navy:** `#1B4F72` + `#F4F6F7` + `#FFFFFF`\n• **Classic Accounting:** `#145A32` + `#F5F0E6` + `#1C2833`\n• **Modern Teal:** `#2C3E50` + `#0E9AA7` + `#EAEDED`",
+    followUp: "Pro Toolkit ke 'Color Theory Studio' tab mein live preview aur HEX/RGB copy karke dekho!",
+  },
+  {
+    id: "gst-accounts",
+    keys: ["gst", "cgst", "sgst", "igst", "reverse gst", "taxable", "invoice", "payroll", "tds"],
+    en: "🇬🇧 **GST Billing & Reverse GST Formula:** Same State (`BuyerState = HomeState`) splits 18% into **9% CGST + 9% SGST**; Inter-State charges **18% IGST**. To extract base price from GST-inclusive MRP, divide by `(1 + GST%)`!",
+    hi: "🇮🇳 **GST Invoice Niyam:** Same State mein `9% CGST + 9% SGST` aur alag State mein `18% IGST` lagta hai. GST sahit MRP ₹1,180 se asli keemat nikalne ke liye `=1180/(1+18%)` likho!",
+    example:
+      "• **CGST/SGST:** `=IF(C2=$G$1, ROUND(D2*9%, 2), 0)`\n• **IGST:** `=IF(C2<>$G$1, ROUND(D2*18%, 2), 0)`\n• **Reverse Base Price:** `=E2 / 1.18`",
+    followUp: "Chaho to Lab ke '7. GST Tax Invoice' live spreadsheet mein khud practice karo!",
+  },
+  {
+    id: "all-12-errors",
+    keys: ["#null!", "#calc!", "#connect!", "#blocked!", "12 errors", "excel error"],
+    en: "🇬🇧 **Complete 12-Error Quick Doctor:** Beyond classic `#DIV/0!`, `#N/A`, `#VALUE!`, `#REF!`, `#NAME?`, `#NUM!`, and `#######`, watch out for `#NULL!` (space instead of `:`), `#SPILL!` (blocked below), `#CALC!` (empty FILTER), `#CONNECT!` (offline query), and `#BLOCKED!` (Trust Center)!",
+    hi: "🇮🇳 **12 Excel Errors Ilaj:** `=SUM(A1 A10)` mein colon chhootne par `#NULL!` aata hai; FILTER khali aane par `#CALC!`; neeche cell bhara hone par `#SPILL!`; aur security rokne par `#BLOCKED!` dikhta hai.",
+    example:
+      "• Fix `#NULL!`: `=SUM(A1:A10)`\n• Fix `#CALC!`: `=FILTER(A2:C50, B2:B50=\"West\", \"No Match\")`\n• Fix `#DIV/0!`: `=IFERROR(A2/B2, 0)`",
+    followUp: "Kisi khaas error code ka naam likho ya Pro Toolkit → '12 Errors Doctor' kholo!",
+  },
+  {
+    id: "database-dsum",
+    keys: ["dsum", "dget", "daverage", "dcount", "database function"],
+    en: "🇬🇧 **Database Functions (`DSUM`, `DGET`, `DAVERAGE`):** Evaluate multi-column criteria written in a separate Criteria Box on the sheet! Auditors love `DGET` because it throws `#NUM!` if duplicate IDs exist.",
+    hi: "🇮🇳 **Database Functions:** `=DSUM(A1:E500, \"Sales\", G1:H2)` criteria table padh kar turant jod deta hai, aur `DGET` duplicate Employee ID hone par `#NUM!` dekar galti pakadwa deta hai!",
+    example: "• `=DSUM(A1:E500, \"Sales\", G1:H2)`\n• `=DGET(A1:E500, \"Salary\", G1:G2)`",
+    followUp: "Yaad rakho: Criteria range mein khali row mat chhodna warna poori table select ho jayegi!",
+  },
+  {
     id: "safety",
     keys: ["selfie", "tumhari photo", "photo bhejo", "photo bhej", "flirt", "romantic", "seductive", "girlfriend"],
     en: "🇬🇧 I'm an illustrated AI study companion for Excel Master Academy, so I don't share personal photos or engage in romantic roleplay.",
@@ -187,16 +222,33 @@ const KB: Entry[] = [
 
 export const SUGGESTIONS = [
   "XLOOKUP vs VLOOKUP Hindi + English mein samjhao",
-  "Data Cleaning ke best formulas batao",
-  "Conditional Formatting se poori row kaise highlight karein?",
-  "Power Query Unpivot kab use hota hai?",
-  "VBA se 1-click PDF macro kaise banayein?",
+  "GST Invoice CGST/SGST vs IGST formula batao",
+  "#NULL!, #SPILL! aur #CALC! error kaise theek karein?",
+  "Report Color Theory ke 3 best palettes batao",
+  "VBA se Low-Stock highlight macro kaise banayein?",
   "Quiz lo — test my Excel!",
 ];
 
 export function aarohiReply(input: string, historyTexts: string[] = []): string {
   const raw = input.trim();
   const t = raw.toLowerCase();
+
+  // Structured 5-part AI Automation Prompt handler (from ProToolkit!)
+  if (t.includes("i have an excel workbook named")) {
+    const wb = /workbook named '([^']+)'/i.exec(raw)?.[1] ?? "Workbook.xlsx";
+    const sh = /sheet '([^']+)'/i.exec(raw)?.[1] ?? "Sheet1";
+    const rng = /range '([^']+)'/i.exec(raw)?.[1] ?? "A1:D100";
+    const out = /displayed in '([^']+)'/i.exec(raw)?.[1] ?? "G2";
+    const wantsVba = t.includes("vba macro");
+    const wantsPq = t.includes("power query");
+    if (wantsVba) {
+      return `🤖 **Custom VBA Automation Ready for \`${wb}\` (\`${sh}!${rng}\`):**\n\n\`\`\`vba\nSub RunCustomAutomation()\n    Dim ws As Worksheet\n    Application.ScreenUpdating = False\n    Set ws = ThisWorkbook.Sheets("${sh}")\n    ' Operating on ${rng} -> Output: ${out}\n    ws.Range("${rng}").Columns.AutoFit\n    Application.ScreenUpdating = True\n    MsgBox "Automation completed on ${sh}!", vbInformation\nEnd Sub\n\`\`\`\n\n🇬🇧 **Steps:** Save as \`.xlsm\` → Press \`Alt + F11\` → Insert Module → Paste & test line-by-line with \`F8\`.\n🇮🇳 **Steps:** File ko \`.xlsm\` mein save karein → \`Alt + F11\` dabayein → Module mein paste karke \`F5\` se chalayein!`;
+    }
+    if (wantsPq) {
+      return `⚙️ **Power Query ETL Blueprint for \`${wb}\` (\`${sh}!${rng}\`):**\n\n1. Select \`${rng}\` → Press \`Ctrl + T\` to create a Table.\n2. Go to **Data → From Table/Range**.\n3. Apply Trim, Filter/Group By or Unpivot in Query Editor.\n4. Click **Close & Load To… → Existing Worksheet \`${out}\`**!\n\n🇮🇳 Agle mahine naya data aane par sirf **Data → Refresh All (\`Ctrl + Alt + F5\`)** dabayein!`;
+    }
+    return `🧮 **Custom Formula Solution for \`${wb}\` (\`${sh}!${rng}\` → \`${out}\`):**\n\n• **Dynamic Filter/Lookup:** \`=IFERROR(FILTER('${sh}'!${rng}, '${sh}'!A2:A100<>""), "No Match")\`\n• **Conditional Summary:** \`=SUMIFS('${sh}'!$D$2:$D$100, '${sh}'!$A$2:$A$100, F2)\`\n\n🇬🇧 Paste in \`${out}\` and lock fixed ranges with \`F4\` (\`$\`).\n🇮🇳 \`${out}\` cell mein formula paste karein — \`IFERROR\` error aane se bachayega!`;
+  }
 
   // Check if user answered A/B/C/D to the live quiz!
   const lastBot = [...historyTexts].reverse().find((m) => m.includes("A2:F50") && m.includes("$E2"));

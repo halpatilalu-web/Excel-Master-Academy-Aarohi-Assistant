@@ -42,7 +42,7 @@ def main() -> None:
 
     chapters_text = (DATA / "chapters.ts").read_text(encoding="utf-8")
     chapter_numbers = [int(n) for n in re.findall(r'\bC\((\d+),\s*"(?:Basic|Intermediate|Advanced)"', chapters_text)]
-    total_chapters = 40
+    total_chapters = 45
     if chapter_numbers != list(range(1, total_chapters + 1)):
         errors.append(f"chapters.ts must define chapters 1..{total_chapters} in order; got {chapter_numbers}")
 

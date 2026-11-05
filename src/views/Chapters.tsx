@@ -48,6 +48,20 @@ function Lesson({
   const mod = getModuleForChapter(c.n);
   const [pick, setPick] = useState<Record<number, number>>({});
   const [copied, setCopied] = useState(false);
+  const noteKey = `ema_ch_note_${c.n}`;
+  const [personalNote, setPersonalNote] = useState<string>(() => {
+    try {
+      return localStorage.getItem(noteKey) || "";
+    } catch {
+      return "";
+    }
+  });
+  const savePersonalNote = (val: string) => {
+    setPersonalNote(val);
+    try {
+      localStorage.setItem(noteKey, val);
+    } catch {}
+  };
   const colors = ["#fff7b0", "#ffd9e6", "#d8f5d0", "#d6ecff"];
 
   return (
@@ -327,6 +341,25 @@ function Lesson({
             </div>
           ))}
         </div>
+      </Card>
+
+      {/* Personal Student Study Scratchpad */}
+      <Card className="no-print">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h2 className="font-display font-bold text-sm sm:text-base">
+            📝 <Bilingual en={`My Personal Study Notes (Chapter ${c.n})`} hi={`मेरे व्यक्तिगत नोट्स (अध्याय ${c.n})`} />
+          </h2>
+          <span className="text-[11px] text-(--color-muted) font-medium">
+            {personalNote ? "✓ Auto-saved on this device" : "Type to auto-save"}
+          </span>
+        </div>
+        <textarea
+          rows={3}
+          value={personalNote}
+          onChange={(e) => savePersonalNote(e.target.value)}
+          placeholder="Apne khud ke revision points, office examples ya yaad rakhne layak formulas yahan likho… (auto-saved!)"
+          className="w-full rounded-xl border border-(--color-border) bg-(--color-canvas) px-3.5 py-2.5 text-sm focus:outline-none focus:border-(--color-accent)"
+        />
       </Card>
 
       <div className="flex gap-2 flex-wrap">

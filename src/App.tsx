@@ -17,6 +17,7 @@ import {
   Sun,
   UserRound,
   Video,
+  Wand2,
 } from "lucide-react";
 import { AuthGate } from "./components/AuthGate";
 import { BreakMode } from "./components/BreakMode";
@@ -59,6 +60,9 @@ const ReferenceLazy = lazy(() =>
 const AarohiLazy = lazy(() =>
   import("./views/Aarohi").then((m) => ({ default: m.Aarohi })),
 );
+const ProToolkitLazy = lazy(() =>
+  import("./views/ProToolkit").then((m) => ({ default: m.ProToolkit })),
+);
 
 const APP_NAME = "Excel Diploma Academy";
 
@@ -70,6 +74,7 @@ type ViewKey =
   | "notes"
   | "lab"
   | "charts"
+  | "toolkit"
   | "reference"
   | "exam"
   | "aarohi"
@@ -89,6 +94,7 @@ const VIEWS = new Set<ViewKey>([
   "notes",
   "lab",
   "charts",
+  "toolkit",
   "reference",
   "exam",
   "aarohi",
@@ -98,13 +104,14 @@ const VIEWS = new Set<ViewKey>([
 
 const NAV: NavItem<ViewKey>[] = [
   { key: "home", label: "🎓 Diploma Home", icon: LayoutDashboard },
-  { key: "chapters", label: "📘 40 Chapters", icon: BookOpen },
+  { key: "chapters", label: "📘 45 Chapters", icon: BookOpen },
   { key: "notes", label: "📒 Notes & Infographics", icon: StickyNote },
   { key: "videos", label: "🎬 Video & AI Visuals", icon: Video },
   { key: "studio3d", label: "🧊 3D Excel Lessons", icon: Box },
   { key: "lab", label: "🧮 Practice Sheets & Lab", icon: FlaskConical },
+  { key: "toolkit", label: "🧰 Pro Toolkit & AI Prompts", icon: Wand2 },
   { key: "charts", label: "📊 Charts & Dashboards", icon: BarChart3 },
-  { key: "reference", label: "ƒx Formulas & VBA", icon: Library },
+  { key: "reference", label: "ƒx 269 Formulas & 400 Keys", icon: Library },
   { key: "exam", label: "📄 Sample Papers & Quiz", icon: ClipboardCheck },
   { key: "aarohi", label: "✨ Aarohi Live AI", icon: Sparkles },
   { key: "certificate", label: "🏆 Diploma Certificate", icon: Award },
@@ -291,6 +298,16 @@ export default function App() {
                 {view === "notes" && (
                   <Suspense fallback={<p className="text-(--color-muted)">Loading Notes…</p>}>
                     <ExcelNotesLazy onGoChapter={(ch) => navigate("chapters", ch)} />
+                  </Suspense>
+                )}
+                {view === "toolkit" && (
+                  <Suspense fallback={<p className="text-(--color-muted)">Loading Pro Toolkit…</p>}>
+                    <ProToolkitLazy
+                      onAskAarohi={(prompt) => {
+                        setQueuedAiPrompt(prompt);
+                        setAiDrawerOpen(true);
+                      }}
+                    />
                   </Suspense>
                 )}
                 {view === "aarohi" && (

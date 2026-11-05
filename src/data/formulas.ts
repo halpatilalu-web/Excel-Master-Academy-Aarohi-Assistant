@@ -63,9 +63,12 @@ ISNA|=ISNA(value)|Kya #N/A error hai|=ISNA(A1)|0
 ISLOGICAL|=ISLOGICAL(value)|Kya TRUE/FALSE hai|=ISLOGICAL(A1)|0
 ISEVEN|=ISEVEN(number)|Number even hai ya nahi|=ISEVEN(A1)|0
 ISODD|=ISODD(number)|Number odd hai ya nahi|=ISODD(A1)|0
-ISFORMULA|=ISFORMULA(cell)|Cell mein formula hai ya nahi|=ISFORMULA(A1)|0
-ISREF|=ISREF(value)|Kya value cell reference hai|=ISREF(A1)|0
-N|=N(value)|Value ko number mein badalta hai|=N(TRUE) → 1|0
+ISFORMULA|=ISFORMULA(cell)|Cell mein formula hai ya nahi|=ISFORMULA(A1)|43
+ISREF|=ISREF(value)|Kya value cell reference hai|=ISREF(A1)|43
+TYPE|=TYPE(value)|Data ka prakar batata hai (1=Num, 2=Text, 4=Bool, 16=Err, 64=Array)|=TYPE(A1)|43
+ERROR.TYPE|=ERROR.TYPE(error_val)|Error ka code number deta hai (1=#NULL!, 2=#DIV/0!, 3=#VALUE!, 7=#N/A)|=ERROR.TYPE(A1)|43
+INFO|=INFO(type_text)|Operating environment aur directory ki jaankari deta hai|=INFO("osversion")|43
+N|=N(value)|Value ko number mein badalta hai|=N(TRUE) → 1|43
 NA|=NA()|Jaanbujhkar #N/A error deta hai|=NA()|0
 LET|=LET(name1, value1, ..., calculation)|Naam dekar formula ke andar variable banao — formula chhota aur tez|=LET(x, A1*2, x+x/2)|0
 LAMBDA|=LAMBDA(parameter, ..., calculation)|Apna khud ka custom function banao|=LAMBDA(x, x*18%)(100)|0
@@ -185,6 +188,7 @@ QUARTILE|=QUARTILE.INC(array, quart)|Quartile (0 se 4)|=QUARTILE.INC(A1:A20, 1)|
 STDEV|=STDEV.S(number1, ...)|Sample standard deviation|=STDEV.S(A1:A20)|0
 STDEV.P|=STDEV.P(number1, ...)|Poori population ka standard deviation|=STDEV.P(A1:A20)|0
 VAR|=VAR.S(number1, ...)|Sample variance|=VAR.S(A1:A20)|0
+VAR.P|=VAR.P(number1, ...)|Poori population ka variance|=VAR.P(A1:A20)|0
 CORREL|=CORREL(array1, array2)|Do series ka correlation|=CORREL(A1:A10, B1:B10)|0
 COVARIANCE|=COVARIANCE.S(array1, array2)|Do series ka covariance|=COVARIANCE.S(A1:A10, B1:B10)|0
 SLOPE|=SLOPE(known_y, known_x)|Regression line ka slope|=SLOPE(B1:B10, A1:A10)|0
@@ -221,8 +225,11 @@ SYD|=SYD(cost, salvage, life, per)|Sum-of-years digits depreciation|=SYD(100000,
 RRI|=RRI(nper, pv, fv)|CAGR — saalana chakravriddhi dar|=RRI(5, 100000, 180000)|0
 PDURATION|=PDURATION(rate, pv, fv)|Paisa double hone mein kitne period|=PDURATION(8%, 1, 2)|0
 ISPMT|=ISPMT(rate, per, nper, pv)|Seedhe byaaj wale loan ka byaaj|=ISPMT(9%/12, 1, 60, 500000)|0
-GST add|=Price*(1+GST%)|Price mein GST jodna|=A2*(1+18%)|0
-GST remove|=Total/(1+GST%)|GST-inclusive price se GST hatana|=A2/(1+18%)|0
+GST add|=Price*(1+GST%)|Price mein GST jodna|=A2*(1+18%)|44
+GST remove|=Total/(1+GST%)|GST-inclusive price se GST hatana|=A2/(1+18%)|44
+CGST / SGST|=IF(BuyerState=$G$1, ROUND(Taxable*9%,2), 0)|Same state hone par 9% CGST ya SGST lagana|=IF(C2=$G$1, ROUND(D2*9%,2), 0)|44
+IGST|=IF(BuyerState<>$G$1, ROUND(Taxable*18%,2), 0)|Inter-state hone par 18% IGST lagana|=IF(C2<>$G$1, ROUND(D2*18%,2), 0)|44
+Attendance Pay|=COUNTIF(B2:AF2,"P")+COUNTIF(B2:AF2,"HD")*0.5|Present aur Half-Day jodkar payable days nikalna|=COUNTIF(B2:AF2,"P")+COUNTIF(B2:AF2,"HD")*0.5|44
 Percentage|=Part/Total|Pratishat nikalna (cell ko % format do)|=B2/SUM(B$2:B$10)|0
 Growth %|=(New-Old)/Old|Pichhle se kitna badha/ghata|=(C2-B2)/B2|0`,
 "Dynamic Arrays": `FILTER|=FILTER(array, include, [if_empty])|Shart ke hisaab se data chhanta hai|=FILTER(A2:C100, B2:B100="Delhi")|28
@@ -249,8 +256,48 @@ OR filter|=FILTER(A2:C100, (B2:B100="Delhi")+(B2:B100="Pune"))|Do shartein OR ke
 Dropdown filter|=FILTER(A2:C100, B2:B100=E1)|Dropdown se chuni value ka data|=FILTER(A2:C100, B2:B100=E1)|28
 XLOOKUP multi|=XLOOKUP(1, (A:A=E1)*(B:B=E2), C:C)|Do shartein ke saath lookup|=XLOOKUP(1,(A:A=E1)*(B:B=E2),C:C)|19
 Running total|=SCAN(0, B2:B20, LAMBDA(a, x, a+x))|Jodte-jodte chalta total|=SCAN(0,B2:B20,LAMBDA(a,x,a+x))|0
-Text array|=TEXTJOIN(", ", TRUE, UNIQUE(A2:A100))|Unique values ek cell mein|=TEXTJOIN(", ",TRUE,UNIQUE(A2:A100))|28`,
+Text array|=TEXTJOIN(", ", TRUE, UNIQUE(A2:A100))|Unique values ek cell mein|=TEXTJOIN(", ",TRUE,UNIQUE(A2:A100))|28
+Keep Latest ID|=SORT(FILTER(A2:G500, G2:G500=MAXIFS(G2:G500,A2:A500,A2:A500)), 7, -1)|Duplicate IDs mein se sirf sabse latest date wala record rakhna|=SORT(FILTER(A2:D100,D2:D100=MAXIFS(D2:D100,A2:A100,A2:A100)),4,-1)|45`,
+Database: `DSUM|=DSUM(database, field, criteria)|Criteria table ki shartein poori karne wali rows ka jod|=DSUM(A1:E500, "Sales", G1:H2)|43
+DAVERAGE|=DAVERAGE(database, field, criteria)|Criteria table ke hisaab se matching rows ka average|=DAVERAGE(A1:E500, "Sales", G1:H2)|43
+DCOUNT|=DCOUNT(database, field, criteria)|Criteria match karne wale numeric cells ginta hai|=DCOUNT(A1:E500, "Qty", G1:H2)|43
+DCOUNTA|=DCOUNTA(database, field, criteria)|Criteria match karne wale non-blank cells ginta hai|=DCOUNTA(A1:E500, "Name", G1:H2)|43
+DGET|=DGET(database, field, criteria)|Database se exact 1 matching record nikalta hai (duplicate par #NUM! alert)|=DGET(A1:E500, "Salary", G1:G2)|43
+DMAX|=DMAX(database, field, criteria)|Criteria match karne wali sabse badi value|=DMAX(A1:E500, "Sales", G1:H2)|43
+DMIN|=DMIN(database, field, criteria)|Criteria match karne wali sabse chhoti value|=DMIN(A1:E500, "Sales", G1:H2)|43
+DPRODUCT|=DPRODUCT(database, field, criteria)|Criteria match karne wali values ka guna (product)|=DPRODUCT(A1:E50, "Factor", G1:H2)|43
+DSTDEV|=DSTDEV(database, field, criteria)|Matching sample records ka standard deviation|=DSTDEV(A1:E500, "Score", G1:H2)|43
+DSTDEVP|=DSTDEVP(database, field, criteria)|Matching population records ka standard deviation|=DSTDEVP(A1:E500, "Score", G1:H2)|43
+DVAR|=DVAR(database, field, criteria)|Matching sample records ka variance|=DVAR(A1:E500, "Score", G1:H2)|43
+DVARP|=DVARP(database, field, criteria)|Matching population records ka variance|=DVARP(A1:E500, "Score", G1:H2)|43`,
 };
+
+export interface FormulaComparisonRow {
+  cat: "Logical" | "Lookup" | "Statistical" | "Cleaning";
+  name: string;
+  worksWith: string;
+  bestForEn: string;
+  bestForHi: string;
+  limitEn: string;
+  limitHi: string;
+}
+
+export const FORMULA_COMPARISONS: FormulaComparisonRow[] = [
+  { cat: "Lookup", name: "VLOOKUP", worksWith: "Left-to-right table", bestForEn: "Quick vertical lookup in legacy Excel", bestForHi: "Purane Excel mein seedha vertical lookup", limitEn: "Cannot look left; breaks if column inserted; first match only", limitHi: "Left nahi dekh sakta; column judne par toot jata hai" },
+  { cat: "Lookup", name: "HLOOKUP", worksWith: "Top-to-bottom wide table", bestForEn: "Horizontal row-header tables", bestForHi: "Row headers wali chaudi table", limitEn: "Rarely flexible; breaks if rows inserted", limitHi: "Row insert hone par galat answer de sakta hai" },
+  { cat: "Lookup", name: "XLOOKUP", worksWith: "Any direction + arrays", bestForEn: "Modern all-in-one lookup with built-in not_found & reverse search", bestForHi: "Har disha mein lookup + built-in error message", limitEn: "Requires Excel 2021 / Microsoft 365", limitHi: "Excel 2016/2019 mein kaam nahi karta" },
+  { cat: "Lookup", name: "INDEX + MATCH", worksWith: "2D rows & columns", bestForEn: "Left lookup + dynamic 2-way matrix in ALL Excel versions", bestForHi: "Har Excel version mein left aur 2-way lookup", limitEn: "Slightly longer nested syntax for beginners", limitHi: "Do functions jodne padte hain" },
+  { cat: "Lookup", name: "FILTER", worksWith: "Dynamic spill arrays", bestForEn: "Returning ALL matching rows (not just the first match!)", bestForHi: "Ek ID ke SAARE matching records nikalna", limitEn: "Needs empty spill space below; Excel 365/2021+", limitHi: "Neeche khali cells chahiye warna #SPILL! aata hai" },
+  { cat: "Lookup", name: "DGET", worksWith: "Database + Criteria range", bestForEn: "Audited unique lookup that alerts #NUM! if duplicates exist", bestForHi: "Duplicate ID pakadne wala strict lookup", limitEn: "Requires separate header + criteria cells on sheet", limitHi: "Alag criteria range banana zaroori hai" },
+  { cat: "Lookup", name: "OFFSET / INDIRECT", worksWith: "Dynamic range / text ref", bestForEn: "Moving window averages or dynamic sheet-name switching", bestForHi: "Sheet naam dropdown se badalna ya moving range", limitEn: "Volatile — recalculates on every edit and slows large files!", limitHi: "Volatile hai — badi workbook ko slow kar deta hai!" },
+  { cat: "Logical", name: "IF vs IFS", worksWith: "Conditional tests", bestForEn: "IF for 1 condition; IFS for 3–6 clean grade/slab tiers", bestForHi: "IF 1 shart ke liye; IFS 3-6 slabs ke liye saaf", limitEn: "IFS has no built-in default unless TRUE is added at end", limitHi: "IFS mein aakhir mein TRUE lagana yaad rakhna padta hai" },
+  { cat: "Logical", name: "SWITCH", worksWith: "Exact single expression", bestForEn: "Matching 1 cell against exact codes (1=Mon, 2=Tue...)", bestForHi: "Exact code match karne ke liye sabse chhota", limitEn: "Cannot test > or < ranges directly without TRUE trick", limitHi: "Seedha > ya < compare nahi karta" },
+  { cat: "Logical", name: "AND / OR / XOR", worksWith: "Multiple boolean checks", bestForEn: "AND = all true; OR = any true; XOR = odd number true", bestForHi: "AND = sab sahi; OR = koi ek; XOR = sirf ek sahi", limitEn: "Does not spill row-by-row inside FILTER (use * and + instead)", limitHi: "FILTER ke andar * aur + lagana padta hai" },
+  { cat: "Statistical", name: "AVERAGE vs MEDIAN", worksWith: "Numeric series", bestForEn: "AVERAGE for balanced data; MEDIAN when extreme outliers exist (salaries)", bestForHi: "Outliers (ek bahut badi salary) hone par MEDIAN sahi beech batata hai", limitEn: "AVERAGE gets skewed heavily by 1 giant outlier", limitHi: "Ek bada number AVERAGE ko bhatka deta hai" },
+  { cat: "Statistical", name: "SUBTOTAL vs AGGREGATE", worksWith: "Filtered tables", bestForEn: "SUBTOTAL for filtered totals; AGGREGATE to ALSO ignore #DIV/0! & #N/A errors!", bestForHi: "Filter + Error dono ignore karne ke liye AGGREGATE(9,6,...)", limitEn: "SUM ignores filters; SUBTOTAL still fails if cell has error", limitHi: "Range mein ek bhi error ho to SUBTOTAL ruk jata hai" },
+  { cat: "Cleaning", name: "FIND vs SEARCH", worksWith: "Substring position", bestForEn: "FIND for case-sensitive match; SEARCH for case-insensitive + wildcards (* ?)", bestForHi: "Case-sensitive ke liye FIND; Wildcard aur bina case ke SEARCH", limitEn: "Both return #VALUE! if text is missing (wrap in IFERROR)", limitHi: "Text na milne par #VALUE! deta hai" },
+  { cat: "Cleaning", name: "SUBSTITUTE vs REPLACE", worksWith: "Text modification", bestForEn: "SUBSTITUTE swaps known text ('-' → ''); REPLACE swaps by character position", bestForHi: "Shabd badalne ko SUBSTITUTE; position se badalne ko REPLACE", limitEn: "SUBSTITUTE is case-sensitive!", limitHi: "SUBSTITUTE capital/small ka farak maanta hai" },
+];
 
 export const FORMULA_CATS = Object.keys(RAW);
 export const FORMULAS: FormulaItem[] = Object.entries(RAW).flatMap(([cat, block]) =>

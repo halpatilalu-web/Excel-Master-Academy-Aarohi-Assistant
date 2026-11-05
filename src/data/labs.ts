@@ -158,6 +158,23 @@ export const LABS: Lab[] = [
     ],
     need: [],
   },
+  {
+    id: "lab11-gst",
+    chapter: 44,
+    title: "GST Tax Invoice & Accounts Register",
+    task: "HomeState 'Gujarat' ke hisaab se 'CGST', 'SGST', 'IGST' aur 'GrandTotal' columns formula se nikalo aur upload karke check karo!",
+    taskEn: "Compute 'CGST', 'SGST', 'IGST', and 'GrandTotal' columns based on BuyerState vs HomeState ('Gujarat') at 18% GST.",
+    file: "gst-invoice-register.csv",
+    header: ["InvoiceNo", "BuyerName", "BuyerState", "HSN", "Qty", "UnitRate", "TaxableValue"],
+    count: 35,
+    rows: (i) => {
+      const states = ["Gujarat", "Maharashtra", "Delhi", "Gujarat", "Rajasthan"];
+      const qty = 2 + (i % 10);
+      const rate = 500 + (i % 8) * 250;
+      return [`INV-${202601 + i}`, `${names[i % 10]} Enterprises`, states[i % 5], `8471${i % 9}`, qty, rate, qty * rate];
+    },
+    need: ["CGST", "SGST", "IGST", "GrandTotal"],
+  },
 ];
 
 const csvCell = (value: string | number) => {

@@ -11,6 +11,7 @@ import {
   StickyNote,
   Trophy,
   Video,
+  Wand2,
 } from "lucide-react";
 import { DonutChart } from "../components/charts";
 import { Excel3DHeroCube } from "../components/Excel3DModel";
@@ -18,6 +19,7 @@ import { StreakBadges } from "../components/StreakBadges";
 import { Button, Card, Pill, ProgressBar } from "../components/ui";
 import { CHAPTERS, LEVEL_STYLE, type Level } from "../data/chapters";
 import { DIPLOMA_MODULES } from "../data/diplomaModules";
+import { FORMULAS } from "../data/formulas";
 import { SHORTCUTS } from "../data/shortcuts";
 import { PASS_PCT, useExams, useProgress, useSubmissions } from "../lib/academy";
 import { Bilingual, LangSwitcher } from "../lib/lang";
@@ -32,6 +34,7 @@ export type DashDest =
   | "studio3d"
   | "notes"
   | "charts"
+  | "toolkit"
   | "aarohi";
 
 export function Dashboard({
@@ -89,8 +92,8 @@ export function Dashboard({
             </h1>
 
             <Bilingual
-              en="40 Chapters across 8 Diploma Modules — Basic Excel, Formulas, Data Cleaning, Conditional Formatting, Data Validation, XLOOKUP & INDEX-MATCH, Pivot Dashboards, Power Query & VBA Macros!"
-              hi="8 Diploma Modules aur 40 Chapters — Handwritten Notes, Infographics, Video Lessons, 3D Models, Live Practice Sheet, Sample Papers aur Aarohi Live AI Chat ke saath!"
+              en="45 Chapters across 9 Diploma Modules — Basic Excel, Formulas, Data Cleaning, Conditional Formatting, Data Validation, XLOOKUP & INDEX-MATCH, Pivot Dashboards, Power Query, VBA Macros, Report Color Theory, All 12 Errors, GST Accounts & AI Automation!"
+              hi="9 Diploma Modules aur 45 Chapters — Handwritten Notes, 10 Infographics, Video Lessons, 3D Models, Live GST & Formula Practice Sheets, AI Prompt Builder, Color Theory Studio, 400 Shortcuts aur Aarohi Live AI ke saath!"
             />
 
             <div className="flex flex-wrap gap-2.5 pt-1">
@@ -106,11 +109,11 @@ export function Dashboard({
               ) : (
                 <Button onClick={() => go("exam")}>🏆 Take Final Diploma Exam</Button>
               )}
+              <Button variant="secondary" onClick={() => go("toolkit")}>
+                <Wand2 size={16} /> Pro Toolkit & AI Prompts
+              </Button>
               <Button variant="secondary" onClick={() => go("lab")}>
                 🧮 Live Practice Sheet
-              </Button>
-              <Button variant="secondary" onClick={() => go("videos")}>
-                <Video size={16} /> Video Lessons
               </Button>
               <Button variant="secondary" onClick={() => go("aarohi")}>
                 <Sparkles size={16} /> Talk to Aarohi AI
@@ -137,14 +140,15 @@ export function Dashboard({
       )}
 
       {/* Quick Feature Portals */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
         {[
-          { k: "notes" as const, icon: StickyNote, e: "📒", t: "Handwritten & Infographics", s: "40 Notes + 8 Posters" },
-          { k: "videos" as const, icon: Video, e: "🎬", t: "Video & AI Gallery", s: "8 Videos + 8 AI Art" },
+          { k: "notes" as const, icon: StickyNote, e: "📒", t: "Handwritten & Infographics", s: "45 Notes + 10 Posters" },
+          { k: "toolkit" as const, icon: Wand2, e: "🧰", t: "Pro Toolkit & AI", s: "Prompts + Colors + 12 Errors" },
+          { k: "videos" as const, icon: Video, e: "🎬", t: "Video & AI Gallery", s: "8 Videos + 10 AI Art" },
           { k: "studio3d" as const, icon: Box, e: "🧊", t: "3D Excel Lessons", s: "6 Interactive 3D Labs" },
-          { k: "lab" as const, icon: FlaskConical, e: "🧮", t: "Practice Sheets", s: "Live Grid + 10 .xlsx" },
+          { k: "lab" as const, icon: FlaskConical, e: "🧮", t: "Practice & GST Lab", s: "7 Grids + 11 .xlsx" },
           { k: "charts" as const, icon: BarChart3, e: "📊", t: "Charts & Dashboards", s: "29 Charts + 6 MIS" },
-          { k: "exam" as const, icon: ClipboardCheck, e: "📄", t: "Sample Papers & Quiz", s: "5 Papers + 8 Quizzes" },
+          { k: "exam" as const, icon: ClipboardCheck, e: "📄", t: "Sample Papers & Quiz", s: "6 Papers + 9 Quizzes" },
         ].map((item, i) => (
           <motion.button
             key={item.k}
@@ -175,7 +179,7 @@ export function Dashboard({
         </kbd>
         <span className="text-sm flex-1">{tip.desc}</span>
         <Button variant="secondary" onClick={() => go("reference")}>
-          301 Shortcuts & 249 Formulas →
+          {SHORTCUTS.length} Shortcuts & {FORMULAS.length} Formulas →
         </Button>
       </Card>
 
@@ -193,12 +197,12 @@ export function Dashboard({
         ))}
       </div>
 
-      {/* 8 Diploma Modules Visual Showcase */}
+      {/* 9 Diploma Modules Visual Showcase */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-xl sm:text-2xl font-extrabold">
-              📚 8 Complete Diploma Course Modules
+              📚 {DIPLOMA_MODULES.length} Complete Diploma Course Modules
             </h2>
             <p className="text-xs sm:text-sm text-(--color-muted)">
               Click any module to study its chapters, notes, formulas, and practical projects!
