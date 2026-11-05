@@ -124,9 +124,9 @@ export function FloatingAssistant({
         <button
           type="button"
           onClick={() => onOpenChange(true)}
-          className="fixed bottom-16 right-4 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-3 text-xs sm:text-sm font-bold shadow-xl hover:scale-105 transition cursor-pointer"
+          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-(--color-accent) hover:bg-(--color-accent-dark) text-white px-4 py-2.5 text-xs sm:text-sm font-semibold shadow-lg hover:shadow-xl transition cursor-pointer"
         >
-          <Sparkles size={16} /> Live AI Help · Aarohi
+          <Sparkles size={15} /> Ask Aarohi AI
         </button>
       )}
 

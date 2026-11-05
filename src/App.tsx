@@ -6,15 +6,11 @@ import {
   BookOpen,
   Box,
   ClipboardCheck,
-  Coffee,
   FlaskConical,
   LayoutDashboard,
   Library,
-  Moon,
-  Search,
   Sparkles,
   StickyNote,
-  Sun,
   UserRound,
   Video,
   Wand2,
@@ -103,19 +99,19 @@ const VIEWS = new Set<ViewKey>([
 ]);
 
 const NAV: NavItem<ViewKey>[] = [
-  { key: "home", label: "🎓 Diploma Home", icon: LayoutDashboard },
-  { key: "chapters", label: "📘 45 Chapters", icon: BookOpen },
-  { key: "notes", label: "📒 Notes & Infographics", icon: StickyNote },
-  { key: "videos", label: "🎬 Video & AI Visuals", icon: Video },
-  { key: "studio3d", label: "🧊 3D Excel Lessons", icon: Box },
-  { key: "lab", label: "🧮 Practice Sheets & Lab", icon: FlaskConical },
-  { key: "toolkit", label: "🧰 Pro Toolkit & AI Prompts", icon: Wand2 },
-  { key: "charts", label: "📊 Charts & Dashboards", icon: BarChart3 },
-  { key: "reference", label: "ƒx 269 Formulas & 400 Keys", icon: Library },
-  { key: "exam", label: "📄 Sample Papers & Quiz", icon: ClipboardCheck },
-  { key: "aarohi", label: "✨ Aarohi Live AI", icon: Sparkles },
-  { key: "certificate", label: "🏆 Diploma Certificate", icon: Award },
-  { key: "account", label: "👤 Account", icon: UserRound },
+  { key: "home", label: "Dashboard", icon: LayoutDashboard, group: "Overview" },
+  { key: "chapters", label: "45 Chapters", icon: BookOpen, group: "Overview" },
+  { key: "notes", label: "Notes & Infographics", icon: StickyNote, group: "Learn" },
+  { key: "videos", label: "Video & AI Visuals", icon: Video, group: "Learn" },
+  { key: "studio3d", label: "3D Visual Studio", icon: Box, group: "Learn" },
+  { key: "charts", label: "Charts & Dashboards", icon: BarChart3, group: "Learn" },
+  { key: "lab", label: "Live Practice Lab", icon: FlaskConical, group: "Practice & Tools" },
+  { key: "toolkit", label: "Pro Toolkit & AI", icon: Wand2, group: "Practice & Tools" },
+  { key: "reference", label: "Formulas & 400 Keys", icon: Library, group: "Practice & Tools" },
+  { key: "exam", label: "Exams & Sample Papers", icon: ClipboardCheck, group: "Certification" },
+  { key: "aarohi", label: "Aarohi AI Tutor", icon: Sparkles, group: "Certification" },
+  { key: "certificate", label: "Diploma Certificate", icon: Award, group: "Certification" },
+  { key: "account", label: "Account", icon: UserRound, group: "Certification" },
 ];
 
 function parseHash(): Route {
@@ -210,6 +206,10 @@ export default function App() {
           userName={displayName}
           userPicture={auth.user?.picture || undefined}
           onSignOut={handleSignOut}
+          onOpenSearch={() => setSearchOpen(true)}
+          dark={dark}
+          onToggleDark={toggleDark}
+          onOpenBreak={view !== "exam" ? () => setOnBreak(true) : undefined}
         >
           <ErrorBoundary>
             <AnimatePresence mode="wait">
@@ -332,40 +332,11 @@ export default function App() {
             />
           )}
 
-          <div className="fixed bottom-4 right-4 z-40 flex gap-2">
-            <button
-              type="button"
-              aria-label="Search (Ctrl+K)"
-              onClick={() => setSearchOpen(true)}
-              className="p-3 rounded-full bg-(--color-accent) text-white shadow-lg hover:scale-105 transition"
-            >
-              <Search size={18} />
-            </button>
-            <button
-              type="button"
-              aria-label="Dark mode"
-              onClick={toggleDark}
-              className="p-3 rounded-full bg-(--color-surface) border border-(--color-border) shadow-lg hover:scale-105 transition"
-            >
-              {dark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-          </div>
-
-          {view !== "exam" && (
-            <button
-              type="button"
-              aria-label="Take a break"
-              onClick={() => setOnBreak(true)}
-              className="fixed bottom-4 left-4 md:left-72 z-40 flex items-center gap-2 px-4 py-3 rounded-full bg-(--color-warn) text-black font-semibold text-sm shadow-lg hover:scale-105 transition"
-            >
-              <Coffee size={18} /> Break
-            </button>
-          )}
-
           <BreakMode open={onBreak} onDone={() => setOnBreak(false)} />
           <SearchBox open={searchOpen} onClose={() => setSearchOpen(false)} onPick={pickSearchResult} />
-          <footer className="mt-10 pt-4 border-t border-(--color-border) text-xs text-(--color-muted)">
-            © {new Date().getFullYear()} Excel Diploma Academy · Complete Basic-to-Advanced Excel Course in Hindi & English
+          <footer className="mt-12 pt-5 border-t border-(--color-border) flex flex-wrap items-center justify-between gap-2 text-xs text-(--color-muted)">
+            <span>© {new Date().getFullYear()} Excel Diploma Academy</span>
+            <span>Complete Basic-to-Advanced Excel Curriculum · Hindi & English</span>
           </footer>
         </Layout>
       </AuthGate>
