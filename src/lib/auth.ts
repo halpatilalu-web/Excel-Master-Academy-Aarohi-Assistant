@@ -4,10 +4,44 @@
  * owns its own state.
  */
 import { useCallback, useEffect, useState } from "react";
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import { finishPopupLogin, onPopupLoginDone } from "./orvis";
 import { adoptUser, resetUserLocalState } from "./prefs";
 import { clearStoreCache } from "./store";
+
+const LOCAL_GUEST_KEY = "ema_local_guest_user_v1";
+
+function getOrCreateLocalGuest(): User {
+  try {
+    const raw = localStorage.getItem(LOCAL_GUEST_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as User;
+      if (parsed?.id && parsed?.provider === "guest") return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  const u: User = {
+    id: `local-${Math.random().toString(36).slice(2, 10)}`,
+    email: "guest-local@guest.local",
+    name: "",
+    provider: "guest",
+    picture: "",
+  };
+  try {
+    localStorage.setItem(LOCAL_GUEST_KEY, JSON.stringify(u));
+  } catch {
+    /* ignore */
+  }
+  return u;
+}
+
+export function isBackendUnavailable(err: unknown): boolean {
+  if (err instanceof ApiError) {
+    return err.status === 0 || err.status === 404 || err.status === 405 || err.status === 502 || err.status === 503 || err.status === 504;
+  }
+  return err instanceof TypeError || err instanceof SyntaxError;
+}
 
 export interface User {
   id: string;
@@ -29,12 +63,18 @@ export function useAuth() {
 
   const refresh = useCallback(async () => {
     try {
-      const next = await api.get<User>("/api/auth/me");
+      const next = await api.get<User>("/api/auth/me", { timeoutMs: 4000 });
       adopt(next);
       setUser(next);
-    } catch {
-      adopt(null);
-      setUser(null);
+    } catch (err) {
+      if (isBackendUnavailable(err)) {
+        const localUser = getOrCreateLocalGuest();
+        adopt(localUser);
+        setUser(localUser);
+      } else {
+        adopt(null);
+        setUser(null);
+      }
     } finally {
       setChecking(false);
     }
@@ -85,8 +125,17 @@ export function useAuth() {
       api.post<{ ok: boolean }>("/api/auth/password", { current, new: next }),
     [],
   );
-  /** Guest mode: an anonymous account for this browser — no sign-in screen. */
-  const guest = useCallback(async () => signedIn(await api.post<User>("/api/auth/guest")), []);
+  /** Guest mode: an anonymous account for this browser — falls back to local browser guest on static hosts (Vercel/Netlify). */
+  const guest = useCallback(async () => {
+    try {
+      return signedIn(await api.post<User>("/api/auth/guest", undefined, { timeoutMs: 4500 }));
+    } catch (err) {
+      if (isBackendUnavailable(err)) {
+        return signedIn(getOrCreateLocalGuest());
+      }
+      throw err;
+    }
+  }, []);
   /** Turn the current guest into a real account (keeps all data). */
   const upgrade = useCallback(async (email: string, password: string) => {
     const u = await api.post<User>("/api/auth/upgrade", { email, password });
@@ -95,7 +144,17 @@ export function useAuth() {
   }, []);
   /** Delete the account and everything it owns (irreversible). */
   const deleteAccount = useCallback(async () => {
-    await api.del("/api/auth/account");
+    try {
+      await api.del("/api/auth/account");
+    } catch (err) {
+      if (!isBackendUnavailable(err)) throw err;
+    }
+    try {
+      localStorage.removeItem(LOCAL_GUEST_KEY);
+      ["progress", "exams", "submissions", "certs"].forEach((c) => localStorage.removeItem(`ema_local_col_${c}`));
+    } catch {
+      /* ignore */
+    }
     clearStoreCache();
     adoptUser(null);
     resetUserLocalState();

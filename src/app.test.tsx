@@ -115,4 +115,16 @@ describe("app shell", () => {
     await mountApp("#/account");
     expect(await screen.findByText(/Delete my account/i)).toBeTruthy();
   });
+
+  it("opens cleanly in local browser mode on static hosts (like Vercel) without a blank page", async () => {
+    globalThis.fetch = vi.fn(async () =>
+      new Response("<!doctype html><html><body>Not Found</body></html>", {
+        status: 404,
+        headers: { "content-type": "text/html" },
+      }),
+    ) as unknown as typeof fetch;
+    await mountApp();
+    expect(await screen.findByText(/Guest · this device/i)).toBeTruthy();
+    expect(screen.getByText(/Master Excel A-to-Z/i)).toBeTruthy();
+  });
 });

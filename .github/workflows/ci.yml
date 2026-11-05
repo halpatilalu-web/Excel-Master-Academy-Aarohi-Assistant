@@ -18,15 +18,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
       - name: Install frontend dependencies
-        run: |
-          corepack enable
-          corepack pnpm install --frozen-lockfile
+        run: corepack pnpm install --frozen-lockfile
 
       - name: Type-check + build frontend
         run: corepack pnpm build

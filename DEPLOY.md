@@ -1,14 +1,14 @@
 # Deploy guide
 
-Is app ko live karne ke do tareeke hain:
+Is app ko live karne ke **3 aasaan tareeke** hain:
 
-| Tareeka | Kab use karo |
-|---|---|
-| **Render + `render.yaml`** (blueprint) | Sabse aasaan — repo connect karo, Render Dockerfile se build karke chalayega |
-| **Docker kahin bhi** (Fly, Railway, VPS, EC2) | Jab tumhe apna server/disk control chahiye |
+| Platform | Kya chalta hai | Kab use karo |
+|---|---|---|
+| **1. Render (`render.yaml`) — Recommended Full-Stack** | React Frontend + Python FastAPI Backend + SQLite DB | Jab server-side login/account, database aur OpenAI API key chahiye |
+| **2. Vercel (`vercel.json`) — Super-Fast Free Frontend** | Instant Global CDN SPA + Automatic Browser `localStorage` Progress + Built-in Bilingual Aarohi Tutor | Jab bina cold-start delay ke 1 minute mein super-fast free website live karni ho! |
+| **3. Railway / Fly.io / Docker** | Full Docker image (`Dockerfile`) | Jab apna cloud server aur persistent disk control chahiye |
 
-Dono me ek hi image chalti hai: frontend build + FastAPI, ek hi port par.
-GitHub Pages is app ke liye kaam nahi karega — backend aur database chahiye.
+> 💡 **Note:** GitHub ke raw repository link ya bina build kiye GitHub Pages (`index.html` pointing to `/src/main.tsx`) ko seedha kholne par blank page aata hai kyunki React/TypeScript ko pehle `pnpm build` se compile hona zaroori hai — **Vercel** ya **Render** yeh build apne-aap kar dete hain!
 
 > ⚠️ **Free plan ka database persist nahi hota.** Render free instance ka
 > filesystem restart/sleep/redeploy par reset ho jata hai, to `APP_DB_PATH=/data/data.db`
