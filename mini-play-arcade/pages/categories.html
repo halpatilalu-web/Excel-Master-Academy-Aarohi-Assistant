@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path=".." data-nav="categories">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game Categories — Arcade, Puzzle, Reaction, Casual, Sports &amp; Brain Games | MINI PLAY ARCADE</title>
+  <meta name="description" content="Explore free online games by genre at MINI PLAY ARCADE: Arcade, Puzzle, Reaction, Casual, Sports, and Brain Games." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/pages/categories.html" />
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg" />
+  <link rel="manifest" href="../public/manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="Game Categories — MINI PLAY ARCADE" />
+  <meta property="og:description" content="Pick your favorite gaming genre: Arcade, Puzzle, Reaction, Casual, Sports, and Brain Games." />
+  <meta property="og:url" content="https://miniplayarcade.example.com/pages/categories.html" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/og-banner.svg" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to categories</a>
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="page-hero-compact">
+      <div class="container">
+        <span class="chip chip-purple">6 Curated Genres</span>
+        <h1>Browse by Category</h1>
+        <p style="margin:0;color:var(--text-secondary);max-width:680px">
+          Select any category card below to filter the arcade instantly—from high-speed reflex tests to lateral-thinking brain puzzles and physics trick shots.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="category-cards-grid" id="category-overview-tiles" aria-label="Game Genres"></div>
+
+        <div class="library-toolbar" role="search">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">🔍</span>
+            <label class="sr-only" for="game-search-input">Search within category</label>
+            <input type="search" id="game-search-input" placeholder="Refine by game title or keyword..." autocomplete="off" />
+            <button type="button" class="search-clear-btn" id="search-clear-btn" aria-label="Clear search">✕</button>
+          </div>
+          <div class="category-pills" id="category-filter-pills"></div>
+        </div>
+        <p id="library-results-count" style="margin:0 0 18px;color:var(--text-muted);font-size:0.9rem"></p>
+        <div class="games-grid" id="all-games-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="../config/adsense-config.js"></script>
+  <script src="../js/games-data.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/sound.js"></script>
+  <script src="../js/daily-challenge.js"></script>
+  <script src="../js/ads.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/home.js"></script>
+</body>
+</html>

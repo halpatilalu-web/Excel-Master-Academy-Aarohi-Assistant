@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" fill="none" role="img" aria-label="Color Switch Rush Game Thumbnail">
+  <rect width="480" height="300" fill="#080d21"/>
+  <circle cx="240" cy="135" r="115" fill="#06b6d4" fill-opacity="0.14"/>
+  <!-- 4-segment color ring -->
+  <path d="M240 50 A85 85 0 0 1 325 135" stroke="#06b6d4" stroke-width="18" stroke-linecap="butt"/>
+  <path d="M325 135 A85 85 0 0 1 240 220" stroke="#a855f7" stroke-width="18" stroke-linecap="butt"/>
+  <path d="M240 220 A85 85 0 0 1 155 135" stroke="#f43f5e" stroke-width="18" stroke-linecap="butt"/>
+  <path d="M155 135 A85 85 0 0 1 240 50" stroke="#facc15" stroke-width="18" stroke-linecap="butt"/>
+  <!-- Star in center -->
+  <polygon points="240,113 246,127 262,129 250,139 253,155 240,147 227,155 230,139 218,129 234,127" fill="#facc15"/>
+  <!-- Bouncing matching cyan orb -->
+  <circle cx="240" cy="256" r="15" fill="#06b6d4" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="240" cy="282" r="6" fill="#06b6d4" fill-opacity="0.45"/>
+</svg>

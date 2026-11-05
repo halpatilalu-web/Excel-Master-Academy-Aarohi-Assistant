@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" fill="none" role="img" aria-label="Brain Trap Puzzle Game Thumbnail">
+  <rect width="480" height="300" fill="#130a2b"/>
+  <circle cx="240" cy="138" r="95" fill="#8b5cf6" fill-opacity="0.18"/>
+  <!-- Glowing Lightbulb Brain -->
+  <path d="M240 62 C198 62 172 92 172 128 C172 154 190 172 206 188 L206 208 L274 208 L274 188 C290 172 308 154 308 128 C308 92 282 62 240 62 Z" fill="#2e1065" stroke="#c084fc" stroke-width="3.5"/>
+  <rect x="212" y="216" width="56" height="12" rx="6" fill="#38bdf8"/>
+  <rect x="220" y="234" width="40" height="10" rx="5" fill="#22d3ee"/>
+  <text x="224" y="148" fill="#facc15" font-family="system-ui, sans-serif" font-size="54" font-weight="900">?</text>
+  <circle cx="132" cy="96" r="18" fill="#1e1b4b" stroke="#22d3ee" stroke-width="2"/>
+  <text x="123" y="103" font-size="18">🔑</text>
+  <circle cx="352" cy="176" r="20" fill="#1e1b4b" stroke="#f43f5e" stroke-width="2"/>
+  <text x="342" y="183" font-size="18">💡</text>
+</svg>

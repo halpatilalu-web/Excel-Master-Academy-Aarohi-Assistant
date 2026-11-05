@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" fill="none" role="img" aria-label="Guess The Emoji Game Thumbnail">
+  <rect width="480" height="300" fill="#1c0c24"/>
+  <rect x="86" y="72" width="128" height="120" rx="22" fill="#2b123a" stroke="#f43f5e" stroke-width="3"/>
+  <text x="122" y="150" font-size="56">🌧️</text>
+  <text x="228" y="146" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="38" font-weight="900">+</text>
+  <rect x="266" y="72" width="128" height="120" rx="22" fill="#2b123a" stroke="#22d3ee" stroke-width="3"/>
+  <text x="302" y="150" font-size="56">🎀</text>
+  <rect x="134" y="218" width="212" height="44" rx="14" fill="#0f172a" stroke="#a855f7" stroke-width="2.5"/>
+  <text x="178" y="246" fill="#f8fafc" font-family="monospace" font-size="20" font-weight="800">RAINBOW</text>
+</svg>

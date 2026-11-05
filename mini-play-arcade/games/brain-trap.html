@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path=".." data-nav="all-games" data-game-id="brain-trap">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brain Trap — Play Free Online | MINI PLAY ARCADE</title>
+  <meta name="description" content="Challenge your mind with 30 original interactive levels in Brain Trap at Mini Play Arcade. Drag clues, use hints wisely, and outsmart every lateral-thinking puzzle." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/games/brain-trap.html" />
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg" />
+  <link rel="manifest" href="../public/manifest.webmanifest" />
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="Brain Trap — Play Free Online | MINI PLAY ARCADE" />
+  <meta property="og:description" content="Challenge your mind with 30 original interactive levels in Brain Trap at Mini Play Arcade. Drag clues, use hints wisely, and outsmart every lateral-thinking puzzle." />
+  <meta property="og:url" content="https://miniplayarcade.example.com/games/brain-trap.html" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/games/brain-trap.svg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Brain Trap — MINI PLAY ARCADE" />
+  <meta name="twitter:description" content="Challenge your mind with 30 original interactive levels in Brain Trap at Mini Play Arcade. Drag clues, use hints wisely, and outsmart every lateral-thinking puzzle." />
+
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/game-page.css" />
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  "name": "Brain Trap",
+  "description": "Challenge your mind with 30 original interactive levels in Brain Trap at Mini Play Arcade. Drag clues, use hints wisely, and outsmart every lateral-thinking puzzle.",
+  "genre": [
+    "Brain Games",
+    "Puzzle"
+  ],
+  "url": "https://miniplayarcade.example.com/games/brain-trap.html",
+  "image": "https://miniplayarcade.example.com/images/games/brain-trap.svg",
+  "playMode": "SinglePlayer",
+  "applicationCategory": "Game",
+  "operatingSystem": "Any (Web Browser)",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "MINI PLAY ARCADE"
+  }
+}
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to gameplay</a>
+  <header id="site-header"></header>
+
+  <main id="main-content" class="game-page-wrap">
+    <div class="container">
+      <div class="game-top-bar">
+        <a class="back-to-games-btn" href="../pages/all-games.html">← Back to Games</a>
+        <div id="game-daily-indicator"></div>
+      </div>
+
+      <div class="game-header-row">
+        <div class="game-title-group">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="chip">Brain Games</span>
+            <span class="chip chip-purple">Easy → Hard (30 Levels)</span>
+          </div>
+          <h1>Brain Trap</h1>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="ctrl-btn" id="btn-game-fav" aria-label="Favorite Brain Trap">♡ <span class="btn-text">Favorite</span></button>
+          <button type="button" class="ctrl-btn" id="btn-share-inline" aria-label="Share Score">📤 <span class="btn-text">Share Score</span></button>
+        </div>
+      </div>
+
+      <!-- Playable Arcade Cabinet -->
+      <section class="arcade-cabinet" aria-label="Brain Trap Playable Game Area">
+        <div class="arcade-hud-bar">
+          <div class="hud-scores">
+            <div class="hud-stat-box">
+              <span class="hud-stat-label">Current Score</span>
+              <span class="hud-stat-value" id="hud-current-score">0</span>
+            </div>
+            <div class="hud-stat-box best">
+              <span class="hud-stat-label">Best Score</span>
+              <span class="hud-stat-value" id="hud-best-score">0</span>
+            </div>
+          </div>
+          <div class="hud-controls">
+            <button type="button" class="ctrl-btn ctrl-btn-start" id="btn-start">▶ <span class="btn-text">Start</span></button>
+            <button type="button" class="ctrl-btn" id="btn-pause" disabled>⏸ <span class="btn-text">Pause</span></button>
+            <button type="button" class="ctrl-btn" id="btn-restart">↻ <span class="btn-text">Restart</span></button>
+            <button type="button" class="ctrl-btn" id="btn-game-sound" data-game-sound-btn>🔊 <span class="btn-text">Sound</span></button>
+            <button type="button" class="ctrl-btn" id="btn-fullscreen" title="Toggle Fullscreen" aria-label="Toggle Fullscreen">⛶</button>
+          </div>
+        </div>
+
+        <div class="game-stage-viewport" id="game-stage">
+          <canvas class="game-canvas" id="game-canvas" width="520" height="560" aria-label="Brain Trap Game Canvas"></canvas>
+
+          <!-- Start Overlay -->
+          <div class="stage-overlay visible" id="overlay-start">
+            <div class="overlay-card">
+              <span class="overlay-badge">Brain Games • Instant Play</span>
+              <h2>Brain Trap</h2>
+              <p>30 lateral-thinking puzzles where nothing is quite what it seems.<br /><strong style="color:#67e8f9">Click, Tap, or Drag interactive objects and words inside the puzzle stage.</strong></p>
+              <div class="overlay-actions">
+                <button type="button" class="btn btn-primary" id="overlay-btn-start">▶ Start Game</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pause Overlay -->
+          <div class="stage-overlay" id="overlay-pause">
+            <div class="overlay-card">
+              <span class="overlay-badge">Game Paused</span>
+              <h2>Take a Breather</h2>
+              <p>Your run in Brain Trap is paused. Ready to jump back in?</p>
+              <div class="overlay-actions">
+                <button type="button" class="btn btn-primary" id="overlay-btn-resume">▶ Resume</button>
+                <button type="button" class="btn btn-secondary" id="overlay-btn-pause-restart">↻ Restart</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Game Over Overlay -->
+          <div class="stage-overlay" id="overlay-gameover">
+            <div class="overlay-card">
+              <div class="new-best-pill" id="go-new-best-pill">🏆 NEW PERSONAL BEST!</div>
+              <h2>Session Complete!</h2>
+              <p id="go-summary-text">Great run in Brain Trap!</p>
+              <div class="gameover-scoreboard">
+                <div class="go-stat">
+                  <span>Final Score</span>
+                  <strong id="go-final-score">0</strong>
+                </div>
+                <div class="go-stat">
+                  <span>Best Score</span>
+                  <strong id="go-best-score" style="color:#fde047">0</strong>
+                </div>
+              </div>
+              <div class="overlay-actions">
+                <button type="button" class="btn btn-primary" id="overlay-btn-play-again">↻ Play Again</button>
+                <button type="button" class="btn btn-secondary" id="btn-share-score">📤 Share Score</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Responsive AdSense Slot Below Gameplay Area (Safely outside controls) -->
+      <div class="mpa-ad-slot mpa-ad-collapsed" data-mpa-ad-slot="GAME_BELOW_STAGE" aria-hidden="true"></div>
+
+      <!-- Instructions & Game Details -->
+      <section class="game-info-grid" aria-label="How to Play Brain Trap">
+        <div class="info-panel">
+          <h2>📖 How to Play Brain Trap</h2>
+          <ol class="instructions-list">
+            <li>Read the prompt carefully—sometimes the wording itself hides a twist!</li>
+            <li>Tap, click, or drag objects around the stage to uncover concealed items or switches.</li>
+            <li>Stuck on a tricky stage? Use the Hint button for a clever nudge without spoiling the fun.</li>
+            <li>Clear levels across Easy, Medium, and Hard tiers to unlock all 30 Brain Trap stages.</li>
+          </ol>
+        </div>
+        <aside class="info-panel">
+          <h2>🎮 Controls &amp; Details</h2>
+          <p style="margin:0 0 12px;color:var(--text-secondary);font-size:0.92rem">
+            <strong>Controls:</strong> Click, Tap, or Drag interactive objects and words inside the puzzle stage.
+          </p>
+          <p style="margin:0 0 12px;color:var(--text-muted);font-size:0.88rem">
+            Drag hidden objects, question trick instructions, balance scales, and crack 30 original interactive riddles across 3 difficulty tiers.
+          </p>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <a class="chip" href="../pages/categories.html?category=Brain%20Games">Brain Games</a> <a class="chip" href="../pages/categories.html?category=Puzzle">Puzzle</a>
+          </div>
+        </aside>
+      </section>
+
+      <!-- Responsive AdSense Slot Below Game Instructions -->
+      <div class="mpa-ad-slot mpa-ad-collapsed" data-mpa-ad-slot="GAME_BELOW_INSTRUCTIONS" aria-hidden="true"></div>
+
+      <!-- Related Games -->
+      <section class="section" aria-labelledby="related-heading">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="related-heading">🔥 Related Games You Might Love</h2>
+            <p class="section-subtitle">Keep your streak rolling with more instant-play browser games.</p>
+          </div>
+          <a class="btn btn-secondary btn-sm" href="../pages/all-games.html">View All 10 Games →</a>
+        </div>
+        <div class="games-grid" id="related-games-grid"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="../config/adsense-config.js"></script>
+  <script src="../js/games-data.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/sound.js"></script>
+  <script src="../js/daily-challenge.js"></script>
+  <script src="../js/ads.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/game-shell.js"></script>
+  <script src="engines/brain-trap.js"></script>
+</body>
+</html>

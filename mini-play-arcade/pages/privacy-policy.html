@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path=".." data-nav="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy | MINI PLAY ARCADE</title>
+  <meta name="description" content="Read the MINI PLAY ARCADE Privacy Policy covering browser LocalStorage, cookies, third-party Google AdSense advertising disclosures, and visitor choices." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/pages/privacy-policy.html" />
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg" />
+  <link rel="manifest" href="../public/manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="Privacy Policy — MINI PLAY ARCADE" />
+  <meta property="og:description" content="How MINI PLAY ARCADE handles browser LocalStorage, cookies, and third-party advertising." />
+  <meta property="og:url" content="https://miniplayarcade.example.com/pages/privacy-policy.html" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/og-banner.svg" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to privacy policy</a>
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="page-hero-compact">
+      <div class="container">
+        <span class="chip">🛡️ Privacy &amp; Transparency</span>
+        <h1>Privacy Policy</h1>
+        <p style="margin:0;color:var(--text-secondary)">
+          Last Updated: November 5, 2026 • Editable template accurate to Mini Play Arcade's actual browser storage and advertising configuration.
+        </p>
+      </div>
+    </section>
+
+    <div class="container">
+      <article class="prose-card">
+        <p>
+          <em>Site Owner Note: Review and customize the domain name, contact email address, and regional disclosures in this policy before publishing on your production domain, and consult qualified legal counsel for regional regulatory requirements (such as GDPR, UK GDPR, CCPA/CPRA, or DPDP).</em>
+        </p>
+
+        <h2>1. Overview &amp; Zero-Account Design</h2>
+        <p>
+          <strong>MINI PLAY ARCADE</strong> provides free instant-play browser games without requiring visitors to register an account, sign in, or submit personal profile data to a backend database.
+        </p>
+
+        <h2>2. Information Stored Locally in Your Browser (LocalStorage)</h2>
+        <p>
+          To save your gameplay experience across visits, this website stores non-sensitive preferences locally on your own device using your browser's <code>localStorage</code>:
+        </p>
+        <ul>
+          <li>Your optional guest display handle and chosen emoji avatar.</li>
+          <li>Your personal best game scores, recent game history, favorite games, unlocked in-game items, daily challenge progress, and achievements.</li>
+          <li>Your audio mute setting and cookie/advertising consent choice.</li>
+        </ul>
+        <p>
+          This LocalStorage data stays inside your web browser. You can reset it at any time from the <strong>Guest Player Profile</strong> modal or by clearing site data in your browser settings.
+        </p>
+
+        <h2>3. Server Logs &amp; Hosting Infrastructure</h2>
+        <p>
+          Like most static websites hosted on providers such as Vercel or Render, our hosting provider may automatically process standard technical request metadata (such as IP address, browser user-agent, referring page, and request timestamp) strictly to deliver web files securely and prevent abuse.
+        </p>
+
+        <h2>4. Advertising Disclosure &amp; Google AdSense Cookies</h2>
+        <p>
+          When third-party advertising (such as <strong>Google AdSense</strong>) is enabled on this website:
+        </p>
+        <ul>
+          <li>Third-party vendors, including Google, use cookies and similar technologies to serve ads based on a user's prior visits to this website or other websites on the internet.</li>
+          <li>Google's use of advertising cookies enables Google and its partners to serve ads to visitors based on their visit to this site and/or other sites on the Internet.</li>
+          <li>Visitors may opt out of personalized advertising by visiting <a href="https://myadcenter.google.com/" rel="noopener noreferrer" target="_blank">Google Ads Settings (My Ad Center)</a> or <a href="https://www.aboutads.info/choices/" rel="noopener noreferrer" target="_blank">www.aboutads.info/choices</a>.</li>
+        </ul>
+        <p>
+          You can also review or update your on-site advertising cookie preference at any time in our <a href="cookie-policy.html">Cookie Policy</a> or by clicking the button below:
+        </p>
+        <p>
+          <button type="button" class="btn btn-secondary btn-sm" id="privacy-open-consent">🍪 Open Cookie &amp; Consent Preferences</button>
+        </p>
+
+        <h2>5. Children's Privacy</h2>
+        <p>
+          Mini Play Arcade does not knowingly collect personal identification information from children. Because no registration or user account exists, gameplay progress remains locally stored on the user's device.
+        </p>
+
+        <h2>6. Contact Information</h2>
+        <p>
+          If you have questions regarding this Privacy Policy, please reach out via our <a href="contact.html">Contact Us</a> page or email <code>support@miniplayarcade.example.com</code>.
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="../config/adsense-config.js"></script>
+  <script src="../js/games-data.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/sound.js"></script>
+  <script src="../js/daily-challenge.js"></script>
+  <script src="../js/ads.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    document.getElementById('privacy-open-consent').addEventListener('click', function () {
+      if (window.MPA_UI) window.MPA_UI.showConsentBanner(true);
+    });
+  </script>
+</body>
+</html>

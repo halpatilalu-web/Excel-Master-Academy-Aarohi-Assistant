@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none" role="img" aria-label="Mini Play Arcade — Play. Compete. Repeat.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#070814"/>
+      <stop offset="55%" stop-color="#111636"/>
+      <stop offset="100%" stop-color="#091d2e"/>
+    </linearGradient>
+    <linearGradient id="neon" x1="120" y1="140" x2="1080" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="50%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="220" cy="140" r="240" fill="#a855f7" fill-opacity="0.16"/>
+  <circle cx="980" cy="490" r="280" fill="#06b6d4" fill-opacity="0.16"/>
+  <g stroke="#38bdf8" stroke-opacity="0.14" stroke-width="1.5">
+    <line x1="0" y1="480" x2="1200" y2="480"/>
+    <line x1="0" y1="530" x2="1200" y2="530"/>
+    <line x1="0" y1="580" x2="1200" y2="580"/>
+    <line x1="200" y1="450" x2="60" y2="630"/>
+    <line x1="400" y1="450" x2="320" y2="630"/>
+    <line x1="600" y1="450" x2="600" y2="630"/>
+    <line x1="800" y1="450" x2="880" y2="630"/>
+    <line x1="1000" y1="450" x2="1140" y2="630"/>
+  </g>
+  <rect x="90" y="90" width="1020" height="450" rx="34" fill="#0d1229" fill-opacity="0.82" stroke="url(#neon)" stroke-width="3"/>
+  <text x="150" y="210" fill="#22d3ee" font-family="system-ui, sans-serif" font-size="28" font-weight="800" letter-spacing="6">MINI PLAY ARCADE</text>
+  <text x="150" y="310" fill="#ffffff" font-family="system-ui, sans-serif" font-size="74" font-weight="900">PLAY. COMPETE.</text>
+  <text x="150" y="395" fill="url(#neon)" font-family="system-ui, sans-serif" font-size="74" font-weight="900">REPEAT.</text>
+  <text x="150" y="462" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="28" font-weight="500">10 Free Instant Browser Games • Zero Downloads • Mobile &amp; Desktop</text>
+  <g transform="translate(830, 175)">
+    <rect x="0" y="55" width="210" height="120" rx="60" fill="#161f42" stroke="url(#neon)" stroke-width="5"/>
+    <path d="M58 95V135M38 115H78" stroke="#22d3ee" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="145" cy="100" r="12" fill="#f43f5e"/>
+    <circle cx="170" cy="125" r="12" fill="#a855f7"/>
+    <circle cx="125" cy="125" r="12" fill="#3b82f6"/>
+    <circle cx="148" cy="75" r="12" fill="#10b981"/>
+  </g>
+</svg>

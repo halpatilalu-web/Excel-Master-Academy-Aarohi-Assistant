@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path=".." data-nav="daily">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Challenge — Beat Today's Target Score &amp; Earn Badges | MINI PLAY ARCADE</title>
+  <meta name="description" content="Take on today's rotating Daily Challenge at MINI PLAY ARCADE! Beat the featured target score, track your completion status, and collect daily reward badges." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/pages/daily-challenge.html" />
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg" />
+  <link rel="manifest" href="../public/manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="Daily Challenge — MINI PLAY ARCADE" />
+  <meta property="og:description" content="New featured game and target score every 24 hours. Earn reward badges locally in your browser!" />
+  <meta property="og:url" content="https://miniplayarcade.example.com/pages/daily-challenge.html" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/og-banner.svg" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to daily challenge</a>
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="page-hero-compact">
+      <div class="container" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px">
+        <div>
+          <span class="chip chip-amber">🎯 24-Hour Rotation</span>
+          <h1>Daily Challenge Hub</h1>
+          <p style="margin:0;color:var(--text-secondary);max-width:620px">
+            Every calendar day spotlights one game from the Mini Play Arcade vault with a tailored target score and collectible badge.
+          </p>
+        </div>
+        <div style="padding:12px 18px;border-radius:16px;background:var(--bg-glass);border:1px solid var(--border-subtle)">
+          <span style="display:block;font-size:0.74rem;text-transform:uppercase;color:var(--text-muted)">Next Challenge In</span>
+          <strong id="daily-countdown-clock" style="font-family:monospace;font-size:1.35rem;color:#22d3ee">--:--:--</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div id="home-daily-challenge" style="margin-bottom:38px"></div>
+
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">🏅 Earned Daily Reward Badges</h2>
+            <p class="section-subtitle">Completed daily challenges are recorded automatically in your browser's LocalStorage.</p>
+          </div>
+        </div>
+        <div id="earned-daily-badges" style="margin-bottom:40px"></div>
+
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">📅 Rotation Calendar (Recent &amp; Upcoming)</h2>
+            <p class="section-subtitle">Preview past and upcoming daily featured games.</p>
+          </div>
+        </div>
+        <div class="lb-list" id="daily-rotation-schedule"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="../config/adsense-config.js"></script>
+  <script src="../js/games-data.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/sound.js"></script>
+  <script src="../js/daily-challenge.js"></script>
+  <script src="../js/ads.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/home.js"></script>
+  <script>
+    (function () {
+      function renderDailyExtras() {
+        var clockEl = document.getElementById('daily-countdown-clock');
+        function tick() {
+          if (!clockEl || !window.MPA_DAILY) return;
+          var t = window.MPA_DAILY.getTimeUntilNextChallenge();
+          clockEl.textContent = t.hours + 'h : ' + t.minutes + 'm : ' + t.seconds + 's';
+        }
+        tick();
+        setInterval(tick, 1000);
+
+        var badgesHost = document.getElementById('earned-daily-badges');
+        if (badgesHost && window.MPA_STORAGE) {
+          var map = window.MPA_STORAGE.getDailyCompletedMap();
+          var keys = Object.keys(map).sort().reverse();
+          if (!keys.length) {
+            badgesHost.innerHTML =
+              '<div class="empty-state-box">' +
+                '<div style="font-size:2.2rem;margin-bottom:6px">🎯</div>' +
+                '<h3 style="margin:0 0 6px">No Daily Badges Unlocked Yet</h3>' +
+                '<p style="margin:0;color:var(--text-muted)">Hit today\'s target score above to claim your first Daily Reward Badge!</p>' +
+              '</div>';
+          } else {
+            badgesHost.innerHTML = '<div class="achievements-grid">' + keys.map(function (dk) {
+              var rec = map[dk];
+              return (
+                '<div class="achievement-card unlocked">' +
+                  '<div class="achievement-icon">' + (rec.badgeIcon || '🏆') + '</div>' +
+                  '<div>' +
+                    '<strong style="display:block;font-size:0.95rem">' + window.MPA_UI.escapeHtml(rec.badgeName || 'Daily Winner') + '</strong>' +
+                    '<span style="font-size:0.8rem;color:var(--text-secondary)">' + dk + ' • ' + window.MPA_UI.escapeHtml(rec.gameTitle || rec.gameId) + ' (' + Number(rec.score).toLocaleString() + ' pts)</span>' +
+                  '</div>' +
+                '</div>'
+              );
+            }).join('') + '</div>';
+          }
+        }
+
+        var schedHost = document.getElementById('daily-rotation-schedule');
+        if (schedHost && window.MPA_DAILY && window.MPA_UI) {
+          var list = window.MPA_DAILY.getUpcomingSchedule(5);
+          schedHost.innerHTML = list.map(function (item) {
+            var tag = item.offsetDays === 0
+              ? '<span class="chip chip-amber">TODAY</span>'
+              : (item.offsetDays < 0 ? '<span class="chip">PAST</span>' : '<span class="chip chip-purple">UPCOMING</span>');
+            var status = item.completed
+              ? '<span class="chip chip-green">✅ Cleared</span>'
+              : '<span style="font-family:monospace;color:var(--neon-cyan-bright)">Target: ' + item.targetScore.toLocaleString() + '</span>';
+            return (
+              '<div class="lb-row' + (item.offsetDays === 0 ? ' is-you' : '') + '">' +
+                '<div>' + item.badge.icon + '</div>' +
+                '<div class="lb-player">' +
+                  '<div>' +
+                    '<div class="lb-name">' + window.MPA_UI.escapeHtml(item.game.title) + ' ' + tag + '</div>' +
+                    '<div class="lb-source">' + window.MPA_UI.escapeHtml(item.formattedDate) + ' • Reward: ' + window.MPA_UI.escapeHtml(item.badge.name) + '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="lb-badge-col">' + status + '</div>' +
+                '<div><a class="btn btn-secondary btn-sm" href="' + window.MPA_UI.resolveUrl(item.game.url) + '">Play</a></div>' +
+              '</div>'
+            );
+          }).join('');
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', renderDailyExtras);
+      } else {
+        renderDailyExtras();
+      }
+    })();
+  </script>
+</body>
+</html>

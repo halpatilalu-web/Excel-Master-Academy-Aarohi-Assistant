@@ -1,0 +1,10 @@
+{
+  "name": "mini-play-arcade",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MINI PLAY ARCADE — Complete static HTML5/CSS3/JS browser gaming platform with 10 original playable games.",
+  "scripts": {
+    "start": "python3 -m http.server 4173 --bind 0.0.0.0",
+    "test": "node tests/verify-site.mjs"
+  }
+}

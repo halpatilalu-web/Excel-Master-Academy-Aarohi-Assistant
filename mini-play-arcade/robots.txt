@@ -1,0 +1,7 @@
+# MINI PLAY ARCADE — Search Engine Crawler Directives
+# Replace https://miniplayarcade.example.com with your live production domain upon deployment.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://miniplayarcade.example.com/sitemap.xml

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path=".." data-nav="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Us — Feedback, Bug Reports &amp; Inquiries | MINI PLAY ARCADE</title>
+  <meta name="description" content="Get in touch with MINI PLAY ARCADE for game feedback, bug reports, business inquiries, or privacy questions." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/pages/contact.html" />
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg" />
+  <link rel="manifest" href="../public/manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="Contact Us — MINI PLAY ARCADE" />
+  <meta property="og:description" content="Send feedback, report a bug, or reach out to the MINI PLAY ARCADE team." />
+  <meta property="og:url" content="https://miniplayarcade.example.com/pages/contact.html" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/og-banner.svg" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to contact form</a>
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="page-hero-compact">
+      <div class="container">
+        <span class="chip">💬 Support &amp; Feedback</span>
+        <h1>Contact Us</h1>
+        <p style="margin:0;color:var(--text-secondary);max-width:650px">
+          Have a game suggestion, spotted a browser quirk, or have a partnership question? Reach out below.
+        </p>
+      </div>
+    </section>
+
+    <div class="container">
+      <div class="prose-card">
+        <h2>Send a Message</h2>
+        <p>
+          Fill out the form below to compose a formatted message in your email client, or email the site administrator directly at
+          <!-- Site owner: update this contact address with your live domain email before launch -->
+          <a href="mailto:support@miniplayarcade.example.com" id="support-email-link">support@miniplayarcade.example.com</a>.
+        </p>
+
+        <form id="contact-form" style="display:grid;gap:16px;max-width:620px;margin-top:20px" novalidate>
+          <div>
+            <label for="contact-name" style="display:block;font-weight:700;font-size:0.88rem;margin-bottom:6px">Your Name</label>
+            <input id="contact-name" name="name" type="text" required placeholder="Alex Gamer"
+              style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border-subtle);background:#070a19;color:#fff;font-size:0.95rem" />
+          </div>
+          <div>
+            <label for="contact-email" style="display:block;font-weight:700;font-size:0.88rem;margin-bottom:6px">Your Email</label>
+            <input id="contact-email" name="email" type="email" required placeholder="you@example.com"
+              style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border-subtle);background:#070a19;color:#fff;font-size:0.95rem" />
+          </div>
+          <div>
+            <label for="contact-topic" style="display:block;font-weight:700;font-size:0.88rem;margin-bottom:6px">Topic</label>
+            <select id="contact-topic" name="topic" class="select-control" style="width:100%">
+              <option value="Game Feedback">Game Feedback / New Game Idea</option>
+              <option value="Bug Report">Bug or Device Compatibility Report</option>
+              <option value="Advertising / Partnership">Advertising &amp; Partnership Inquiry</option>
+              <option value="Privacy / Legal">Privacy or Policy Question</option>
+            </select>
+          </div>
+          <div>
+            <label for="contact-message" style="display:block;font-weight:700;font-size:0.88rem;margin-bottom:6px">Message</label>
+            <textarea id="contact-message" name="message" rows="5" required placeholder="Tell us how we can help..."
+              style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border-subtle);background:#070a19;color:#fff;font-size:0.95rem"></textarea>
+          </div>
+          <div id="contact-status" style="font-size:0.9rem;color:#6ee7b7;display:none" role="status"></div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <button type="submit" class="btn btn-primary">📨 Prepare &amp; Send Message</button>
+          </div>
+        </form>
+
+        <h2>Frequently Asked Questions</h2>
+        <ul>
+          <li><strong>Why did my scores reset after clearing browser data?</strong> Mini Play Arcade stores guest progress locally in your browser's LocalStorage rather than on a remote account server. Clearing site data resets local scores.</li>
+          <li><strong>Are all games free to play?</strong> Yes—every game on Mini Play Arcade is 100% free to play in your browser.</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="../config/adsense-config.js"></script>
+  <script src="../js/games-data.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/sound.js"></script>
+  <script src="../js/daily-challenge.js"></script>
+  <script src="../js/ads.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    (function () {
+      var form = document.getElementById('contact-form');
+      var statusEl = document.getElementById('contact-status');
+      if (!form) return;
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = document.getElementById('contact-name').value.trim();
+        var email = document.getElementById('contact-email').value.trim();
+        var topic = document.getElementById('contact-topic').value;
+        var msg = document.getElementById('contact-message').value.trim();
+
+        if (!name || !email || !msg || email.indexOf('@') === -1) {
+          statusEl.style.display = 'block';
+          statusEl.style.color = '#fb7185';
+          statusEl.textContent = 'Please enter your name, a valid email address, and a message.';
+          return;
+        }
+
+        var subject = encodeURIComponent('[MINI PLAY ARCADE] ' + topic + ' — from ' + name);
+        var body = encodeURIComponent('Name: ' + name + '\nEmail: ' + email + '\nTopic: ' + topic + '\n\n' + msg);
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#6ee7b7';
+        statusEl.textContent = 'Message prepared! Opening your email client—or copy your message directly to support@miniplayarcade.example.com.';
+        window.location.href = 'mailto:support@miniplayarcade.example.com?subject=' + subject + '&body=' + body;
+      });
+    })();
+  </script>
+</body>
+</html>

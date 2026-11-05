@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path=".." data-nav="all-games" data-game-id="tap-speed-challenge">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tap Speed Challenge — Play Free Online | MINI PLAY ARCADE</title>
+  <meta name="description" content="Test your reaction speed in milliseconds with Tap Speed Challenge at Mini Play Arcade. Five randomized reflex rounds, personal best tracking, and instant performance ranks." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/games/tap-speed-challenge.html" />
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg" />
+  <link rel="manifest" href="../public/manifest.webmanifest" />
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="Tap Speed Challenge — Play Free Online | MINI PLAY ARCADE" />
+  <meta property="og:description" content="Test your reaction speed in milliseconds with Tap Speed Challenge at Mini Play Arcade. Five randomized reflex rounds, personal best tracking, and instant performance ranks." />
+  <meta property="og:url" content="https://miniplayarcade.example.com/games/tap-speed-challenge.html" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/games/tap-speed-challenge.svg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Tap Speed Challenge — MINI PLAY ARCADE" />
+  <meta name="twitter:description" content="Test your reaction speed in milliseconds with Tap Speed Challenge at Mini Play Arcade. Five randomized reflex rounds, personal best tracking, and instant performance ranks." />
+
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/game-page.css" />
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  "name": "Tap Speed Challenge",
+  "description": "Test your reaction speed in milliseconds with Tap Speed Challenge at Mini Play Arcade. Five randomized reflex rounds, personal best tracking, and instant performance ranks.",
+  "genre": [
+    "Reaction",
+    "Arcade"
+  ],
+  "url": "https://miniplayarcade.example.com/games/tap-speed-challenge.html",
+  "image": "https://miniplayarcade.example.com/images/games/tap-speed-challenge.svg",
+  "playMode": "SinglePlayer",
+  "applicationCategory": "Game",
+  "operatingSystem": "Any (Web Browser)",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "MINI PLAY ARCADE"
+  }
+}
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to gameplay</a>
+  <header id="site-header"></header>
+
+  <main id="main-content" class="game-page-wrap">
+    <div class="container">
+      <div class="game-top-bar">
+        <a class="back-to-games-btn" href="../pages/all-games.html">← Back to Games</a>
+        <div id="game-daily-indicator"></div>
+      </div>
+
+      <div class="game-header-row">
+        <div class="game-title-group">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="chip">Reaction</span>
+            <span class="chip chip-purple">Pure Reflex</span>
+          </div>
+          <h1>Tap Speed Challenge</h1>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="ctrl-btn" id="btn-game-fav" aria-label="Favorite Tap Speed Challenge">♡ <span class="btn-text">Favorite</span></button>
+          <button type="button" class="ctrl-btn" id="btn-share-inline" aria-label="Share Score">📤 <span class="btn-text">Share Score</span></button>
+        </div>
+      </div>
+
+      <!-- Playable Arcade Cabinet -->
+      <section class="arcade-cabinet" aria-label="Tap Speed Challenge Playable Game Area">
+        <div class="arcade-hud-bar">
+          <div class="hud-scores">
+            <div class="hud-stat-box">
+              <span class="hud-stat-label">Current Score</span>
+              <span class="hud-stat-value" id="hud-current-score">0</span>
+            </div>
+            <div class="hud-stat-box best">
+              <span class="hud-stat-label">Best Score</span>
+              <span class="hud-stat-value" id="hud-best-score">0</span>
+            </div>
+          </div>
+          <div class="hud-controls">
+            <button type="button" class="ctrl-btn ctrl-btn-start" id="btn-start">▶ <span class="btn-text">Start</span></button>
+            <button type="button" class="ctrl-btn" id="btn-pause" disabled>⏸ <span class="btn-text">Pause</span></button>
+            <button type="button" class="ctrl-btn" id="btn-restart">↻ <span class="btn-text">Restart</span></button>
+            <button type="button" class="ctrl-btn" id="btn-game-sound" data-game-sound-btn>🔊 <span class="btn-text">Sound</span></button>
+            <button type="button" class="ctrl-btn" id="btn-fullscreen" title="Toggle Fullscreen" aria-label="Toggle Fullscreen">⛶</button>
+          </div>
+        </div>
+
+        <div class="game-stage-viewport" id="game-stage">
+          <canvas class="game-canvas" id="game-canvas" width="520" height="560" aria-label="Tap Speed Challenge Game Canvas"></canvas>
+
+          <!-- Start Overlay -->
+          <div class="stage-overlay visible" id="overlay-start">
+            <div class="overlay-card">
+              <span class="overlay-badge">Reaction • Instant Play</span>
+              <h2>Tap Speed Challenge</h2>
+              <p>Measure your true reflex speed down to the millisecond.<br /><strong style="color:#67e8f9">Tap the arena, Click, or Press Space the instant the screen turns Cyber Green.</strong></p>
+              <div class="overlay-actions">
+                <button type="button" class="btn btn-primary" id="overlay-btn-start">▶ Start Game</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pause Overlay -->
+          <div class="stage-overlay" id="overlay-pause">
+            <div class="overlay-card">
+              <span class="overlay-badge">Game Paused</span>
+              <h2>Take a Breather</h2>
+              <p>Your run in Tap Speed Challenge is paused. Ready to jump back in?</p>
+              <div class="overlay-actions">
+                <button type="button" class="btn btn-primary" id="overlay-btn-resume">▶ Resume</button>
+                <button type="button" class="btn btn-secondary" id="overlay-btn-pause-restart">↻ Restart</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Game Over Overlay -->
+          <div class="stage-overlay" id="overlay-gameover">
+            <div class="overlay-card">
+              <div class="new-best-pill" id="go-new-best-pill">🏆 NEW PERSONAL BEST!</div>
+              <h2>Session Complete!</h2>
+              <p id="go-summary-text">Great run in Tap Speed Challenge!</p>
+              <div class="gameover-scoreboard">
+                <div class="go-stat">
+                  <span>Final Score</span>
+                  <strong id="go-final-score">0</strong>
+                </div>
+                <div class="go-stat">
+                  <span>Best Score</span>
+                  <strong id="go-best-score" style="color:#fde047">0</strong>
+                </div>
+              </div>
+              <div class="overlay-actions">
+                <button type="button" class="btn btn-primary" id="overlay-btn-play-again">↻ Play Again</button>
+                <button type="button" class="btn btn-secondary" id="btn-share-score">📤 Share Score</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Responsive AdSense Slot Below Gameplay Area (Safely outside controls) -->
+      <div class="mpa-ad-slot mpa-ad-collapsed" data-mpa-ad-slot="GAME_BELOW_STAGE" aria-hidden="true"></div>
+
+      <!-- Instructions & Game Details -->
+      <section class="game-info-grid" aria-label="How to Play Tap Speed Challenge">
+        <div class="info-panel">
+          <h2>📖 How to Play Tap Speed Challenge</h2>
+          <ol class="instructions-list">
+            <li>Each match consists of 5 precision reaction rounds.</li>
+            <li>Hold steady while the arena glows Crimson/Amber—tapping early counts as a False Start and resets that round.</li>
+            <li>The instant the signal flashes Cyber Green, tap, click, or hit Spacebar as fast as humanly possible.</li>
+            <li>Complete all 5 rounds to record your average millisecond reaction time and arcade reflex score.</li>
+          </ol>
+        </div>
+        <aside class="info-panel">
+          <h2>🎮 Controls &amp; Details</h2>
+          <p style="margin:0 0 12px;color:var(--text-secondary);font-size:0.92rem">
+            <strong>Controls:</strong> Tap the arena, Click, or Press Space the instant the screen turns Cyber Green.
+          </p>
+          <p style="margin:0 0 12px;color:var(--text-muted);font-size:0.88rem">
+            Wait for the randomized cyber-green flash across five intense rounds, avoid false starts, and benchmark your millisecond reflexes.
+          </p>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <a class="chip" href="../pages/categories.html?category=Reaction">Reaction</a> <a class="chip" href="../pages/categories.html?category=Arcade">Arcade</a>
+          </div>
+        </aside>
+      </section>
+
+      <!-- Responsive AdSense Slot Below Game Instructions -->
+      <div class="mpa-ad-slot mpa-ad-collapsed" data-mpa-ad-slot="GAME_BELOW_INSTRUCTIONS" aria-hidden="true"></div>
+
+      <!-- Related Games -->
+      <section class="section" aria-labelledby="related-heading">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="related-heading">🔥 Related Games You Might Love</h2>
+            <p class="section-subtitle">Keep your streak rolling with more instant-play browser games.</p>
+          </div>
+          <a class="btn btn-secondary btn-sm" href="../pages/all-games.html">View All 10 Games →</a>
+        </div>
+        <div class="games-grid" id="related-games-grid"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="../config/adsense-config.js"></script>
+  <script src="../js/games-data.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/sound.js"></script>
+  <script src="../js/daily-challenge.js"></script>
+  <script src="../js/ads.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/game-shell.js"></script>
+  <script src="engines/tap-speed-challenge.js"></script>
+</body>
+</html>

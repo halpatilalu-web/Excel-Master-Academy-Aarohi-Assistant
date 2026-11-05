@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 56" fill="none" role="img" aria-label="Mini Play Arcade Logo">
+  <defs>
+    <linearGradient id="mpaGrad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="50%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="mpaText" x1="64" y1="8" x2="236" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#bae6fd"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="4" width="48" height="48" rx="14" fill="#0d1025" stroke="url(#mpaGrad)" stroke-width="2.5"/>
+  <path d="M15 33C15 24.5 19.5 21 27 21C34.5 21 39 24.5 39 33" stroke="url(#mpaGrad)" stroke-width="3" stroke-linecap="round"/>
+  <rect x="13" y="25" width="28" height="14" rx="7" fill="url(#mpaGrad)" fill-opacity="0.22" stroke="url(#mpaGrad)" stroke-width="2"/>
+  <path d="M20 30V34M18 32H22" stroke="#22d3ee" stroke-width="2.2" stroke-linecap="round"/>
+  <circle cx="33" cy="30.5" r="1.7" fill="#f43f5e"/>
+  <circle cx="36.5" cy="33.5" r="1.7" fill="#a855f7"/>
+  <path d="M27 13L29 17.5L25 17.5Z" fill="#22d3ee"/>
+  <text x="62" y="27" fill="url(#mpaText)" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-weight="800" font-size="16.5" letter-spacing="1.2">MINI PLAY</text>
+  <text x="62" y="44" fill="#22d3ee" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-weight="800" font-size="13.5" letter-spacing="3.6">ARCADE</text>
+</svg>

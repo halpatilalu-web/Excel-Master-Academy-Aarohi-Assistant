@@ -1,0 +1,16 @@
+{
+  "name": "MINI PLAY ARCADE",
+  "short_name": "MiniPlay",
+  "description": "Play 10 free instant HTML5 browser games—PLAY. COMPETE. REPEAT.",
+  "start_url": "../index.html",
+  "display": "standalone",
+  "background_color": "#060814",
+  "theme_color": "#a855f7",
+  "icons": [
+    {
+      "src": "../images/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

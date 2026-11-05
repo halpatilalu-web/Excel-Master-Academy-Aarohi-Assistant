@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path=".." data-nav="favorites">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Favorites, Stats &amp; Achievements | MINI PLAY ARCADE</title>
+  <meta name="description" content="Access your saved favorite games, recently played history, personal best scores, guest profile, and unlocked achievements at MINI PLAY ARCADE." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/pages/favorites.html" />
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg" />
+  <link rel="manifest" href="../public/manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="Favorites, Stats &amp; Achievements — MINI PLAY ARCADE" />
+  <meta property="og:description" content="Your personal browser-saved arcade lounge: favorites, recent runs, personal bests, and badges." />
+  <meta property="og:url" content="https://miniplayarcade.example.com/pages/favorites.html" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/og-banner.svg" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to favorites and player stats</a>
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="page-hero-compact">
+      <div class="container" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px">
+        <div>
+          <span class="chip chip-purple">💜 Guest Player Hub</span>
+          <h1 id="fav-profile-heading">Favorites &amp; Player Profile</h1>
+          <p style="margin:0;color:var(--text-secondary)">
+            All favorites, personal bests, and achievements are stored privately in your browser—no account required.
+          </p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" id="customize-guest-btn">✏️ Customize Guest Profile</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <!-- Summary Stats Strip -->
+        <div class="hero-stats-bar" id="profile-summary-cards" style="margin-bottom:36px"></div>
+
+        <!-- Favorite Games -->
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">♥ Saved Favorite Games</h2>
+            <p class="section-subtitle">Tap the heart icon on any game card to pin or unpin it here.</p>
+          </div>
+        </div>
+        <div id="favorites-grid-host" style="margin-bottom:42px"></div>
+
+        <!-- Recently Played -->
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">⏱️ Recently Played</h2>
+            <p class="section-subtitle">Your latest browser sessions in chronological order.</p>
+          </div>
+        </div>
+        <div id="recent-history-host" style="margin-bottom:42px"></div>
+
+        <!-- Personal Best Scores Across All 10 Games -->
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">🏆 Personal Best Scores</h2>
+            <p class="section-subtitle">Your highest score and session count for every game in Mini Play Arcade.</p>
+          </div>
+        </div>
+        <div class="lb-list" id="personal-bests-table" style="margin-bottom:42px"></div>
+
+        <!-- Achievements -->
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">🎖️ Arcade Achievements</h2>
+            <p class="section-subtitle">Unlock all 12 milestone badges by exploring games and setting records.</p>
+          </div>
+        </div>
+        <div class="achievements-grid" id="achievements-showcase"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="../config/adsense-config.js"></script>
+  <script src="../js/games-data.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/sound.js"></script>
+  <script src="../js/daily-challenge.js"></script>
+  <script src="../js/ads.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    (function () {
+      function renderPlayerHub() {
+        if (!window.MPA_STORAGE || !window.MPA_DATA || !window.MPA_UI) return;
+        var profile = window.MPA_STORAGE.getProfile();
+        var stats = window.MPA_STORAGE.getSummaryStats();
+        var state = window.MPA_STORAGE.getState();
+
+        var heading = document.getElementById('fav-profile-heading');
+        if (heading) {
+          heading.textContent = profile.avatar + ' ' + profile.nickname + '\'s Arcade Hub';
+        }
+
+        var summaryHost = document.getElementById('profile-summary-cards');
+        if (summaryHost) {
+          summaryHost.innerHTML =
+            '<div class="hero-stat-item"><span class="hero-stat-value">' + stats.totalGamesPlayed + '</span><span class="hero-stat-label">Total Games Played</span></div>' +
+            '<div class="hero-stat-item"><span class="hero-stat-value">' + stats.totalBestPoints.toLocaleString() + '</span><span class="hero-stat-label">Combined Best Score</span></div>' +
+            '<div class="hero-stat-item"><span class="hero-stat-value">' + stats.favoritesCount + '</span><span class="hero-stat-label">Saved Favorites</span></div>' +
+            '<div class="hero-stat-item"><span class="hero-stat-value">' + stats.unlockedAchievements + ' / ' + window.MPA_DATA.ACHIEVEMENTS.length + '</span><span class="hero-stat-label">Achievements Unlocked</span></div>';
+        }
+
+        // Favorites
+        var favHost = document.getElementById('favorites-grid-host');
+        var favIds = window.MPA_STORAGE.getFavorites();
+        if (favHost) {
+          if (!favIds.length) {
+            favHost.innerHTML =
+              '<div class="empty-state-box">' +
+                '<div style="font-size:2.3rem;margin-bottom:8px">💜</div>' +
+                '<h3 style="margin:0 0 8px">No Favorite Games Saved Yet</h3>' +
+                '<p style="margin:0 0 16px;color:var(--text-muted)">Click the ♡ button on any game card to build your personal quick-launch collection.</p>' +
+                '<a class="btn btn-primary btn-sm" href="all-games.html">Explore All 10 Games</a>' +
+              '</div>';
+          } else {
+            var favGames = favIds.map(function (id) { return window.MPA_DATA.getGameById(id); }).filter(Boolean);
+            favHost.innerHTML = '<div class="games-grid">' + favGames.map(function (g) {
+              return window.MPA_UI.renderGameCardHtml(g);
+            }).join('') + '</div>';
+            window.MPA_UI.bindFavoriteButtons(favHost);
+          }
+        }
+
+        // Recently played
+        var recHost = document.getElementById('recent-history-host');
+        var recList = window.MPA_STORAGE.getRecentlyPlayed();
+        if (recHost) {
+          if (!recList.length) {
+            recHost.innerHTML =
+              '<div class="empty-state-box">' +
+                '<p style="margin:0;color:var(--text-muted)">You haven\'t started a game session in this browser yet. Jump into any game to track history!</p>' +
+              '</div>';
+          } else {
+            var recGames = recList.map(function (r) { return window.MPA_DATA.getGameById(r.gameId); }).filter(Boolean);
+            recHost.innerHTML = '<div class="games-grid">' + recGames.map(function (g) {
+              return window.MPA_UI.renderGameCardHtml(g);
+            }).join('') + '</div>';
+            window.MPA_UI.bindFavoriteButtons(recHost);
+          }
+        }
+
+        // Personal bests table
+        var pbHost = document.getElementById('personal-bests-table');
+        if (pbHost) {
+          pbHost.innerHTML = window.MPA_DATA.GAMES.map(function (g, idx) {
+            var best = window.MPA_STORAGE.getBestScore(g.id);
+            var plays = (state.stats.gamesPlayedCountById && state.stats.gamesPlayedCountById[g.id]) || 0;
+            return (
+              '<div class="lb-row">' +
+                '<div class="lb-rank">#' + (idx + 1) + '</div>' +
+                '<div class="lb-player">' +
+                  '<div>' +
+                    '<div class="lb-name"><a href="' + window.MPA_UI.resolveUrl(g.url) + '">' + window.MPA_UI.escapeHtml(g.title) + '</a></div>' +
+                    '<div class="lb-source">' + window.MPA_UI.escapeHtml(g.category) + ' • ' + plays + ' session' + (plays === 1 ? '' : 's') + ' played</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="lb-badge-col"><a class="btn btn-secondary btn-sm" href="' + window.MPA_UI.resolveUrl(g.url) + '">Play</a></div>' +
+                '<div class="lb-score">' + best.toLocaleString() + ' pts</div>' +
+              '</div>'
+            );
+          }).join('');
+        }
+
+        // Achievements
+        var achHost = document.getElementById('achievements-showcase');
+        if (achHost) {
+          achHost.innerHTML = window.MPA_DATA.ACHIEVEMENTS.map(function (ach) {
+            var unlockedAt = state.achievements && state.achievements[ach.id];
+            return (
+              '<div class="achievement-card' + (unlockedAt ? ' unlocked' : '') + '">' +
+                '<div class="achievement-icon">' + ach.icon + '</div>' +
+                '<div>' +
+                  '<strong style="display:block;font-size:0.95rem">' + window.MPA_UI.escapeHtml(ach.title) + (unlockedAt ? ' ✅' : '') + '</strong>' +
+                  '<span style="font-size:0.82rem;color:var(--text-secondary)">' + window.MPA_UI.escapeHtml(ach.description) + '</span>' +
+                '</div>' +
+              '</div>'
+            );
+          }).join('');
+        }
+      }
+
+      function init() {
+        var btn = document.getElementById('customize-guest-btn');
+        if (btn && window.MPA_UI) {
+          btn.addEventListener('click', function () {
+            window.MPA_UI.openProfileModal();
+          });
+        }
+        renderPlayerHub();
+        if (window.MPA_STORAGE) {
+          window.MPA_STORAGE.subscribe(renderPlayerHub);
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>

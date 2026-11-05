@@ -1,0 +1,12 @@
+# MINI PLAY ARCADE — Authorized Digital Sellers (ads.txt)
+# =======================================================
+# INSTRUCTIONS:
+# 1. Keep this file deployed at the root of your production domain:
+#      https://yourdomain.com/ads.txt
+# 2. After your website is added to Google AdSense, open your AdSense dashboard:
+#      Sites -> Select your domain -> Copy your official Google publisher line.
+# 3. Paste ONLY the exact record provided by Google AdSense below (uncommented).
+#    Official format example (DO NOT use placeholder zeros—use your real ID):
+#      # google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+#
+# No active seller records are listed until your AdSense account provides one.

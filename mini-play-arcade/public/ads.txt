@@ -1,0 +1,2 @@
+# Copy of root ads.txt for static hosts configured to serve /public at root.
+# Keep synchronized with /ads.txt in the project root. See ADSENSE_SETUP.md.

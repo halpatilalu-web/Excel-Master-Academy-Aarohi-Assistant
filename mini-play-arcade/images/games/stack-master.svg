@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" fill="none" role="img" aria-label="Stack Master Game Thumbnail">
+  <defs>
+    <linearGradient id="bg1" x1="0" y1="0" x2="480" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#140b2e"/>
+      <stop offset="100%" stop-color="#09152e"/>
+    </linearGradient>
+    <linearGradient id="slab1" x1="120" y1="60" x2="360" y2="260" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c084fc"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="300" fill="url(#bg1)"/>
+  <circle cx="240" cy="145" r="120" fill="#a855f7" fill-opacity="0.18"/>
+  <!-- Isometric Tower Slabs -->
+  <polygon points="240,248 345,210 240,174 135,210" fill="#312e81" stroke="#6366f1" stroke-width="2"/>
+  <polygon points="240,220 335,185 240,152 145,185" fill="#4c1d95" stroke="#8b5cf6" stroke-width="2"/>
+  <polygon points="240,192 325,160 240,130 155,160" fill="#6d28d9" stroke="#a855f7" stroke-width="2"/>
+  <polygon points="240,164 315,135 240,108 165,135" fill="#7e22ce" stroke="#c084fc" stroke-width="2"/>
+  <polygon points="240,136 305,110 240,86 175,110" fill="#0284c7" stroke="#38bdf8" stroke-width="2.5"/>
+  <!-- Sliding Top Block -->
+  <polygon points="274,98 334,76 274,55 214,76" fill="url(#slab1)" stroke="#ffffff" stroke-width="2.5"/>
+  <ellipse cx="240" cy="110" rx="88" ry="28" stroke="#22d3ee" stroke-width="2" stroke-dasharray="6 5" opacity="0.8"/>
+  <text x="24" y="42" fill="#facc15" font-family="monospace" font-size="16" font-weight="800">PERFECT x5!</text>
+</svg>
