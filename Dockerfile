@@ -1,5 +1,5 @@
 # Build the React frontend, then serve it together with the FastAPI backend.
-FROM node:20-alpine AS frontend
+FROM node:22-alpine AS frontend
 
 # Pinned in package.json ("packageManager"), so Corepack provisions the same
 # pnpm the lockfile was written with.
