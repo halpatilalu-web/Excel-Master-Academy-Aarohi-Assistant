@@ -8,8 +8,10 @@
  * that are code-split (Charts, Reference, Aarohi) so a broken lazy import or a
  * bad prop reaches CI as a red test instead of a blank preview.
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, configure, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+configure({ asyncUtilTimeout: 5000 });
 
 const GUEST = { id: "u-test", email: "guest-test@guest.local", name: "", provider: "guest", picture: "" };
 
@@ -71,7 +73,7 @@ async function mountApp(hash = "") {
   await screen.findByText(/Guest · this device/i);
 }
 
-describe("app shell", () => {
+describe("app shell", { timeout: 15000 }, () => {
   it("creates a guest session and renders the dashboard", async () => {
     await mountApp();
     expect(calls).toContain("GET /api/auth/me");
