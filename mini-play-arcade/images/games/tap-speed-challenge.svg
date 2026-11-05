@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" fill="none" role="img" aria-label="Tap Speed Challenge Game Thumbnail">
+  <rect width="480" height="300" fill="#061a17"/>
+  <circle cx="240" cy="150" r="108" fill="#10b981" fill-opacity="0.16" stroke="#10b981" stroke-width="2.5"/>
+  <circle cx="240" cy="150" r="76" fill="#064e3b" stroke="#34d399" stroke-width="3"/>
+  <polygon points="248,96 216,154 242,154 232,204 268,142 242,142" fill="#6ee7b7"/>
+  <rect x="158" y="236" width="164" height="36" rx="18" fill="#022c22" stroke="#34d399" stroke-width="2"/>
+  <text x="188" y="259" fill="#ecfdf5" font-family="monospace" font-size="18" font-weight="800">186 ms ⚡</text>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" fill="none" role="img" aria-label="Don't Fall Endless Runner Thumbnail">
+  <rect width="480" height="300" fill="#170f24"/>
+  <!-- Sky Bridges -->
+  <rect x="28" y="216" width="160" height="20" rx="6" fill="#312e81" stroke="#a855f7" stroke-width="2.5"/>
+  <rect x="276" y="196" width="176" height="20" rx="6" fill="#312e81" stroke="#22d3ee" stroke-width="2.5"/>
+  <!-- Spikes -->
+  <polygon points="145,216 157,192 169,216" fill="#f43f5e"/>
+  <polygon points="169,216 181,192 193,216" fill="#f43f5e"/>
+  <!-- Runner & Trail -->
+  <path d="M120 156 Q175 110 228 134" stroke="#f59e0b" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+  <rect x="218" y="116" width="30" height="30" rx="8" fill="#f59e0b" stroke="#fef3c7" stroke-width="2.5"/>
+  <circle cx="239" cy="128" r="3.5" fill="#0f172a"/>
+  <!-- Coins -->
+  <circle cx="295" cy="152" r="11" fill="#facc15" stroke="#fef08a" stroke-width="2"/>
+  <circle cx="332" cy="142" r="11" fill="#facc15" stroke="#fef08a" stroke-width="2"/>
+  <circle cx="369" cy="152" r="11" fill="#facc15" stroke="#fef08a" stroke-width="2"/>
+</svg>

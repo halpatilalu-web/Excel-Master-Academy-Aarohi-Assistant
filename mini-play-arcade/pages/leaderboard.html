@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path=".." data-nav="leaderboard">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arcade Leaderboard — Daily, Weekly &amp; All-Time Rankings | MINI PLAY ARCADE</title>
+  <meta name="description" content="Compare your browser-saved personal best scores across Daily, Weekly, and All-Time leaderboards at MINI PLAY ARCADE." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/pages/leaderboard.html" />
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg" />
+  <link rel="manifest" href="../public/manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="Arcade Leaderboard — MINI PLAY ARCADE" />
+  <meta property="og:description" content="Track your Daily, Weekly, and All-Time arcade rankings across all 10 games." />
+  <meta property="og:url" content="https://miniplayarcade.example.com/pages/leaderboard.html" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/og-banner.svg" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to leaderboard</a>
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="page-hero-compact">
+      <div class="container">
+        <span class="chip chip-amber">🏆 Hall of High Scores</span>
+        <h1>Arcade Leaderboard</h1>
+        <p style="margin:0;color:var(--text-secondary);max-width:700px">
+          Benchmark your Daily, Weekly, and All-Time scores across individual games or combined Arcade Points.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="leaderboard-shell">
+          <div class="honesty-banner" role="note">
+            <span style="font-size:1.3rem">ℹ️</span>
+            <div>
+              <strong style="color:#fff">Local &amp; Demonstration Rankings Notice:</strong>
+              Mini Play Arcade runs as a zero-login static platform. Your scores (<span style="color:#67e8f9">You — Saved in Browser</span>) are stored locally in your browser's LocalStorage and compared against clearly labeled offline arcade pace-setters (<span style="color:#cbd5e1">Demo Pace-Setter</span>). These are <strong>not</strong> verified global multiplayer rankings. Developers can connect Firebase or Supabase via <code>MPA_LEADERBOARD.registerCloudAdapter()</code>.
+            </div>
+          </div>
+
+          <div class="lb-controls">
+            <div class="tab-group" role="tablist" aria-label="Leaderboard Timeframe">
+              <button type="button" class="tab-btn" role="tab" aria-selected="false" data-lb-period="daily">Daily</button>
+              <button type="button" class="tab-btn" role="tab" aria-selected="false" data-lb-period="weekly">Weekly</button>
+              <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-lb-period="alltime">All-Time</button>
+            </div>
+
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+              <label for="lb-game-select" class="sr-only">Filter by Game</label>
+              <select id="lb-game-select" class="select-control">
+                <option value="overall">🌟 Overall Arcade Points (All 10 Games)</option>
+              </select>
+
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;color:var(--text-secondary);cursor:pointer">
+                <input type="checkbox" id="lb-include-demo" checked />
+                Include Demo Pace-Setters
+              </label>
+            </div>
+          </div>
+
+          <div class="lb-list" id="leaderboard-rows" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="../config/adsense-config.js"></script>
+  <script src="../js/games-data.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/sound.js"></script>
+  <script src="../js/daily-challenge.js"></script>
+  <script src="../js/leaderboard.js"></script>
+  <script src="../js/ads.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    (function () {
+      function initLeaderboardPage() {
+        var selectEl = document.getElementById('lb-game-select');
+        var demoToggle = document.getElementById('lb-include-demo');
+        var rowsHost = document.getElementById('leaderboard-rows');
+        var periodBtns = document.querySelectorAll('[data-lb-period]');
+        var currentPeriod = 'alltime';
+
+        if (selectEl && window.MPA_DATA) {
+          window.MPA_DATA.GAMES.forEach(function (g) {
+            var opt = document.createElement('option');
+            opt.value = g.id;
+            opt.textContent = g.title + ' (' + g.category + ')';
+            selectEl.appendChild(opt);
+          });
+        }
+
+        function renderBoard() {
+          if (!rowsHost || !window.MPA_LEADERBOARD || !window.MPA_UI) return;
+          var entries = window.MPA_LEADERBOARD.getLocalRankings({
+            period: currentPeriod,
+            gameId: selectEl ? selectEl.value : 'overall',
+            includeDemo: demoToggle ? demoToggle.checked : true
+          });
+
+          rowsHost.innerHTML = entries.map(function (entry) {
+            return (
+              '<div class="lb-row' + (entry.isCurrentPlayer ? ' is-you' : '') + '">' +
+                '<div class="lb-rank">' + entry.badge.icon + ' #' + entry.rank + '</div>' +
+                '<div class="lb-player">' +
+                  '<span class="lb-avatar">' + window.MPA_UI.escapeHtml(entry.avatar) + '</span>' +
+                  '<div>' +
+                    '<div class="lb-name">' + window.MPA_UI.escapeHtml(entry.name) + '</div>' +
+                    '<div class="lb-source">' + window.MPA_UI.escapeHtml(entry.sourceLabel) + '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="lb-badge-col"><span class="chip">' + window.MPA_UI.escapeHtml(entry.badge.label) + '</span></div>' +
+                '<div class="lb-score">' + Number(entry.score).toLocaleString() + ' pts</div>' +
+              '</div>'
+            );
+          }).join('');
+        }
+
+        periodBtns.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            currentPeriod = btn.getAttribute('data-lb-period');
+            periodBtns.forEach(function (b) {
+              var active = b === btn;
+              b.classList.toggle('active', active);
+              b.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            renderBoard();
+          });
+        });
+
+        if (selectEl) selectEl.addEventListener('change', renderBoard);
+        if (demoToggle) demoToggle.addEventListener('change', renderBoard);
+
+        if (window.MPA_STORAGE) {
+          window.MPA_STORAGE.subscribe(renderBoard);
+        }
+
+        renderBoard();
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initLeaderboardPage);
+      } else {
+        initLeaderboardPage();
+      }
+    })();
+  </script>
+</body>
+</html>

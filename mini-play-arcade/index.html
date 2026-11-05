@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path="." data-nav="home">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MINI PLAY ARCADE — Play Free Instant Browser Games Online | PLAY. COMPETE. REPEAT.</title>
+  <meta name="description" content="Play 10 free instant HTML5 browser games at MINI PLAY ARCADE—including Stack Master, Fruit Merge, Color Switch Rush, Brain Trap, Guess The Emoji, and Mini Golf Crazy. No downloads or accounts required." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/" />
+  <link rel="icon" type="image/svg+xml" href="images/favicon.svg" />
+  <link rel="manifest" href="public/manifest.webmanifest" />
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="MINI PLAY ARCADE — PLAY. COMPETE. REPEAT." />
+  <meta property="og:description" content="Discover amazing free mini-games, challenge your skills, beat your high scores, and have fun right in your browser!" />
+  <meta property="og:url" content="https://miniplayarcade.example.com/" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/og-banner.svg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="MINI PLAY ARCADE — Free Instant Browser Games" />
+  <meta name="twitter:description" content="Play 10 fast, mobile-friendly arcade, puzzle, sports, and brain games with zero downloads." />
+
+  <link rel="stylesheet" href="css/style.css" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "MINI PLAY ARCADE",
+    "alternateName": "Mini Play Arcade",
+    "url": "https://miniplayarcade.example.com/",
+    "description": "Free instant-play HTML5 browser gaming platform featuring 10 original arcade, puzzle, reaction, casual, sports, and brain games.",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://miniplayarcade.example.com/pages/all-games.html?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <!-- B. HERO SECTION -->
+    <section class="hero-section" aria-labelledby="hero-heading">
+      <canvas class="hero-canvas-bg" id="hero-bg-canvas" aria-hidden="true"></canvas>
+      <div class="container hero-grid">
+        <div>
+          <div class="hero-eyebrow">
+            <span class="pulse-dot"></span>
+            <span>Instant Browser Gaming • No Downloads • No Sign-Up</span>
+          </div>
+          <h1 class="hero-title" id="hero-heading">
+            PLAY. COMPETE. <span class="gradient-text">REPEAT.</span>
+          </h1>
+          <p class="hero-description">
+            Discover amazing free mini-games, challenge your skills, beat your high scores, and have fun!
+          </p>
+          <div class="hero-cta-group">
+            <a class="btn btn-primary" href="games/stack-master.html">▶ PLAY NOW</a>
+            <a class="btn btn-secondary" href="#all-games">🕹️ EXPLORE GAMES</a>
+          </div>
+          <div class="hero-stats-bar" id="hero-live-stats" aria-label="Player Progress Summary">
+            <div class="hero-stat-item">
+              <span class="hero-stat-value">10</span>
+              <span class="hero-stat-label">Playable Games</span>
+            </div>
+            <div class="hero-stat-item">
+              <span class="hero-stat-value">0</span>
+              <span class="hero-stat-label">Your Sessions</span>
+            </div>
+            <div class="hero-stat-item">
+              <span class="hero-stat-value">0</span>
+              <span class="hero-stat-label">Best Score Sum</span>
+            </div>
+            <div class="hero-stat-item">
+              <span class="hero-stat-value">0 🏆</span>
+              <span class="hero-stat-label">Daily Badges</span>
+            </div>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <img src="images/hero-arcade.svg" alt="Futuristic neon arcade console displaying high scores and mini-game portals" width="520" height="408" />
+        </div>
+      </div>
+    </section>
+
+    <!-- AdSense Location 1: Homepage slot below hero section -->
+    <div class="container">
+      <div class="mpa-ad-slot mpa-ad-collapsed" data-mpa-ad-slot="HOME_BELOW_HERO" aria-hidden="true"></div>
+    </div>
+
+    <!-- Recently Played (Dynamic) -->
+    <section class="section" id="recently-played-section" style="display:none" aria-labelledby="recent-heading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="recent-heading">⏱️ Jump Back In</h2>
+            <p class="section-subtitle">Pick up right where you left off in your recent browser sessions.</p>
+          </div>
+          <a class="btn btn-secondary btn-sm" href="pages/favorites.html">All Stats &amp; History →</a>
+        </div>
+        <div class="games-grid" id="recently-played-grid"></div>
+      </div>
+    </section>
+
+    <!-- C. FEATURED GAMES -->
+    <section class="section" id="featured-games" aria-labelledby="featured-heading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="featured-heading">✨ Featured Games</h2>
+            <p class="section-subtitle">Handpicked flagship experiences designed for fast, replayable fun.</p>
+          </div>
+          <a class="btn btn-secondary btn-sm" href="pages/all-games.html">View Full Library →</a>
+        </div>
+        <div class="games-grid" id="featured-games-grid"></div>
+      </div>
+    </section>
+
+    <!-- AdSense Location 2: Homepage slot between game sections -->
+    <div class="container">
+      <div class="mpa-ad-slot mpa-ad-collapsed" data-mpa-ad-slot="HOME_BETWEEN_SECTIONS" aria-hidden="true"></div>
+    </div>
+
+    <!-- D. TRENDING GAMES -->
+    <section class="section" id="trending-games" aria-labelledby="trending-heading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="trending-heading">🔥 Trending Games</h2>
+            <p class="section-subtitle">High-energy score chasers players come back to again and again.</p>
+          </div>
+          <a class="btn btn-secondary btn-sm" href="pages/leaderboard.html">Check Leaderboard →</a>
+        </div>
+        <div class="games-grid" id="trending-games-grid"></div>
+      </div>
+    </section>
+
+    <!-- F. DAILY CHALLENGE -->
+    <section class="section" id="daily-challenge-section" aria-labelledby="daily-section-heading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="daily-section-heading">🎯 Featured Daily Challenge</h2>
+            <p class="section-subtitle">A fresh game target rotates automatically every single day at midnight.</p>
+          </div>
+        </div>
+        <div id="home-daily-challenge"></div>
+      </div>
+    </section>
+
+    <!-- E. ALL GAMES SEARCHABLE & FILTERABLE LIBRARY -->
+    <section class="section" id="all-games" aria-labelledby="library-heading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="library-heading">🎮 All Games Library</h2>
+            <p class="section-subtitle" id="library-results-count">Browse all 10 instant-play browser games.</p>
+          </div>
+        </div>
+
+        <div class="library-toolbar" role="search" aria-label="Filter and search games">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">🔍</span>
+            <label class="sr-only" for="game-search-input">Search games</label>
+            <input type="search" id="game-search-input" placeholder="Search games by title, genre, or mechanic..." autocomplete="off" />
+            <button type="button" class="search-clear-btn" id="search-clear-btn" aria-label="Clear search">✕</button>
+          </div>
+          <div class="category-pills" id="category-filter-pills" role="group" aria-label="Filter by category"></div>
+        </div>
+
+        <div class="games-grid" id="all-games-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="config/adsense-config.js"></script>
+  <script src="js/games-data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/daily-challenge.js"></script>
+  <script src="js/ads.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/home.js"></script>
+</body>
+</html>

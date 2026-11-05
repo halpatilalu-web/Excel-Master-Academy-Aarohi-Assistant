@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" fill="none" role="img" aria-label="Bubble Pop Frenzy Game Thumbnail">
+  <rect width="480" height="300" fill="#071929"/>
+  <circle cx="152" cy="112" r="34" fill="#06b6d4" fill-opacity="0.35" stroke="#22d3ee" stroke-width="3"/>
+  <circle cx="222" cy="108" r="34" fill="#06b6d4" fill-opacity="0.35" stroke="#22d3ee" stroke-width="3"/>
+  <circle cx="188" cy="168" r="34" fill="#06b6d4" fill-opacity="0.35" stroke="#22d3ee" stroke-width="3"/>
+  <circle cx="296" cy="118" r="34" fill="#a855f7" fill-opacity="0.35" stroke="#c084fc" stroke-width="3"/>
+  <circle cx="336" cy="178" r="34" fill="#f43f5e" fill-opacity="0.35" stroke="#fb7185" stroke-width="3"/>
+  <!-- Special Bomb Bubble -->
+  <circle cx="262" cy="182" r="36" fill="#facc15" fill-opacity="0.28" stroke="#facc15" stroke-width="3.5"/>
+  <text x="246" y="194" font-size="30">💥</text>
+  <!-- Sparkles -->
+  <circle cx="122" cy="176" r="5" fill="#22d3ee"/>
+  <circle cx="372" cy="108" r="6" fill="#c084fc"/>
+  <text x="172" y="258" fill="#67e8f9" font-family="monospace" font-size="18" font-weight="800">COMBO x10!</text>
+</svg>

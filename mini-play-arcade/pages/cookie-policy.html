@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path=".." data-nav="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cookie Policy &amp; Consent Settings | MINI PLAY ARCADE</title>
+  <meta name="description" content="Understand how MINI PLAY ARCADE uses browser LocalStorage and advertising cookies, and manage your consent preferences at any time." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/pages/cookie-policy.html" />
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg" />
+  <link rel="manifest" href="../public/manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="Cookie Policy — MINI PLAY ARCADE" />
+  <meta property="og:description" content="Manage cookie and browser storage settings for MINI PLAY ARCADE." />
+  <meta property="og:url" content="https://miniplayarcade.example.com/pages/cookie-policy.html" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/og-banner.svg" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to cookie policy</a>
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="page-hero-compact">
+      <div class="container">
+        <span class="chip">🍪 Cookies &amp; LocalStorage</span>
+        <h1>Cookie Policy</h1>
+        <p style="margin:0;color:var(--text-secondary)">Last Updated: November 5, 2026</p>
+      </div>
+    </section>
+
+    <div class="container">
+      <article class="prose-card">
+        <h2>1. How We Use Cookies &amp; Browser Storage</h2>
+        <p>
+          <strong>MINI PLAY ARCADE</strong> keeps data storage lightweight and transparent. We distinguish between essential local browser storage required to remember your game progress and optional third-party advertising cookies used when Google AdSense is active.
+        </p>
+
+        <h2>2. Categories of Storage</h2>
+        <ul>
+          <li>
+            <strong>Essential Functional Storage (LocalStorage):</strong> Keys <code>mpa_player_state_v1</code> and <code>mpa_cookie_consent_v1</code> store your high scores, favorites, unlocked levels/skins, sound toggle, and consent choice locally in your browser. No tracking across external sites occurs via these keys.
+          </li>
+          <li>
+            <strong>Advertising Cookies (Google AdSense — When Enabled):</strong> When advertisements are activated in site configuration, Google and certified ad partners may set cookies (such as DoubleClick/AdSense cookies) to cap ad frequency, prevent invalid traffic, and—where consented—personalize advertisements. When personalized advertising consent is declined, Mini Play Arcade signals <code>requestNonPersonalizedAds = 1</code>. Note: Publishers serving traffic in the EEA, UK, or Switzerland must also enable a Google-certified CMP (Consent Management Platform) inside their Google AdSense Privacy &amp; Messaging dashboard before serving live ads.
+          </li>
+        </ul>
+
+        <h2>3. Manage Your On-Site Consent Preference</h2>
+        <div style="padding:20px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border-neon);margin:16px 0">
+          <p id="current-consent-status" style="margin:0 0 14px;font-weight:700;color:#fff">Checking current consent preference...</p>
+          <div style="display:flex;flex-wrap:wrap;gap:10px">
+            <button type="button" class="btn btn-primary btn-sm" id="cookie-page-accept">Accept All (Personalized Ads Allowed)</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="cookie-page-essential">Essential Storage Only</button>
+          </div>
+        </div>
+
+        <h2>4. Managing Cookies in Your Browser</h2>
+        <p>
+          Most web browsers also let you block or delete cookies and site data directly through browser settings (Chrome, Safari, Firefox, Edge, Brave). See our <a href="privacy-policy.html">Privacy Policy</a> for additional Google opt-out links.
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="../config/adsense-config.js"></script>
+  <script src="../js/games-data.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/sound.js"></script>
+  <script src="../js/daily-challenge.js"></script>
+  <script src="../js/ads.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    (function () {
+      var statusEl = document.getElementById('current-consent-status');
+      function updateLabel() {
+        if (!statusEl || !window.MPA_STORAGE) return;
+        var c = window.MPA_STORAGE.getConsent();
+        if (!c) {
+          statusEl.textContent = 'Current Status: Not yet selected (defaulting to non-personalized mode until chosen).';
+        } else if (c.advertising) {
+          statusEl.textContent = 'Current Status: ✅ Essential Storage + Personalized Advertising Accepted (' + new Date(c.updatedAt).toLocaleDateString() + ').';
+        } else {
+          statusEl.textContent = 'Current Status: 🛡️ Essential Storage Only — Personalized Advertising Declined (' + new Date(c.updatedAt).toLocaleDateString() + ').';
+        }
+      }
+      document.getElementById('cookie-page-accept').addEventListener('click', function () {
+        window.MPA_STORAGE.setConsent({ advertising: true });
+        updateLabel();
+        if (window.MPA_UI) window.MPA_UI.showToast('Updated: Personalized advertising enabled.', '✅');
+      });
+      document.getElementById('cookie-page-essential').addEventListener('click', function () {
+        window.MPA_STORAGE.setConsent({ advertising: false });
+        updateLabel();
+        if (window.MPA_UI) window.MPA_UI.showToast('Updated: Essential browser storage only.', '🛡️');
+      });
+      updateLabel();
+    })();
+  </script>
+</body>
+</html>

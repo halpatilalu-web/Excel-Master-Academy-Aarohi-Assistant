@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" data-base-path=".." data-nav="all-games">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Games Library — Play 10 Free Instant Browser Games | MINI PLAY ARCADE</title>
+  <meta name="description" content="Browse and search all 10 free HTML5 browser games at MINI PLAY ARCADE. Filter by Arcade, Puzzle, Reaction, Casual, Sports, and Brain Games—play instantly with no downloads." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://miniplayarcade.example.com/pages/all-games.html" />
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg" />
+  <link rel="manifest" href="../public/manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MINI PLAY ARCADE" />
+  <meta property="og:title" content="All Games Library — MINI PLAY ARCADE" />
+  <meta property="og:description" content="Explore all 10 free browser mini-games across Arcade, Puzzle, Reaction, Casual, Sports, and Brain Games." />
+  <meta property="og:url" content="https://miniplayarcade.example.com/pages/all-games.html" />
+  <meta property="og:image" content="https://miniplayarcade.example.com/images/og-banner.svg" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to game library</a>
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="page-hero-compact">
+      <div class="container">
+        <span class="chip">Instant HTML5 Catalog</span>
+        <h1>All Playable Games</h1>
+        <p style="margin:0;color:var(--text-secondary);max-width:680px">
+          Every game below runs directly in your mobile or desktop browser with zero downloads and zero registration. Search by keyword or filter by genre to jump straight in.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="library-toolbar" role="search" aria-label="Search and filter games">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">🔍</span>
+            <label class="sr-only" for="game-search-input">Search games</label>
+            <input type="search" id="game-search-input" placeholder="Search games (e.g. golf, emoji, stack, physics)..." autocomplete="off" />
+            <button type="button" class="search-clear-btn" id="search-clear-btn" aria-label="Clear search">✕</button>
+          </div>
+          <div class="category-pills" id="category-filter-pills" role="group" aria-label="Category filters"></div>
+        </div>
+        <p id="library-results-count" style="margin:0 0 18px;color:var(--text-muted);font-size:0.9rem">Showing all 10 games</p>
+        <div class="games-grid" id="all-games-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="../config/adsense-config.js"></script>
+  <script src="../js/games-data.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/sound.js"></script>
+  <script src="../js/daily-challenge.js"></script>
+  <script src="../js/ads.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/home.js"></script>
+</body>
+</html>
