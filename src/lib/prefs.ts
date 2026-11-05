@@ -37,7 +37,7 @@ export function adoptUser(userId: string | null | undefined) {
 }
 
 export function useDark() {
-  const [dark, setDark] = useState(() => get("ema_dark", matchMedia("(prefers-color-scheme: dark)").matches ? "1" : "0") === "1");
+  const [dark, setDark] = useState(() => get("ema_dark", "0") === "1");
   useEffect(() => { document.documentElement.classList.toggle("dark", dark); set("ema_dark", dark ? "1" : "0"); }, [dark]);
   return [dark, () => setDark((d) => !d)] as const;
 }

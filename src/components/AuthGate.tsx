@@ -61,7 +61,19 @@ export function AuthGate({ auth, appName, children, mode: authMode = "accounts" 
   });
   const [busy, setBusy] = useState(false);
 
-  if (auth.checking) return <div className="min-h-screen" data-auth-checking />;
+  const loadingSplash = (
+    <div className="min-h-screen flex items-center justify-center px-4" data-auth-checking>
+      <div className="text-center space-y-3">
+        <div className="w-12 h-12 rounded-2xl bg-(--color-accent) text-white font-display font-extrabold text-xl flex items-center justify-center mx-auto shadow-md animate-pulse">
+          E
+        </div>
+        <div className="font-display font-bold text-base text-(--color-ink)">{appName}</div>
+        <p className="text-xs text-(--color-muted)">Course load ho raha hai… / Loading your Diploma workspace…</p>
+      </div>
+    </div>
+  );
+
+  if (auth.checking) return loadingSplash;
   if (auth.user) return <div data-app-ready>{children}</div>;
   if (authMode === "guest" && guestError) {
     return (
@@ -77,7 +89,7 @@ export function AuthGate({ auth, appName, children, mode: authMode = "accounts" 
       </div>
     );
   }
-  if (authMode === "guest") return <div className="min-h-screen" data-auth-checking />;
+  if (authMode === "guest") return loadingSplash;
 
   async function submit(e: FormEvent) {
     e.preventDefault();

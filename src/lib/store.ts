@@ -67,14 +67,46 @@ export function clearStoreCache(): void {
   for (const set of listeners.values()) set.forEach((listener) => listener());
 }
 
+function isStaticOrOffline(err: unknown): boolean {
+  if (err instanceof ApiError) {
+    return err.status === 0 || err.status === 404 || err.status === 405 || err.status === 502 || err.status === 503 || err.status === 504;
+  }
+  return err instanceof TypeError || err instanceof SyntaxError;
+}
+
+function readLocalCollection<T>(collection: string): T[] {
+  try {
+    const raw = localStorage.getItem(`ema_local_col_${collection}`);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalCollection<T>(collection: string, items: T[]): void {
+  try {
+    localStorage.setItem(`ema_local_col_${collection}`, JSON.stringify(items));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
 async function refreshKey(key: string, path: string): Promise<void> {
   const running = inflight.get(key);
   if (running) return running; // de-duplicate concurrent refreshes
   const task = (async () => {
     try {
-      setState<unknown>(key, { items: await api.get<unknown[]>(path), error: null });
+      const serverItems = await api.get<unknown[]>(path, { timeoutMs: 4500 });
+      writeLocalCollection(key, serverItems);
+      setState<unknown>(key, { items: serverItems, error: null });
     } catch (error) {
-      setState<unknown>(key, { error: (error as Error).message });
+      if (isStaticOrOffline(error)) {
+        setState<unknown>(key, { items: readLocalCollection(key), error: null });
+      } else {
+        setState<unknown>(key, { error: (error as Error).message });
+      }
     } finally {
       setState<unknown>(key, { loading: false });
       inflight.delete(key);
@@ -108,9 +140,26 @@ export function createStore<T extends Doc>(collection: string) {
 
     const add = useCallback(
       async (doc: Omit<T, "id" | "_created" | "_updated"> & { id?: string }) => {
-        const created = await api.post<T>(base, doc);
-        setState<T>(key, { items: [created, ...stateOf<T>(key).items] });
-        return created;
+        try {
+          const created = await api.post<T>(base, doc);
+          const next = [created, ...stateOf<T>(key).items];
+          writeLocalCollection(key, next);
+          setState<T>(key, { items: next });
+          return created;
+        } catch (err) {
+          if (!isStaticOrOffline(err)) throw err;
+          const now = Date.now();
+          const created = {
+            ...doc,
+            id: doc.id ?? `local-${now}-${Math.random().toString(36).slice(2, 7)}`,
+            _created: now,
+            _updated: now,
+          } as T;
+          const next = [created, ...stateOf<T>(key).items.filter((item) => item.id !== created.id)];
+          writeLocalCollection(key, next);
+          setState<T>(key, { items: next, error: null });
+          return created;
+        }
       },
       [],
     );
@@ -122,12 +171,21 @@ export function createStore<T extends Doc>(collection: string) {
         const current = stateOf<T>(key).items.find((doc) => doc.id === id);
         if (!current) throw new Error(`no ${collection} document with id ${id}`);
         const merged = { ...current, ...patch, id } as T;
+        setState<T>(key, { items: stateOf<T>(key).items.map((doc) => (doc.id === id ? merged : merged && doc)) });
         setState<T>(key, { items: stateOf<T>(key).items.map((doc) => (doc.id === id ? merged : doc)) });
         try {
           const saved = await api.put<T>(`${base}/${encodeURIComponent(id)}`, merged);
-          setState<T>(key, { items: stateOf<T>(key).items.map((doc) => (doc.id === id ? saved : doc)) });
+          const next = stateOf<T>(key).items.map((doc) => (doc.id === id ? saved : doc));
+          writeLocalCollection(key, next);
+          setState<T>(key, { items: next });
           return saved;
         } catch (error) {
+          if (isStaticOrOffline(error)) {
+            const next = stateOf<T>(key).items.map((doc) => (doc.id === id ? merged : doc));
+            writeLocalCollection(key, next);
+            setState<T>(key, { items: next, error: null });
+            return merged;
+          }
           setState<T>(key, { items: stateOf<T>(key).items.map((doc) => (doc.id === id ? current : doc)) });
           throw error;
         }
@@ -137,10 +195,16 @@ export function createStore<T extends Doc>(collection: string) {
 
     const remove = useCallback(async (id: string) => {
       const previous = stateOf<T>(key).items;
-      setState<T>(key, { items: previous.filter((doc) => doc.id !== id) });
+      const filtered = previous.filter((doc) => doc.id !== id);
+      setState<T>(key, { items: filtered });
       try {
         await api.del(`${base}/${encodeURIComponent(id)}`);
+        writeLocalCollection(key, filtered);
       } catch (error) {
+        if (isStaticOrOffline(error)) {
+          writeLocalCollection(key, filtered);
+          return;
+        }
         // Restore the removed row without clobbering unrelated changes.
         const after = stateOf<T>(key).items;
         const restored = previous.filter((doc) => !after.some((current) => current.id === doc.id));
@@ -170,7 +234,22 @@ export function createStore<T extends Doc>(collection: string) {
 
 /** Download every collection of the signed-in user as one JSON file. */
 export async function exportJSON(): Promise<void> {
-  const data = await api.get<unknown>("/api/export");
+  let data: unknown;
+  try {
+    data = await api.get<unknown>("/api/export");
+  } catch (err) {
+    if (!isStaticOrOffline(err)) throw err;
+    data = {
+      exportedAt: new Date().toISOString(),
+      mode: "browser-local",
+      collections: {
+        progress: readLocalCollection("progress"),
+        exams: readLocalCollection("exams"),
+        submissions: readLocalCollection("submissions"),
+        certs: readLocalCollection("certs"),
+      },
+    };
+  }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

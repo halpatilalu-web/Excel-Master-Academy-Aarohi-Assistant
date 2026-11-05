@@ -49,6 +49,10 @@ async function request<T>(
       throw new ApiError(res.status, detail);
     }
     if (res.status === 204) return undefined as T;
+    const contentType = res.headers.get("content-type") ?? "";
+    if (contentType.includes("text/html")) {
+      throw new ApiError(404, "Backend API not mounted on this host");
+    }
     return (await res.json()) as T;
   } catch (error) {
     if ((error as Error)?.name === "AbortError") {
