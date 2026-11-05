@@ -18,8 +18,8 @@ import { allQuestions, LEVEL_QUOTAS, QUESTION_COUNT } from "../lib/exam";
 const isBlank = (value: unknown) => typeof value !== "string" || value.trim() === "";
 
 describe("chapters", () => {
-  it("has 32 chapters numbered 1..32 in order", () => {
-    expect(CHAPTERS.map((chapter) => chapter.n)).toEqual(Array.from({ length: 32 }, (_, i) => i + 1));
+  it("has 45 chapters numbered 1..45 in order", () => {
+    expect(CHAPTERS.map((chapter) => chapter.n)).toEqual(Array.from({ length: 45 }, (_, i) => i + 1));
   });
 
   it("gives every chapter two answerable quick-check questions", () => {
@@ -69,7 +69,7 @@ describe("question bank", () => {
       expect(question.a, where).toBeGreaterThanOrEqual(0);
       expect(question.a, where).toBeLessThan(4);
       expect(question.chapter, where).toBeGreaterThanOrEqual(1);
-      expect(question.chapter, where).toBeLessThanOrEqual(32);
+      expect(question.chapter, where).toBeLessThanOrEqual(45);
     }
   });
 });
@@ -83,7 +83,7 @@ describe("reference libraries", () => {
       expect(formula.hindi?.trim()).toBeTruthy();
       expect(formula.ex?.trim()).toBeTruthy();
       expect(formula.ch).toBeGreaterThanOrEqual(0);
-      expect(formula.ch).toBeLessThanOrEqual(32);
+      expect(formula.ch).toBeLessThanOrEqual(45);
     }
   });
 

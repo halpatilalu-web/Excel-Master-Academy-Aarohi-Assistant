@@ -302,6 +302,105 @@ Ctrl + Up/Down|-|Procedure ke beech jump
 Shift + F2|-|Variable/procedure ki definition
 Ctrl + Shift + F2|-|Peeche wapas jao
 Alt + F11 (Mac)|Fn + Option + F11|Mac par VBA editor`,
+Paste_Special: `Alt + E, S, V|Ctrl + Cmd + V|Paste Special: Sirf Values paste karo
+Alt + E, S, F|Ctrl + Cmd + V|Paste Special: Sirf Formulas paste karo
+Alt + E, S, T|Ctrl + Cmd + V|Paste Special: Sirf Formats paste karo
+Alt + E, S, C|-|Paste Special: Comments/Notes paste karo
+Alt + E, S, N|-|Paste Special: Data Validation rules paste karo
+Alt + E, S, W|-|Paste Special: Column Widths barabar karo
+Alt + E, S, R|-|Paste Special: Formulas and Number Formats
+Alt + E, S, U|-|Paste Special: Values and Number Formats
+Alt + E, S, E|-|Paste Special: Transpose (row ko column banao)
+Alt + E, S, D|-|Paste Special: Values mein Add (jod) karo
+Alt + E, S, S|-|Paste Special: Values se Subtract (ghatao)
+Alt + E, S, M|-|Paste Special: Values ko Multiply (guna) karo
+Alt + E, S, I|-|Paste Special: Values ko Divide (bhaag) karo
+Alt + E, S, B|-|Paste Special: Skip Blanks (khali cell chhodo)
+Alt + E, S, L|-|Paste Special: Paste Link (=Sheet1!A1)
+Alt + H, V, V|Cmd + Shift + V|Home Paste menu se Values paste
+Alt + H, V, K|-|Linked Picture (Camera snapshot) paste karo
+Alt + H, V, I|-|Picture ke roop mein paste karo
+Alt + H, V, O|-|Source Formatting rakhte hue paste
+Alt + H, E, A|-|Clear All (value + format + comment sab saaf)
+Alt + H, E, F|-|Clear Formats (sirf design hatao, data rakho)
+Alt + H, E, C|Delete|Clear Contents (sirf value hatao)
+Alt + H, E, M|-|Clear Comments and Notes
+Alt + H, E, L|-|Clear Hyperlinks`,
+Insert_Layout: `Alt + N, P|-|Insert Picture (device se photo daalo)
+Alt + N, S, H|-|Insert Shapes (arrow, box, banner)
+Alt + N, S, I|-|Insert Icons (modern SVG icons)
+Alt + N, Q|-|Insert SmartArt diagram
+Alt + N, S, C|-|Insert Screenshot
+Alt + N, R|-|Recommended Charts dikhao
+Alt + N, C|-|Insert Column/Bar Chart
+Alt + N, N|-|Insert Line/Area Chart
+Alt + N, Q, P|-|Insert Pie/Doughnut Chart
+Alt + N, S, L|-|Insert Line Sparkline (cell mini chart)
+Alt + N, S, O|-|Insert Column Sparkline
+Alt + N, W|-|Insert Win/Loss Sparkline
+Alt + N, X|-|Insert Text Box
+Alt + N, H|-|Insert Header & Footer
+Alt + N, U|-|Insert Symbol (₹, ±, ✓, ★)
+Alt + N, E|-|Insert Equation (ganit ka formula)
+Alt + N, Z, K|-|Insert Hyperlink (Ribbon se)
+Alt + P, T, H|-|Page Layout: Workbook Theme badlo
+Alt + P, T, C|-|Theme Colors palette chuno
+Alt + P, T, F|-|Theme Fonts badlo
+Alt + P, M|-|Page Margins (Normal / Wide / Narrow) set karo
+Alt + P, S, Z|-|Paper Size (A4 / Letter / Legal) chuno
+Alt + P, B, I|-|Insert Page Break
+Alt + P, B, R|-|Remove Page Break
+Alt + P, G|-|Background image lagao
+Alt + P, I|-|Print Titles (har print page par header dohrao)
+Alt + P, W|-|Scale to Fit: Width (1 page wide set karo)
+Alt + P, H|-|Scale to Fit: Height set karo
+Alt + P, S, L|-|Scale percentage badhao/ghatao
+Alt + P, V, G|-|Gridlines View toggle
+Alt + P, P, G|-|Gridlines Print on/off
+Alt + P, V, H|-|Row/Column Headings show/hide
+Alt + P, A, F|-|Bring Forward (shape aage lao)
+Alt + P, A, B|-|Send Backward (shape peeche bhejo)
+Alt + P, A, A|-|Align Objects menu`,
+Review_View: `Alt + R, S|Fn + F7|Spelling check chalao
+Alt + R, E|Shift + F7|Thesaurus (milte-julte shabd) kholo
+Alt + R, W|-|Workbook Statistics (kul cells, tables, formulas gino)
+Alt + R, A|-|Check Accessibility (report readability jaancho)
+Alt + R, L|-|Translate selected text (bhasha anuvaad)
+Ctrl + Alt + M|Cmd + Shift + F2|New Threaded Comment jodo
+Alt + R, C|-|New Comment Ribbon se
+Alt + R, D|-|Comment delete karo
+Alt + R, V|-|Previous Comment par jao
+Alt + R, N|-|Next Comment par jao
+Alt + R, H, C|-|Show/Hide All Comments
+Alt + R, I, N|-|New Note (classic yellow sticky note)
+Alt + R, U, L|-|Allow Edit Ranges (khaas range khuli rakho)
+Alt + R, G|-|Track / Show Changes
+Alt + W, F, B|-|Formula Bar show/hide toggle
+Alt + W, V, H|-|Headings show/hide (View tab)
+Alt + W, K|-|Custom Views kholo
+Alt + W, I|-|Page Break Preview turant kholo
+Alt + W, G, Z|-|Zoom to Selection (chune hisse par zoom)
+Alt + W, S, W|-|Switch Windows menu
+Alt + W, M, V|-|View Macros list
+Alt + W, M, R|-|Record Macro (View tab se)
+Ctrl + Q|-|Quick Analysis lens (Formatting, Charts, Totals turant!)
+F1|Cmd + /|Excel Help pane kholo
+Alt + F2|Cmd + Shift + S|Save As dialog (dusra shortcut)
+Ctrl + F4|Cmd + W|Current workbook window band karo
+Ctrl + F5|-|Workbook window restore size
+Ctrl + F7|-|Workbook window keyboard se move karo
+Ctrl + F8|-|Workbook window keyboard se resize karo
+Ctrl + F9|Cmd + M|Workbook window minimize karo
+Ctrl + F10|-|Workbook window maximize / restore karo
+Shift + F10|Ctrl + Click|Right-Click Context Menu keyboard se kholo
+Menu Key|-|Selected cell ka right-click menu kholo
+Alt + Space|-|Excel window ka system menu kholo
+Ctrl + Alt + Shift + F9|-|Saare dependencies dobara banakar full recalculate
+Alt + H, T|-|Format as Table gallery kholo
+Alt + H, S, F|-|Home Sort & Filter menu
+Alt + H, F, D, S|-|Go To Special (Blanks, Formulas, Constants chuno!)
+Alt + H, F, D, O|-|Select Objects arrow chalu karo
+Alt + M, N|-|Name Manager Ribbon se kholo`,
 };
 
 export const SHORTCUT_CATS = Object.keys(RAW).map((k) => k);

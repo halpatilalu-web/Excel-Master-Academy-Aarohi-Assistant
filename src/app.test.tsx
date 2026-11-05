@@ -80,25 +80,30 @@ describe("app shell", () => {
 
   it("opens a single chapter from a deep link", async () => {
     await mountApp("#/chapters/3");
-    expect(await screen.findByText(/Chapter 3/i)).toBeTruthy();
+    expect((await screen.findAllByText(/Chapter 3/i)).length).toBeGreaterThan(0);
   });
 
   it("renders the code-split Charts route", async () => {
     await mountApp("#/charts");
-    expect(await screen.findByText(/Charts & Dashboards/i)).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /Charts & Dashboards/i })).toBeTruthy();
   });
 
   it("renders the code-split Reference route with a searchable list", async () => {
     await mountApp("#/reference");
     expect(await screen.findByRole("heading", { name: /Excel Reference/i })).toBeTruthy();
     // Both reference tabs are data-driven; an empty render means a broken import.
-    expect(screen.getByRole("button", { name: /Formula Library \(\d+\)/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /VBA Code \(\d+\)/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Formula (Library|Encyclopedia) \(\d+\)/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /VBA (Code|Automation) \(\d+\)/ })).toBeTruthy();
+  });
+
+  it("renders the code-split Pro Toolkit route", async () => {
+    await mountApp("#/toolkit");
+    expect(await screen.findByRole("heading", { name: /AI Prompt Builder/i })).toBeTruthy();
   });
 
   it("renders the code-split Aarohi route", async () => {
     await mountApp("#/aarohi");
-    expect(await screen.findByText(/Aarohi/i)).toBeTruthy();
+    expect(await screen.findByLabelText(/Apna Excel sawal/i)).toBeTruthy();
   });
 
   it("renders the practice exam without starting one", async () => {

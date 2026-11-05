@@ -48,6 +48,8 @@ const AVATARS = [
 const ROLEPLAY_SUGGESTIONS = [
   "Interview roleplay: mujhse ek-ek karke Excel sawal poochho",
   "Office roleplay: monthly sales report banana sikhao",
+  "Quiz lo — test my Excel!",
+  "=XLOOKUP(A2,$F$2:$F$100,$D$2:$D$100,\"Missing\")",
 ];
 
 function loadAvatarIndex(): number {
@@ -132,7 +134,10 @@ export function Aarohi() {
           .slice(1)
           .find((m) => m.from === "me")?.text || "";
       const q = text.split(/\s+/).length < 6 && lastUser ? `${lastUser} ${text}` : text;
-      reply = aarohiReply(q);
+      reply = aarohiReply(
+        q,
+        history.map((m) => m.text),
+      );
     }
 
     setMsgs((current) => [...current, { from: "bot", text: reply }]);
@@ -298,7 +303,7 @@ export function Aarohi() {
         </div>
 
         <div className="px-4 pb-2 flex gap-2 overflow-x-auto">
-          {[...SUGGESTIONS, ...ROLEPLAY_SUGGESTIONS].map((suggestion) => (
+          {Array.from(new Set([...SUGGESTIONS, ...ROLEPLAY_SUGGESTIONS])).map((suggestion) => (
             <button
               type="button"
               key={suggestion}

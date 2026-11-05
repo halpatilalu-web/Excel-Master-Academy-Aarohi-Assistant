@@ -117,6 +117,17 @@ def test_session_token_is_hashed_at_rest(guest: TestClient) -> None:
     assert hashlib.sha256(raw_token.encode()).hexdigest() in stored
 
 
+def test_assistant_builtin_bilingual_reply(guest: TestClient) -> None:
+    response = guest.post(
+        "/api/assistant",
+        json={"messages": [{"role": "user", "content": "XLOOKUP samjhao"}]},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "XLOOKUP" in body["reply"]
+    assert body["source"] == "builtin"
+
+
 def test_security_headers_are_set(client: TestClient) -> None:
     response = client.get("/api/health")
     assert response.headers["X-Content-Type-Options"] == "nosniff"

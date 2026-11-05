@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Volume2, VolumeX } from "lucide-react";
+import { CHAPTERS } from "../data/chapters";
 import { useExams, useProgress } from "../lib/academy";
 import { beep, saveBadges, seenBadges, setSound, soundOn, touchStreak } from "../lib/prefs";
 import { Card } from "./ui";
@@ -17,7 +18,7 @@ export function StreakBadges() {
     { id: "streak3", e: "🔥", t: "3 din lagataar", ok: streak >= 3 },
     { id: "streak7", e: "⚡", t: "7 din lagataar", ok: streak >= 7 },
     { id: "ten", e: "📚", t: "10 Chapters", ok: completedChapters >= 10 },
-    { id: "master", e: "🎓", t: "Chapter Master", ok: completedChapters >= 32 },
+    { id: "master", e: "🎓", t: `Diploma Master (${CHAPTERS.length})`, ok: completedChapters >= CHAPTERS.length },
     { id: "topper", e: "🏆", t: "Exam Topper (80%+)", ok: exams.some((e) => e.pct >= 80) },
   ], [completedChapters, exams, streak]);
 

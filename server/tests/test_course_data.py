@@ -34,8 +34,8 @@ def _copy_data(tmp_path: pathlib.Path) -> pathlib.Path:
 def test_the_shipped_course_data_is_valid() -> None:
     errors, summary = _load_validator().check(REPO)
     assert errors == []
-    assert summary["chapters"] == 32
-    assert summary["chapter_questions"] == 64
+    assert summary["chapters"] == 45
+    assert summary["chapter_questions"] == 90
     assert summary["extra_questions"] > 100
     pools = summary["pools"]
     assert pools["Basic"] >= 6 and pools["Intermediate"] >= 8 and pools["Advanced"] >= 6

@@ -322,6 +322,98 @@ Sub FastMacro()
     ' ... aapka code ...
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
+End Sub
+===
+Intermediate
+Low stock row laal karo
+Stock sheet mein jahan Quantity < 10 ho, poori row ko laal highlight karta hai
+Sub HighlightLowStock()
+    Dim ws As Worksheet, cell As Range
+    Set ws = ThisWorkbook.Sheets("Stock")
+    For Each cell In ws.Range("C2:C500")
+        If IsNumeric(cell.Value) And cell.Value <> "" And cell.Value < 10 Then
+            cell.EntireRow.Interior.Color = RGB(255, 205, 210)
+            cell.Font.Bold = True
+        End If
+    Next cell
+End Sub
+===
+Advanced
+3-din deadline email reminder
+Deadlines sheet mein 3 din ke andar aane wale tasks par Outlook email bhejta hai
+Sub SendReminderEmails()
+    Dim OutApp As Object, OutMail As Object
+    Dim ws As Worksheet, lastRow As Long, i As Long
+    Set ws = ThisWorkbook.Sheets("Deadlines")
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    Set OutApp = CreateObject("Outlook.Application")
+    For i = 2 To lastRow
+        If ws.Cells(i, 2).Value - Date <= 3 And ws.Cells(i, 2).Value >= Date Then
+            Set OutMail = OutApp.CreateItem(0)
+            With OutMail
+                .To = ws.Cells(i, 4).Value
+                .Subject = "Task Deadline Reminder: " & ws.Cells(i, 1).Value
+                .Body = "Namaste " & ws.Cells(i, 3).Value & "," & vbCrLf & _
+                        "Aapka task '" & ws.Cells(i, 1).Value & "' " & ws.Cells(i, 2).Value & " ko due hai."
+                .Display
+            End With
+        End If
+    Next i
+End Sub
+===
+Advanced
+Multi-field Summary Pivot
+Category aur Month ke hisaab se Revenue aur Expense ka Pivot banata hai
+Sub CreateSummaryPivot()
+    Dim wsData As Worksheet, wsSummary As Worksheet
+    Dim pCache As PivotCache, pTable As PivotTable
+    Set wsData = ThisWorkbook.Sheets("Annual_Report")
+    Set wsSummary = ThisWorkbook.Sheets.Add
+    wsSummary.Name = "Summary_" & Format(Now, "hhmmss")
+    Set pCache = ThisWorkbook.PivotCaches.Create(xlDatabase, wsData.Range("A1").CurrentRegion)
+    Set pTable = pCache.CreatePivotTable(wsSummary.Range("A3"), "SummaryPivot")
+    With pTable
+        .PivotFields("Category").Orientation = xlRowField
+        .PivotFields("Month").Orientation = xlColumnField
+        .AddDataField .PivotFields("Revenue"), "Sum of Revenue", xlSum
+        .AddDataField .PivotFields("Expense"), "Sum of Expense", xlSum
+    End With
+End Sub
+===
+Intermediate
+Text numbers ko asli number banao
+Apostrophe ya text format wale numbers ko turant asli numeric value banata hai
+Sub ConvertTextNumbers()
+    Selection.NumberFormat = "General"
+    Selection.Value = Selection.Value
+End Sub
+===
+Advanced
+Merged cells tod kar fill down
+Gandi merged report ko unmerge karke khali cells mein upar ki value bharta hai
+Sub UnmergeAndFill()
+    Dim c As Range, rng As Range
+    Set rng = Selection
+    rng.UnMerge
+    On Error Resume Next
+    rng.SpecialCells(xlCellTypeBlanks).FormulaR1C1 = "=R[-1]C"
+    On Error GoTo 0
+    rng.Value = rng.Value
+End Sub
+===
+Advanced
+Har city ki alag PDF report
+Unique cities par बारी-बारी filter lagakar har city ki alag PDF save karta hai
+Sub BatchCityPDF()
+    Dim ws As Worksheet, cities As Variant, c As Variant
+    Set ws = ActiveSheet
+    cities = Array("Delhi", "Mumbai", "Surat", "Pune")
+    For Each c In cities
+        ws.Range("A1").AutoFilter Field:=2, Criteria1:=c
+        ws.ExportAsFixedFormat Type:=xlTypePDF, _
+            Filename:=ThisWorkbook.Path & "\Report_" & c & ".pdf"
+    Next c
+    ws.AutoFilterMode = False
 End Sub`;
 
 export const VBA: VbaItem[] = RAW.split("\n===\n").map((b) => {

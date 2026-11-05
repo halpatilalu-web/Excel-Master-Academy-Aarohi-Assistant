@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Award, Info, Lock, Printer, ShieldCheck, Trash2 } from "lucide-react";
+import { DIPLOMA_MODULES } from "../data/diplomaModules";
 import { CHAPTERS } from "../data/chapters";
 import { certFormatValid, certId, latestCert, useCerts, useExams, useProgress } from "../lib/academy";
 import { Button, Card, Field, inputCls } from "../components/ui";
@@ -111,11 +112,13 @@ export function Certificate({ defaultName }: { defaultName: string }) {
             <h2 className="font-display text-3xl sm:text-4xl font-extrabold mt-3 text-(--color-accent-dark)">
               Certificate of Practice Completion
             </h2>
-            <p className="mt-1 text-sm text-slate-600">Excel — Basic to Advanced (self-paced)</p>
-            <p className="mt-6 text-sm">Yeh pramaanit kiya jata hai ki</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Complete Excel Diploma Practice Curriculum — Basic to Advanced ({DIPLOMA_MODULES.length} Modules · {CHAPTERS.length} Chapters)
+            </p>
+            <p className="mt-6 text-sm">Yeh pramaanit kiya jata hai ki / This certifies that</p>
             <div className="hand text-5xl sm:text-6xl font-bold my-3 text-rose-700">{cert.name}</div>
-            <p className="text-sm max-w-md mx-auto">
-              ne {CHAPTERS.length} chapters aur online practice exam safaltapoorvak poora kiya hai.
+            <p className="text-sm max-w-lg mx-auto">
+              ne {CHAPTERS.length} chapters (Basic Excel, Formulas, Data Cleaning, Conditional Formatting, Data Validation, XLOOKUP/INDEX-MATCH, Pivot Dashboards, Power Query & VBA Macros) aur online practice exam safaltapoorvak poora kiya hai.
             </p>
             <p className="text-[11px] text-slate-500 max-w-md mx-auto mt-3">
               Self-attested practice certificate — not an externally verified diploma.

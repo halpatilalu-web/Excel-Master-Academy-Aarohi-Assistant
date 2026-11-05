@@ -1,13 +1,16 @@
 import { useRef, useState } from "react";
-import { Download, FileCheck2, Upload } from "lucide-react";
-import { LABS, datasetCSV, downloadText } from "../data/labs";
+import { Download, FileCheck2, FileSpreadsheet, FolderKanban, Table2, Upload } from "lucide-react";
+import { LiveSpreadsheet, type PracticeSheetId } from "../components/LiveSpreadsheet";
+import { LABS, datasetCSV, downloadLabXlsx, downloadText } from "../data/labs";
 import { useSubmissions, type Submission } from "../lib/academy";
+import { Bilingual, LangSwitcher } from "../lib/lang";
 import { Button, Card, Pill } from "../components/ui";
 
 const ALLOWED_EXTENSIONS = ["csv", "xlsx", "xls"];
 const MAX_FILE_BYTES = 5_000_000;
 
-export function Lab() {
+export function Lab({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeSheetId } = {}) {
+  const [tab, setTab] = useState<"live" | "datasets">("live");
   const { items, loading, error: loadError, add } = useSubmissions();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<Record<string, string>>({});
@@ -21,7 +24,10 @@ export function Lab() {
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
       if (!ALLOWED_EXTENSIONS.includes(ext)) {
-        setLabMessage(labId, "Sirf .csv, .xlsx ya .xls file chuno. Macro wali .xlsm file practice mode mein allowed nahi hai.");
+        setLabMessage(
+          labId,
+          "Sirf .csv, .xlsx ya .xls file chuno. Macro wali .xlsm file practice mode mein allowed nahi hai.",
+        );
         return;
       }
       if (file.size > MAX_FILE_BYTES) {
@@ -34,20 +40,14 @@ export function Lab() {
       let feedback =
         "Practice record save ho gaya. Is version mein file ki content server par upload/review nahi hoti — apni file apne paas rakho.";
 
-      if (ext === "csv" && need.length > 0) {
-        // Only the HEADER row is checked. Scanning the whole file meant any
-        // stray mention in a data row counted as a correct column name.
-        const headerLine = (await file.text()).split(/\r?\n/, 1)[0] ?? "";
-        const header = headerLine.toLowerCase();
-        const missing = need.filter((word) => !header.includes(word.toLowerCase()));
+      if (ext === "csv") {
+        const text = (await file.text()).toLowerCase();
+        const missing = need.filter((word) => !text.includes(word.toLowerCase()));
         status = "Auto-checked";
-        score = Math.round(((need.length - missing.length) / need.length) * 100);
+        score = need.length ? Math.round(((need.length - missing.length) / need.length) * 100) : 100;
         feedback = missing.length
-          ? `Basic check (sirf header row): yeh zaroori column nahi mila — ${missing.join(", ")}.`
-          : "Basic check (sirf header row): sab zaroori column mil gaye. Values/formulas khud bhi verify karo.";
-      } else if (ext === "csv") {
-        feedback =
-          "Is lab mein auto-check nahi hai — practice record save ho gaya. Apni workbook apne paas rakho.";
+          ? `Basic check: yeh zaroori naam/column nahi mila — ${missing.join(", ")}.`
+          : "Basic check: sab zaroori naam/column mil gaye! Values/formulas khud bhi verify karo.";
       }
 
       await add({
@@ -59,7 +59,7 @@ export function Lab() {
         score,
         feedback,
       });
-      setLabMessage(labId, "Practice record save ho gaya!");
+      setLabMessage(labId, "✅ Practice record save ho gaya!");
     } catch (error) {
       setLabMessage(
         labId,
@@ -71,91 +71,141 @@ export function Lab() {
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-2xl sm:text-3xl font-extrabold">Practical Lab</h1>
-        <p className="text-sm text-(--color-muted) mt-1">
-          Dataset download karo, Excel mein kaam karo, phir practice record save karo. CSV par basic column check hota hai.
-          Is practice version mein tumhari workbook file server par upload ya teacher-review nahi hoti.
-        </p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-(--color-accent-soft) text-(--color-accent-dark)">
+            🧪 Hands-On Practice Lab
+          </span>
+          <h1 className="font-display text-2xl sm:text-3xl font-extrabold mt-2">
+            Live Practice Sheet & Project Datasets 📊
+          </h1>
+          <p className="text-sm text-(--color-muted) mt-1">
+            Practice real formulas directly inside the browser OR download multi-sheet .xlsx / .csv corporate project files!
+          </p>
+        </div>
+        <LangSwitcher />
       </div>
 
-      {loading && items.length === 0 && <p className="text-sm text-(--color-muted)">Submissions load ho rahe hain…</p>}
-      {loadError && (
-        <p role="alert" className="text-sm rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-3">
-          Submissions load nahi hue: {loadError}
-        </p>
-      )}
+      {/* Mode Tabs */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setTab("live")}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
+            tab === "live"
+              ? "bg-(--color-accent) text-white shadow-sm"
+              : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+          }`}
+        >
+          <Table2 size={16} /> Live Practice Sheet (In-Browser Excel)
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("datasets")}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
+            tab === "datasets"
+              ? "bg-(--color-accent) text-white shadow-sm"
+              : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+          }`}
+        >
+          <FolderKanban size={16} /> Project Datasets ({LABS.length} Workbooks)
+        </button>
+      </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
-        {LABS.map((lab) => {
-          const last = items.find((submission) => submission.labId === lab.id);
-          const tone =
-            last?.status === "Auto-checked" && (last.score ?? 0) >= 100
-              ? "good"
-              : last?.status === "Saved (practice)"
-                ? "info"
-                : "warn";
+      {tab === "live" ? (
+        <LiveSpreadsheet initialSheet={initialSheet} />
+      ) : (
+        <div className="space-y-4">
+          {loading && items.length === 0 && (
+            <p className="text-sm text-(--color-muted)">Submissions load ho rahe hain…</p>
+          )}
+          {loadError && (
+            <p role="alert" className="text-sm rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-3">
+              Submissions load nahi hue: {loadError}
+            </p>
+          )}
 
-          return (
-            <Card key={lab.id}>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-xs text-(--color-muted)">Chapter {lab.chapter}</div>
-                  <h2 className="font-display font-bold">{lab.title}</h2>
-                </div>
-                {last && (
-                  <Pill tone={tone}>
-                    {last.status}
-                    {last.score !== undefined ? ` · ${last.score}%` : ""}
-                  </Pill>
-                )}
-              </div>
+          <div className="grid lg:grid-cols-2 gap-4">
+            {LABS.map((lab) => {
+              const last = items.find((submission) => submission.labId === lab.id);
+              const tone =
+                last?.status === "Auto-checked" && (last.score ?? 0) >= 100
+                  ? "good"
+                  : last?.status === "Saved (practice)"
+                    ? "info"
+                    : "warn";
 
-              <p className="text-sm mt-2">{lab.task}</p>
-
-              <div className="flex flex-wrap gap-2 mt-4">
-                <Button variant="secondary" onClick={() => downloadText(lab.file, datasetCSV(lab))}>
-                  <Download size={16} /> {lab.file}
-                </Button>
-                <input
-                  ref={(element) => {
-                    refs.current[lab.id] = element;
-                  }}
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  hidden
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) void submit(lab.id, lab.need, file);
-                    event.target.value = "";
-                  }}
-                />
-                <Button disabled={busy === lab.id} onClick={() => refs.current[lab.id]?.click()}>
-                  <Upload size={16} /> {busy === lab.id ? "Save ho raha hai…" : "Practice record save karo"}
-                </Button>
-              </div>
-
-              {msg[lab.id] && (
-                <p role="status" className="text-sm mt-2 text-(--color-accent-dark)">
-                  {msg[lab.id]}
-                </p>
-              )}
-
-              {last && (
-                <div className="mt-3 text-xs rounded-xl bg-(--color-canvas) p-3 flex gap-2">
-                  <FileCheck2 size={16} className="shrink-0" />
-                  <div>
-                    <b>{last.fileName}</b> · {Math.max(1, Math.round(last.size / 1024))} KB
-                    <br />
-                    {last.feedback}
+              return (
+                <Card key={lab.id} className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-semibold text-(--color-accent-dark)">
+                        Chapter {lab.chapter} · {lab.count} Rows Dataset
+                      </div>
+                      <h2 className="font-display font-bold text-lg">{lab.title}</h2>
+                    </div>
+                    {last && (
+                      <Pill tone={tone}>
+                        {last.status}
+                        {last.score !== undefined ? ` · ${last.score}%` : ""}
+                      </Pill>
+                    )}
                   </div>
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
+
+                  <Bilingual compact en={lab.taskEn} hi={lab.task} className="text-sm" />
+
+                  <div className="text-xs font-mono text-(--color-muted) bg-(--color-canvas) px-3 py-1.5 rounded-lg border border-(--color-border)">
+                    Columns: {lab.header.join(" | ")}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button variant="secondary" onClick={() => void downloadLabXlsx(lab)}>
+                      <FileSpreadsheet size={16} /> .xlsx Workbook
+                    </Button>
+                    <Button variant="secondary" onClick={() => downloadText(lab.file, datasetCSV(lab))}>
+                      <Download size={16} /> {lab.file}
+                    </Button>
+                    <input
+                      ref={(element) => {
+                        refs.current[lab.id] = element;
+                      }}
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      hidden
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void submit(lab.id, lab.need, file);
+                        event.target.value = "";
+                      }}
+                    />
+                    <Button disabled={busy === lab.id} onClick={() => refs.current[lab.id]?.click()}>
+                      <Upload size={16} /> {busy === lab.id ? "Saving…" : "Verify & Save"}
+                    </Button>
+                  </div>
+
+                  {msg[lab.id] && (
+                    <p role="status" className="text-sm text-(--color-accent-dark) font-medium">
+                      {msg[lab.id]}
+                    </p>
+                  )}
+
+                  {last && (
+                    <div className="text-xs rounded-xl bg-(--color-canvas) p-3 flex gap-2 border border-(--color-border)">
+                      <FileCheck2 size={16} className="shrink-0 text-(--color-good)" />
+                      <div>
+                        <b>{last.fileName}</b> · {Math.max(1, Math.round(last.size / 1024))} KB
+                        <br />
+                        {last.feedback}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

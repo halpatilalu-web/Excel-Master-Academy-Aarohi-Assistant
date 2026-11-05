@@ -24,7 +24,7 @@ from collections.abc import Iterable
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-CHAPTER_COUNT = 32
+CHAPTER_COUNT = 45
 QUIZZES_PER_CHAPTER = 2
 # Must match LEVEL_QUOTAS in src/lib/exam.ts
 LEVEL_QUOTAS = {"Basic": 6, "Intermediate": 8, "Advanced": 6}
