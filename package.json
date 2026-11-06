@@ -20,6 +20,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "lucide-react": "^0.469.0",
     "motion": "^11.15.0",
     "react": "^19.0.0",
