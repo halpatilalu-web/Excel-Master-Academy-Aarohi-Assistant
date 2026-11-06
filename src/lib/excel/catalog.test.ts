@@ -47,4 +47,13 @@ describe("formula catalogue", () => {
     });
     expect(broken).toEqual([]);
   });
+
+  it("documents every single function the engine can calculate", () => {
+    // Dots and underscores are the same function to Excel (STDEV.S === STDEV_S),
+    // so compare them after normalising to the Excel spelling.
+    const excelName = (name: string) => name.replace(/_/g, ".");
+    const documented = new Set(CATALOG_NAMES.map(excelName));
+    const missing = knownFunctions().filter((name) => !documented.has(excelName(name)));
+    expect(missing).toEqual([]);
+  });
 });

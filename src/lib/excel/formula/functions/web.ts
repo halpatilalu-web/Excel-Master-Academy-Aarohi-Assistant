@@ -23,7 +23,7 @@ export const webFns: Record<string, FnImpl> = {
   FILTERXML: () => blocked,
   IMAGE: () => blocked,
   STOCKHISTORY: () => blocked,
-  RTD_: () => blocked,
+  // RTD lives in lookup.ts with a clearer #N/A hint; one registration is enough.
   HYPERLINK: (args, ctx) => {
     const url = str(args, ctx, 0, "");
     if (isErr(url)) return url;

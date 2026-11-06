@@ -11,6 +11,7 @@ import {
   Library,
   Sparkles,
   StickyNote,
+  Table2,
   UserRound,
   Video,
   Wand2,
@@ -59,6 +60,9 @@ const AarohiLazy = lazy(() =>
 const ProToolkitLazy = lazy(() =>
   import("./views/ProToolkit").then((m) => ({ default: m.ProToolkit })),
 );
+const WorkbookLazy = lazy(() =>
+  import("./views/Workbook").then((m) => ({ default: m.Workbook })),
+);
 
 const APP_NAME = "Excel Diploma Academy";
 
@@ -69,6 +73,7 @@ type ViewKey =
   | "studio3d"
   | "notes"
   | "lab"
+  | "workbook"
   | "charts"
   | "toolkit"
   | "reference"
@@ -89,6 +94,7 @@ const VIEWS = new Set<ViewKey>([
   "studio3d",
   "notes",
   "lab",
+  "workbook",
   "charts",
   "toolkit",
   "reference",
@@ -106,6 +112,7 @@ const NAV: NavItem<ViewKey>[] = [
   { key: "studio3d", label: "3D Visual Studio", icon: Box, group: "Learn" },
   { key: "charts", label: "Charts & Dashboards", icon: BarChart3, group: "Learn" },
   { key: "lab", label: "Live Practice Lab", icon: FlaskConical, group: "Practice & Tools" },
+  { key: "workbook", label: "Free Excel Workbook", icon: Table2, group: "Practice & Tools" },
   { key: "toolkit", label: "Pro Toolkit & AI", icon: Wand2, group: "Practice & Tools" },
   { key: "reference", label: "Formulas & 400 Keys", icon: Library, group: "Practice & Tools" },
   { key: "exam", label: "Exams & Sample Papers", icon: ClipboardCheck, group: "Certification" },
@@ -273,6 +280,11 @@ export default function App() {
                 {view === "lab" && (
                   <Suspense fallback={<p className="text-(--color-muted)">Loading Lab…</p>}>
                     <LabLazy initialSheet={activeSheet} />
+                  </Suspense>
+                )}
+                {view === "workbook" && (
+                  <Suspense fallback={<p className="text-(--color-muted)">Loading the free workbook…</p>}>
+                    <WorkbookLazy />
                   </Suspense>
                 )}
                 {view === "exam" && (

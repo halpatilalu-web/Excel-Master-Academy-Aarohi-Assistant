@@ -122,6 +122,29 @@ export function tokenize(input: string): Token[] {
       throw new ParseError(`Unknown error literal at ${i}`);
     }
 
+    // Whole-row ranges (SUM(1:1), AVERAGE(2:5)) start with a digit, so they must
+    // be recognised before the number branch swallows the "1" as a literal.
+    const restAtRow = input.slice(i);
+    const wholeRow = WHOLE_ROW_RE.exec(restAtRow);
+    if (wholeRow && restAtRow[wholeRow[0].length] === ":") {
+      const secondRow = /^\$?\d{1,7}/.exec(restAtRow.slice(wholeRow[0].length + 1));
+      if (secondRow) {
+        push({
+          kind: "ref",
+          text: JSON.stringify({
+            r1: Number(wholeRow[0].replace(/\$/g, "")) - 1,
+            c1: 0,
+            r2: Number(secondRow[0].replace(/\$/g, "")) - 1,
+            c2: 16_383,
+            whole: true,
+            sheet: null,
+          }),
+        });
+        i += wholeRow[0].length + 1 + secondRow[0].length;
+        continue;
+      }
+    }
+
     if (/[0-9]/.test(ch) || (ch === "." && /[0-9]/.test(input[i + 1] ?? ""))) {
       const m = /^\d*\.?\d+(?:[eE][+-]?\d+)?/.exec(input.slice(i));
       if (m) {

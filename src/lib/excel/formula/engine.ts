@@ -273,15 +273,26 @@ export class Workbook {
     const c1 = Math.min(node.c1, node.c2);
     const c2 = Math.max(node.c1, node.c2);
     const bounds = ctx.host.bounds(sheet);
-    const lastRow = node.whole ? Math.max(bounds.rows - 1, 0) : Math.min(r2, Math.max(bounds.rows - 1, 0));
-    const lastCol = node.whole ? Math.max(bounds.cols - 1, 0) : c2;
+    // A whole-column reference (A:A) carries row 1048576 and a whole-row (1:1)
+    // carries column XFD; clamping both ends to the used area trims those
+    // sentinels without ever widening the *other* axis (A:A stays one column).
+    const lastRow = Math.min(r2, Math.max(bounds.rows - 1, r1));
+    const lastCol = Math.min(c2, Math.max(bounds.cols - 1, c1));
     const rows = Math.max(1, lastRow - r1 + 1);
     const cols = Math.max(1, lastCol - c1 + 1);
     if (rows * cols > MAX_RANGE_CELLS) {
       return { err: "#NUM!", hint: "Range too large for the browser engine" };
     }
+    // A formula reading a whole column while sitting inside that column must not
+    // count itself as a circular reference: Excel treats that cell as blank.
+    const ownCell = sheet === ctx.sheet;
     return Array.from({ length: rows }, (_, r) =>
-      Array.from({ length: cols }, (_, c) => ctx.host.value(sheet, r1 + r, c1 + c)),
+      Array.from({ length: cols }, (_, c) => {
+        const row = r1 + r;
+        const col = c1 + c;
+        if (ownCell && row === ctx.row && col === ctx.col) return null;
+        return ctx.host.value(sheet, row, col);
+      }),
     );
   }
 

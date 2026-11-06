@@ -10,4 +10,11 @@ export function arrayBins(v: unknown): Scalar[] {
   return scalarsIn(v as never);
 }
 
+/**
+ * Deliberately empty: every dynamic-array function (FILTER, SORT, UNIQUE,
+ * SEQUENCE, TAKE, DROP, HSTACK …) is registered in its own teaching table
+ * (math/lookup/logical) because that is where students look for it. The table is
+ * kept so `functions/index.ts` can register it unconditionally, and so a future
+ * array-only helper has an obvious home.
+ */
 export const arrayFns: Record<string, FnImpl> = {};

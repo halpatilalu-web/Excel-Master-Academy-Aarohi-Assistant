@@ -24,6 +24,34 @@ function near(value: unknown, expected: number, digits = 6) {
   expect(Number((value as number).toFixed(digits))).toBeCloseTo(Number(expected.toFixed(digits)), digits);
 }
 
+
+it("a formula inside its own whole-column range is not a cycle (Excel behaviour)", () => {
+  const wb = new Workbook({
+    sheets: [{ name: "S", cells: { A1: "5", A2: "6", B1: "=SUM(A:A)", C1: "=SUMIFS(A:A,A:A,\">0\")" } }],
+  });
+  expect(wb.value("S", 0, 1)).toBe(11);
+  expect(wb.value("S", 0, 2)).toBe(11);
+});
+
+it("A:A stays one column and 1:1 stays one row", () => {
+  const wb = new Workbook({
+    sheets: [{ name: "S", cells: { A1: "5", A2: "6", B1: "7", B2: "8", A3: "=SUM(A:A)", B3: "=SUM(1:1)" } }],
+  });
+  expect(wb.value("S", 2, 0)).toBe(11); // A1+A2 only — column A, never column B
+  expect(wb.value("S", 2, 1)).toBe(12); // row 1 only, not row 2
+});
+
+it("handles sheet-qualified whole column / row references", () => {
+  const wb = new Workbook({
+    sheets: [
+      { name: "Data", cells: { A1: "4", A2: "5", B1: "9" } },
+      { name: "Calc", cells: { A1: "=SUM(Data!A:A)", A2: "=SUM(Data!1:1)" } },
+    ],
+  });
+  expect(wb.value("Calc", 0, 0)).toBe(9); // Data column A only
+  expect(wb.value("Calc", 1, 0)).toBe(13); // Data row 1 only: 4 + 9
+});
+
 describe("arithmetic & operators", () => {
   it("adds with the usual precedence", () => {
     expect(calc("=2+3*4")).toBe(14);
