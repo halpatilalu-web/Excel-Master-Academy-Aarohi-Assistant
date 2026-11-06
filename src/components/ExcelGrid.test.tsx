@@ -189,7 +189,7 @@ describe("find & replace", () => {
         cols={3}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /^Data$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Home$/i }));
     fireEvent.click(screen.getByRole("button", { name: /Find & Replace/i }));
     fireEvent.change(screen.getByLabelText("Find text"), { target: { value: "Delhi" } });
     fireEvent.click(screen.getByRole("button", { name: /Find next/i }));
@@ -206,7 +206,7 @@ describe("find & replace", () => {
         cols={3}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /^Data$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Home$/i }));
     fireEvent.click(screen.getByRole("button", { name: /Find & Replace/i }));
     fireEvent.click(screen.getByRole("button", { name: /^Replace…$/i }));
     fireEvent.change(screen.getByLabelText("Find text"), { target: { value: "GST" } });
@@ -277,10 +277,23 @@ describe("the two bugs students reported", () => {
 });
 
 describe("ribbon, formatting and the data form", () => {
-  it("has Excel's five ribbon tabs", async () => {
+  it("has all nine Excel ribbon tabs, in Excel's order", async () => {
     render(<ExcelGrid template="t-ribbon" title="Ribbon" sheets={[{ name: "S", cells: { A1: "1" } }]} rows={4} cols={3} />);
-    ["Home", "Insert", "Formulas", "Data", "View"].forEach((tab) => {
-      expect(screen.getByRole("button", { name: tab })).toBeTruthy();
+    const tabs = ["File", "Home", "Insert", "Page Layout", "Formulas", "Data", "Review", "View", "Help"];
+    const strip = screen.getByLabelText("Ribbon tabs");
+    const rendered = tabs.map((tab) => within(strip).getByRole<HTMLButtonElement>("button", { name: tab }));
+    rendered.forEach((button) => expect(button).toBeTruthy());
+    // Order matters: students are taught to find things where Excel puts them.
+    const positions = rendered.map((button) => Array.from(strip.querySelectorAll("button")).indexOf(button));
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it("opens the File backstage with new / open / save / print", async () => {
+    render(<ExcelGrid template="t-file" title="File" sheets={[{ name: "S", cells: { A1: "1" } }]} rows={4} cols={3} />);
+    fireEvent.click(within(screen.getByLabelText("Ribbon tabs")).getByRole("button", { name: "File" }));
+    ["New", "Open", "Save", "Print", "Export"].forEach((item) => {
+      // The backstage is labelled so it can be told apart from the grid's tools.
+      expect(within(screen.getByLabelText("File backstage")).getByRole("button", { name: new RegExp(`^${item}`, "i") })).toBeTruthy();
     });
   });
 
@@ -376,7 +389,9 @@ describe("Excel parity: validation, conditional formatting, filter, names", () =
 
   it("filters rows without deleting them", async () => {
     mount("t-filter");
-    fireEvent.click(screen.getByRole("button", { name: /^Filter/i }));
+    // The Data tab's Filter, not the ``Filter (0)`` quick-access chip.
+    fireEvent.click(screen.getByRole("button", { name: /^Data$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Filter$/i }));
     const dialog = await screen.findByRole("dialog", { name: /^Filter$/i });
     fireEvent.click(within(dialog).getByRole("button", { name: /Add condition/i }));
     fireEvent.change(within(dialog).getByLabelText(/Filter column 1/i), { target: { value: "2" } });
@@ -471,5 +486,120 @@ describe("Excel dropdowns (data validation lists)", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     const alert = await screen.findByRole("alertdialog", { name: /Data Validation alert/i });
     expect(alert.textContent).toContain("Sirf Paid ya Overdue.");
+  });
+});
+
+describe("Review, Page Layout and Formulas tabs", () => {
+  const cells = {
+    A1: "Item",
+    B1: "Qty",
+    C1: "Rate",
+    D1: "Amount",
+    A2: "Laptop",
+    B2: "2",
+    C2: "100",
+    D2: "=B2*C2",
+    A3: "Mouse",
+    B3: "10",
+    C3: "50",
+    D3: "=B3*C3",
+    D4: "=SUM(D2:D3)",
+    E1: "Remark",
+    E2: "plese chek this",
+  };
+  const mount = (template: string) =>
+    render(<ExcelGrid template={template} title="Review" sheets={[{ name: "S", cells }]} rows={10} cols={6} />);
+  const tab = (name: string) => fireEvent.click(within(screen.getByLabelText("Ribbon tabs")).getByRole("button", { name }));
+  // Ribbon commands, scoped to the group strip so tab/chip names cannot collide.
+  const cmd = (name: string) => fireEvent.click(within(screen.getByLabelText("Ribbon groups")).getByRole("button", { name }));
+
+  it("traces precedents and dependents of a formula", async () => {
+    mount("t-audit");
+    const grid = screen.getByRole("grid");
+    const d4 = grid.querySelector('[data-address="D4"]') as HTMLElement;
+    fireEvent.mouseDown(d4);
+
+    tab("Formulas");
+    fireEvent.click(screen.getByRole("button", { name: /Trace Precedents/i }));
+    // D2 and D3 feed the SUM, so both are highlighted.
+    expect((grid.querySelector('[data-address="D2"]') as HTMLElement).className).toContain("ring-blue-500");
+    expect((grid.querySelector('[data-address="D3"]') as HTMLElement).className).toContain("ring-blue-500");
+
+    fireEvent.click(screen.getByRole("button", { name: /Trace Dependents/i }));
+    const d2 = grid.querySelector('[data-address="D2"]') as HTMLElement;
+    fireEvent.mouseDown(d2);
+    fireEvent.click(screen.getByRole("button", { name: /Trace Dependents/i }));
+    expect((grid.querySelector('[data-address="D4"]') as HTMLElement).className).toContain("ring-rose-500");
+  });
+
+  it("adds a note to a cell and shows the marker", async () => {
+    mount("t-notes");
+    tab("Review");
+    fireEvent.click(screen.getByRole("button", { name: /New comment/i }));
+    const panel = await screen.findByRole("dialog", { name: /Comments & Notes/i });
+    fireEvent.change(within(panel).getByLabelText(/^Note$/i), { target: { value: "Yeh formula check karna hai" } });
+    fireEvent.click(within(panel).getByRole("button", { name: /Save note for A1/i }));
+    // The cell shows a note marker and the status bar counts it.
+    expect(await screen.findByLabelText(/Note on A1/i)).toBeTruthy();
+    expect(screen.getAllByText(/1 note\(s\)/).length).toBeGreaterThan(0);
+  });
+
+  it("protects the sheet so cells cannot be edited", async () => {
+    mount("t-protect");
+    tab("Review");
+    fireEvent.click(screen.getByRole("button", { name: /Protect sheet/i }));
+    const grid = screen.getByRole("grid");
+    const a2 = grid.querySelector('[data-address="A2"]') as HTMLElement;
+    fireEvent.mouseDown(a2);
+    fireEvent.doubleClick(a2);
+    const input = await screen.findByLabelText(/Edit cell A2/i);
+    fireEvent.change(input, { target: { value: "Changed" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    // Blocked: the alert appears and the cell keeps its value.
+    expect(await screen.findByRole("alertdialog", { name: /Data Validation alert/i })).toBeTruthy();
+    expect((grid.querySelector('[data-address="A2"]') as HTMLElement).textContent).toContain("Laptop");
+  });
+
+  it("finds spelling mistakes and fixes one", async () => {
+    mount("t-spell");
+    tab("Review");
+    cmd("Spelling");
+    const panel = await screen.findByRole("dialog", { name: /^Spelling$/i });
+    expect(within(panel).getByText("plese")).toBeTruthy();
+    fireEvent.click(within(panel).getByRole("button", { name: /Change to “please”/i }));
+    fireEvent.click(within(panel).getByRole("button", { name: /Change to “check”/i }));
+    const e2 = screen.getByRole("grid").querySelector('[data-address="E2"]') as HTMLElement;
+    expect(e2.textContent).toContain("please");
+    expect(e2.textContent).toContain("check");
+  });
+
+  it("sets print options and shows the CSS they produce", async () => {
+    mount("t-print");
+    tab("Page Layout");
+    fireEvent.click(screen.getByRole("button", { name: /Orientation/i }));
+    // Landscape is applied to the ribbon state and reported in the status line.
+    expect(screen.getAllByText(/landscape/i).length).toBeGreaterThan(0);
+
+    cmd("Print sheet");
+    const panel = await screen.findByRole("dialog", { name: /^Print$/i });
+    fireEvent.change(within(panel).getByLabelText(/Paper size/i), { target: { value: "Legal" } });
+    fireEvent.click(within(panel).getByText(/The CSS this produces/i));
+    expect((within(panel).getByText(/size: Legal landscape;/)).textContent ?? "").toContain("Legal");
+  });
+
+  it("shows formulas instead of results, and the Help guide", async () => {
+    mount("t-showformulas");
+    tab("Formulas");
+    fireEvent.click(screen.getByRole("button", { name: /Show Formulas/i }));
+    const d2 = screen.getByRole("grid").querySelector('[data-address="D2"]') as HTMLElement;
+    expect(d2.textContent).toContain("=B2*C2");
+
+    tab("Help");
+    cmd("Help");
+    const panel = await screen.findByRole("dialog", { name: /Help — /i });
+    // All nine tabs are explained.
+    ["File", "Home", "Insert", "Page Layout", "Formulas", "Data", "Review", "View", "Help"].forEach((name) => {
+      expect(within(panel).getAllByText(new RegExp(name)).length).toBeGreaterThan(0);
+    });
   });
 });

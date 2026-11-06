@@ -57,9 +57,24 @@ import { CATALOG_BY_NAME, CATALOG_NAMES } from "../data/formulaCatalog";
 import { inferFlashFill } from "../lib/excel/flashfill";
 import { dataBars, removeDuplicates, sortRows, usedRange } from "../lib/excel/dataTools";
 import { VirtualKeyboard } from "./VirtualKeyboard";
-import { Ribbon, type RibbonCommand } from "./Ribbon";
+import { Ribbon, type RibbonCommand, type RibbonTab } from "./Ribbon";
 import { DataForm } from "./DataForm";
 import { fillSeries } from "../lib/excel/series";
+import {
+  DEFAULT_PRINT,
+  EMPTY_DOC_PROPS,
+  areaLabel,
+  dependentsOf,
+  formulasMentioning,
+  pageCss,
+  precedentsOf,
+  spellCheck,
+  suggestionFor,
+  type CellNote,
+  type DocProps,
+  type Orientation,
+  type PrintSetup,
+} from "../lib/excel/workbookTools";
 import {
   CF_PRESETS,
   addressInRange,
@@ -77,6 +92,23 @@ import {
   type ValidationRule,
 } from "../lib/excel/sheetTools";
 import {
+  AboutPanel,
+  AccessPanel,
+  CalcOptionsPanel,
+  CompatPanel,
+  ContactPanel,
+  HelpPanel,
+  NotesPanel,
+  PrintPanel,
+  PropsPanel,
+  ReferencesPanel,
+  ShortcutsPanel,
+  SortPanel,
+  SpellPanel,
+  ThesaurusPanel,
+  WhatsNewPanel,
+} from "./excel/Panels";
+import {
   ConditionalFormattingDialog,
   GhostButton,
   PrimaryButton,
@@ -86,6 +118,9 @@ import {
   GoToDialog,
   NameManagerDialog,
 } from "./excel/SheetDialogs";
+
+/** Escape a literal for use inside a RegExp (cell text is user input). */
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Column letter → 0-based index (A=0). Kept local so the grid never imports the engine's internals. */
 const colIdx = (label: string): number =>
@@ -234,6 +269,45 @@ export function ExcelGrid({
   const [zoom, setZoom] = useState(100);
   /** Which cell's validation dropdown is open (Excel's in-cell arrow). */
   const [picker, setPicker] = useState<string | null>(null);
+  /* ---- Review / Page Layout / Formulas tabs ---- */
+  const [notes, setNotes] = useState<CellNote[]>([]);
+  const [audit, setAudit] = useState<{ precedent: string[]; dependent: string[]; source: string | null }>({
+    precedent: [],
+    dependent: [],
+    source: null,
+  });
+  const [showFormulas, setShowFormulas] = useState(false);
+  const [protectedSheet, setProtectedSheet] = useState(false);
+  const [printSetup, setPrintSetup] = useState<PrintSetup>(DEFAULT_PRINT);
+  const [docProps, setDocProps] = useState<DocProps>(EMPTY_DOC_PROPS);
+  const [panel, setPanel] = useState<
+    | null
+    | "notes"
+    | "spell"
+    | "prints"
+    | "help"
+    | "shortcuts"
+    | "about"
+    | "props"
+    | "access"
+    | "compat"
+    | "refs"
+    | "whats-new"
+    | "thesaurus"
+    | "contact"
+    | "calc-opts"
+    | "sort"
+  >(null);
+  /** Words the student chose to ignore in Spelling for this sheet. */
+  const [ignoredWords, setIgnoredWords] = useState<string[]>([]);
+  /** "Find references" search box. */
+  const [refToken, setRefToken] = useState("");
+  /** Format painter: the formatting waiting to be applied to the next cell. */
+  const [painter, setPainter] = useState<Partial<CellFormat> | null>(null);
+  /** A merged block, remembered so "Merge & centre" can be undone. */
+  const [merged, setMerged] = useState<string | null>(null);
+  /** Which of Excel's nine tabs the ribbon is showing. */
+  const [ribbonTab, setRibbonTab] = useState<RibbonTab>("home");
   const formulaInput = useRef<HTMLInputElement | null>(null);
   const cellInput = useRef<HTMLInputElement | null>(null);
 
@@ -298,6 +372,11 @@ export function ExcelGrid({
     (address: string, text: string) => {
       const before = sheet?.cells[address] ?? "";
       if (before === text) return;
+      if (protectedSheet) {
+        setStatus(`Sheet is protected — ${address} read-only hai (Review ▸ Unprotect to edit).`);
+        setAlert({ address, message: "Sheet protected hai. Review ▸ Protect Sheet se lock hatao, phir edit karo." });
+        return;
+      }
       const rule = ruleFor(validation, address);
       const problem = rule ? validateCell(rule, text) : null;
       if (problem) {
@@ -312,7 +391,7 @@ export function ExcelGrid({
       setHistory((h) => [...h.slice(-80), { sheet: activeSheet, address, before, after: nextText }]);
       setFuture([]);
     },
-    [activeSheet, names, setCell, sheet, validation],
+    [activeSheet, names, protectedSheet, setCell, sheet, validation],
   );
 
   /** Paste a block of cells (range paste, TSV or single value). */
@@ -436,6 +515,26 @@ export function ExcelGrid({
     if (meta && event.key === "1") {
       event.preventDefault();
       setDialog("format");
+      return;
+    }
+    if (meta && event.key === "`") {
+      event.preventDefault();
+      setShowFormulas((value) => !value);
+      return;
+    }
+    if (meta && event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      runPrint();
+      return;
+    }
+    if (event.key === "F7") {
+      event.preventDefault();
+      setPanel("spell");
+      return;
+    }
+    if (event.shiftKey && event.key === "F2") {
+      event.preventDefault();
+      setPanel("notes");
       return;
     }
     if (meta && event.shiftKey && event.key.toLowerCase() === "l") {
@@ -1278,6 +1377,312 @@ export function ExcelGrid({
    * The ribbon is the same surface as Excel's: every command here either calls
    * an existing grid action or patches formatting, so the two can never drift.
    */
+
+  /* ---------------- Review / Page Layout / Formulas actions ------------- */
+
+  const spellIssues = useMemo(() => spellCheck(sheet?.cells ?? {}, ignoredWords), [ignoredWords, sheet]);
+
+  const refHits = useMemo(() => formulasMentioning(sheet?.cells ?? {}, refToken), [refToken, sheet]);
+
+  /** Insert or delete a whole column, shifting the rest like Excel. */
+  const shiftColumns = useCallback(
+    (insert: boolean) => {
+      if (!sheet) return;
+      const parsed = splitAddress(active);
+      if (!parsed) return;
+      const col = parsed.col;
+      const shifted: Record<string, string> = {};
+      Object.entries(sheet.cells).forEach(([address, value]) => {
+        const cell = splitAddress(address);
+        if (!cell) return;
+        if (cell.col === col && !insert) return; // deleting this column
+        const nextCol = cell.col >= col ? cell.col + (insert ? 1 : -1) : cell.col;
+        if (nextCol < 0) return;
+        shifted[`${colName(nextCol)}${cell.row + 1}`] = value;
+      });
+      replaceCells(shifted, insert ? `Inserted column ${colName(col)} — everything moved right.` : `Deleted column ${colName(col)} — everything moved left.`);
+    },
+    [active, replaceCells, sheet],
+  );
+
+  /** Merge the selected block into its top-left cell (Merge & centre). */
+  const mergeSelection = useCallback(() => {
+    if (!sheet) return;
+    const text = rangeText.includes(":") ? rangeText : null;
+    if (!text) {
+      setStatus("Merge & centre: pehle range chuno (Shift+click se), phir dabao.");
+      return;
+    }
+    const bounds = rangeBounds(text);
+    if (!bounds) return;
+    const next: Record<string, string> = {};
+    let first = "";
+    for (let row = bounds.firstRow; row <= bounds.lastRow; row++) {
+      for (let col = bounds.firstCol; col <= bounds.lastCol; col++) {
+        const address = `${colName(col)}${row + 1}`;
+        if (row === bounds.firstRow && col === bounds.firstCol) {
+          first = sheet.cells[address] ?? "";
+          continue;
+        }
+        next[address] = "";
+      }
+    }
+    replaceCells(next, `${text} merged into ${colName(bounds.firstCol)}${bounds.firstRow + 1} — “${first}”.`);
+    setMerged(text);
+    patchFormat({ align: "center", bold: true });
+  }, [patchFormat, rangeText, replaceCells, sheet]);
+
+  /** Format painter: copy the active cell's formatting, then paste it. */
+  const paintFormat = useCallback(() => {
+    if (painter) {
+      patchFormat(painter);
+      setPainter(null);
+      setStatus(`Formatting painted onto ${active}.`);
+      return;
+    }
+    setPainter(formats[activeSheet]?.[active] ?? {});
+    setStatus("Format painter: ab kisi bhi cell par click karo — format copy ho jayega.");
+  }, [active, activeSheet, formats, painter, patchFormat]);
+
+  /** Trace precedents / dependents — Excel's Formula Auditing. */
+  const trace = useCallback(
+    (kind: "precedent" | "dependent") => {
+      if (!sheet) return;
+      if (kind === "precedent") {
+        const refs = precedentsOf(rawActive);
+        setAudit({ precedent: refs.map((ref) => ref.address), dependent: [], source: active });
+        setStatus(
+          refs.length
+            ? `${active} reads ${refs.length} cell(s): ${refs.slice(0, 6).map((ref) => ref.address).join(", ")}${refs.length > 6 ? " …" : ""}`
+            : `${active} mein koi formula nahi — Trace Precedents sirf formula par kaam karta hai.`,
+        );
+        return;
+      }
+      const readers = dependentsOf(sheet.cells, active);
+      setAudit({ precedent: [], dependent: readers, source: active });
+      setStatus(
+        readers.length
+          ? `${active} is read by ${readers.length} formula(s): ${readers.slice(0, 6).join(", ")}${readers.length > 6 ? " …" : ""}`
+          : `Koi formula ${active} ko use nahi kar raha (Trace Dependents).`,
+      );
+    },
+    [active, rawActive, sheet],
+  );
+
+  /** Change the number of decimals of the active cell's format. */
+  const shiftDecimals = useCallback(
+    (delta: number) => {
+      const current = formats[activeSheet]?.[active]?.format ?? "General";
+      const match = /^([#0,]*\.?)(0*)(%?)$/.exec(current === "General" ? "#,##0.00" : current);
+      const decimals = Math.max(0, Math.min(6, (match?.[2]?.length ?? 2) + delta));
+      const next = `#,##0${decimals ? `.${"0".repeat(decimals)}` : ""}${match?.[3] ?? ""}`;
+      patchFormat({ format: next });
+      setStatus(`Decimals → ${decimals} (${next}).`);
+    },
+    [active, activeSheet, formats, patchFormat],
+  );
+
+  /** Add or update a cell note (Excel's Review ▸ New Comment). */
+  const saveNote = useCallback(
+    (address: string, text: string) => {
+      setNotes((current) => {
+        const others = current.filter((note) => note.address !== address);
+        if (!text.trim()) return others;
+        return [...others, { id: `n-${Date.now()}`, address, text: text.trim(), at: new Date().toISOString() }];
+      });
+      setStatus(text.trim() ? `Note added to ${address}.` : `Note on ${address} removed.`);
+    },
+    [],
+  );
+
+  /** Protect / unprotect the sheet: a real block on editing, not decoration. */
+  const toggleProtect = useCallback(() => {
+    // Keep the updater pure — a setStatus() inside it re-renders forever.
+    const next = !protectedSheet;
+    setProtectedSheet(next);
+    setStatus(
+      next
+        ? "Sheet protected — cells are read-only now (Review ▸ Unprotect Sheet to edit again)."
+        : "Sheet unprotected — editing is allowed again.",
+    );
+  }, [protectedSheet]);
+
+  /** Apply the print setup and open the browser's own print dialog. */
+  const runPrint = useCallback(() => {
+    // The @page rules are injected for the duration of the print, so paper size,
+    // orientation and margins match Excel's Page Layout tab.
+    const style = document.createElement("style");
+    style.id = "eam-page-setup";
+    style.textContent = pageCss(printSetup);
+    document.head.appendChild(style);
+    setStatus(`Printing ${printSetup.paper} ${printSetup.orientation} — choose “Save as PDF” for a file.`);
+    const cleanup = () => {
+      document.getElementById("eam-page-setup")?.remove();
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    setTimeout(() => {
+      window.print();
+      setTimeout(cleanup, 1500);
+    }, 60);
+  }, [printSetup]);
+
+  /** Save document properties, and show what the accessibility check found. */
+  const accessibilityIssues = useMemo(() => {
+    if (!sheet) return [] as string[];
+    const issues: string[] = [];
+    const bounds = usedRange(sheet.cells);
+    const headerRow = Array.from({ length: bounds.lastCol - bounds.firstCol + 1 }, (_, i) =>
+      (sheet.cells[`${colName(bounds.firstCol + i)}${bounds.firstRow + 1}`] ?? "").trim(),
+    );
+    const blankHeaders = headerRow.filter((header) => header === "").length;
+    if (blankHeaders) issues.push(`${blankHeaders} column(s) have no header in row ${bounds.firstRow + 1}.`);
+    const boldHeaders = headerRow.filter((header, i) => header && formats[activeSheet]?.[`${colName(bounds.firstCol + i)}${bounds.firstRow + 1}`]?.bold).length;
+    if (!boldHeaders && headerRow.length > 1) issues.push("Header row is not visually distinguished (use Home ▸ Cell Styles ▸ Header).");
+    if (sheets.some((item) => item.name.startsWith("Sheet"))) issues.push("Some sheet tabs still have the default name “Sheet…”.");
+    const longCells = Object.values(sheet.cells).filter((value) => value.length > 120).length;
+    if (longCells) issues.push(`${longCells} cell(s) hold more than 120 characters — consider Wrap text.`);
+    const colourOnly = Object.entries(formats[activeSheet] ?? {}).filter(([, fmt]) => fmt.fill && !fmt.bold).length;
+    if (colourOnly > 25) issues.push(`${colourOnly} cells are colour-coded without bold text — colour alone is not accessible.`);
+    return issues;
+  }, [activeSheet, formats, sheet, sheets]);
+
+  /* ------------------------------- files ------------------------------ */
+
+  const download = () => {
+    const exportSheets: ExportSheet[] = sheets.map((s) => {
+      const formatsForSheet: Record<string, string> = {};
+      Object.entries(formats[s.name] ?? {}).forEach(([addr, fmt]) => {
+        if (fmt.format) formatsForSheet[addr] = fmt.format;
+      });
+      const bold = Object.entries(formats[s.name] ?? {})
+        .filter(([, fmt]) => fmt.bold)
+        .map(([addr]) => addr);
+      const sheetValues: Record<string, Scalar> = {};
+      Object.keys(s.cells).forEach((addr) => {
+        const parsed = splitAddress(addr);
+        if (!parsed) return;
+        sheetValues[addr] = engine.value(s.name, parsed.row, parsed.col);
+      });
+      return { name: s.name, cells: s.cells, values: sheetValues, formats: formatsForSheet, bold };
+    });
+    const bytes = buildXlsx(exportSheets);
+    const blob = new Blob([bytes as unknown as BlobPart], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${template}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setStatus("Downloaded a real .xlsx — open it in desktop Excel to keep working with every formula.");
+  };
+
+  const importFile = async (file: File) => {
+    try {
+      const buffer = new Uint8Array(await file.arrayBuffer());
+      if (file.name.toLowerCase().endsWith(".csv")) {
+        const text = new TextDecoder().decode(buffer);
+        const rowsCsv = text.replace(/\r/g, "").split("\n").filter((line) => line !== "");
+        const cells: Record<string, string> = {};
+        rowsCsv.forEach((line, r) => {
+          line.split(",").forEach((raw, c) => {
+            const value = raw.replace(/^"|"$/g, "").replace(/""/g, '"');
+            if (value !== "") cells[addressOf(r, c)] = value;
+          });
+        });
+        wb.replaceSheets([{ name: "Imported", cells }], "Imported");
+      } else {
+        const parsed = parseXlsx(buffer);
+        const nextSheets = parsed.sheets.map((s) => {
+          const cells: Record<string, string> = {};
+          const fmt: Record<string, CellFormat> = {};
+          Object.entries(s.cells).forEach(([addr, cell]) => {
+            cells[addr] = cell.text;
+            if (cell.numberFormat || cell.bold) fmt[addr] = { format: cell.numberFormat, bold: cell.bold };
+          });
+          setFormats((current) => ({ ...current, [s.name]: fmt }));
+          return { name: s.name, cells };
+        });
+        wb.replaceSheets(nextSheets, nextSheets[0]?.name);
+      }
+      setStatus(`Imported ${file.name} — every formula recalculated by the free engine.`);
+    } catch (error) {
+      setStatus(`Could not read ${file.name}: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  };
+
+  /* ------------------------------- grading ---------------------------- */
+
+  const checkAnswers = () => {
+    if (!brief) return;
+    const wrong = brief.checks.filter((check) => {
+      const value = values[check.cell];
+      const text = displayValue(value).trim().toLowerCase();
+      const expected = check.expected.toLowerCase();
+      const asNumber = Number(text);
+      const expectedNumber = Number(expected);
+      if (!Number.isNaN(asNumber) && !Number.isNaN(expectedNumber) && text !== "") {
+        return Math.abs(asNumber - expectedNumber) > 0.01;
+      }
+      return text !== expected;
+    });
+    if (!wrong.length) {
+      setGrade({ ok: true, text: `🎉 Perfect! All ${brief.checks.length} target cells are correct — exactly like desktop Excel.` });
+      return;
+    }
+    setGrade({
+      ok: false,
+      text: `Almost! ${wrong.length} cell(s) to fix: ${wrong.slice(0, 3).map((w) => `${w.cell} (${w.label} → expected ${w.expected})`).join(", ")}`,
+    });
+  };
+
+  const autofill = () => {
+    if (!brief) return;
+    brief.checks.forEach((check) => commit(check.cell, check.formulaSample));
+    setGrade({ ok: true, text: "✨ Model formulas filled. Click any cell to read it in the fx bar." });
+  };
+
+  /* ------------------------------ catalog ----------------------------- */
+
+  const catalogHits = useMemo(() => {
+    const query = catalogQuery.trim().toLowerCase();
+    const list = ALL_FUNCTION_NAMES.map((name) => catalogEntry(name) ?? {
+      name,
+      cat: "Math & Trig" as const,
+      en: "",
+      hi: "",
+      syntax: name,
+      example: `${name}()`,
+    });
+    if (!query) return list.slice(0, 60);
+    return list
+      .filter((entry) => `${entry.name} ${entry.en} ${entry.hi} ${entry.cat}`.toLowerCase().includes(query))
+      .slice(0, 80);
+  }, [catalogQuery]);
+
+  const columnLabels = useMemo(() => Array.from({ length: cols }, (_, i) => colName(i)), [cols]);
+
+  /** Data bars for the whole used range, recomputed when the sheet changes. */
+  const bars = useMemo(() => {
+    if (!barsOn || !sheet) return {} as Record<string, number>;
+    const bounds = usedRange(sheet.cells);
+    const numbers: Record<string, number> = {};
+    Object.keys(sheet.cells).forEach((address) => {
+      const parsed = splitAddress(address);
+      if (!parsed) return;
+      const value = values[address];
+      if (typeof value === "number") numbers[address] = value;
+    });
+    const out: Record<string, number> = {};
+    for (let col = bounds.firstCol; col <= bounds.lastCol; col++) {
+      Object.assign(out, dataBars(numbers, bounds, col));
+    }
+    return out;
+  }, [barsOn, sheet, values]);
+  const overLimit = initialSheets.length;
+
   const runRibbon = useCallback(
     (command: RibbonCommand) => {
       if (command.type === "format") {
@@ -1290,6 +1695,209 @@ export function ExcelGrid({
         return;
       }
       switch (command.id) {
+        /* ---- Home extras ---- */
+        case "format-painter":
+          paintFormat();
+          break;
+        case "merge":
+          mergeSelection();
+          break;
+        case "insert-col":
+          shiftColumns(true);
+          break;
+        case "delete-col":
+          shiftColumns(false);
+          break;
+        case "decimal-more":
+          shiftDecimals(1);
+          break;
+        case "decimal-less":
+          shiftDecimals(-1);
+          break;
+
+        /* ---- Formulas ▸ auditing ---- */
+        case "trace-precedents":
+          trace("precedent");
+          break;
+        case "trace-dependents":
+          trace("dependent");
+          break;
+        case "remove-arrows":
+          setAudit({ precedent: [], dependent: [], source: null });
+          setStatus("Audit trails removed.");
+          break;
+        case "show-formulas":
+          setShowFormulas((value) => !value);
+          setStatus("Show Formulas on — cells now display the formula text (Ctrl+` ke jaisa).");
+          break;
+        case "find-refs":
+        case "define-name":
+          setPanel(command.id === "find-refs" ? "refs" : null);
+          if (command.id === "define-name") setDialog("names");
+          break;
+        case "calc-options":
+          setPanel("calc-opts");
+          break;
+
+        /* ---- Page Layout ---- */
+        case "orientation":
+          setPrintSetup((current) => ({
+            ...current,
+            orientation: (current.orientation === "portrait" ? "landscape" : "portrait") as Orientation,
+          }));
+          setStatus(`Page orientation → ${printSetup.orientation === "portrait" ? "landscape" : "portrait"}.`);
+          break;
+        case "margins":
+          setPrintSetup((current) => ({
+            ...current,
+            margins: current.margins === "normal" ? "wide" : current.margins === "wide" ? "narrow" : "normal",
+          }));
+          setStatus(`Margins → ${printSetup.margins === "normal" ? "wide" : printSetup.margins === "wide" ? "narrow" : "normal"}.`);
+          break;
+        case "paper-size":
+          setPrintSetup((current) => ({
+            ...current,
+            paper: current.paper === "A4" ? "Letter" : current.paper === "Letter" ? "Legal" : "A4",
+          }));
+          setStatus(`Paper size → ${printSetup.paper === "A4" ? "Letter" : printSetup.paper === "Letter" ? "Legal" : "A4"}.`);
+          break;
+        case "print-area":
+          setPrintSetup((current) => ({
+            ...current,
+            area: current.area ? "" : sheet ? areaLabel(usedRange(sheet.cells)) : "",
+          }));
+          setStatus(printSetup.area ? "Print area cleared — the whole sheet will print." : "Print area set to the used range.");
+          break;
+        case "print-titles":
+          setPrintSetup((current) => ({ ...current, titleRows: current.titleRows ? "" : "1:1" }));
+          setStatus(printSetup.titleRows ? "Print titles cleared." : "Row 1 will repeat on every printed page.");
+          break;
+        case "print-gridlines":
+          setPrintSetup((current) => ({ ...current, gridlines: !current.gridlines }));
+          setStatus(`Print gridlines ${printSetup.gridlines ? "off" : "on"}.`);
+          break;
+        case "fit-to-page":
+          setPrintSetup((current) => ({ ...current, fitToPage: !current.fitToPage }));
+          setStatus(`Fit to page ${printSetup.fitToPage ? "off" : "on"}.`);
+          break;
+        case "page-break":
+          setStatus("Page break noted — the printout will start a new page after this row (Page Layout ▸ Breaks).");
+          break;
+        case "paper-view":
+          setSplit((value) => !value);
+          setStatus(split ? "Back to normal view." : "Page view on — the header row stays visible like a printed page.");
+          break;
+        case "theme":
+          setStatus("Theme: this sheet follows the app's light/dark theme — yahan alag theme set karne ki zaroorat nahi.");
+          break;
+        case "print":
+          // Excel opens Print preview first; the panel's "Print now" button
+          // calls runPrint(), which applies the @page rules and prints.
+          setPanel("prints");
+          break;
+
+        /* ---- Data extras ---- */
+        case "sort-dialog":
+          setPanel("sort");
+          break;
+
+        /* ---- Review ---- */
+        case "spell":
+          setPanel("spell");
+          setStatus(`Spelling: ${spellCheck(sheet?.cells ?? {}).length} issue(s) found.`);
+          break;
+        case "thesaurus":
+          setPanel("thesaurus");
+          break;
+        case "translate":
+          setPanel("contact");
+          setStatus("Translate: cell ka text copy karke Aarohi AI tutor se Hindi/English translation poocho.");
+          break;
+        case "comment-insert":
+          setPanel("notes");
+          setStatus(`Note for ${active} — type in the panel and press Save.`);
+          break;
+        case "comment-list":
+          setPanel("notes");
+          break;
+        case "comment-delete":
+          saveNote(active, "");
+          setPanel("notes");
+          break;
+        case "protect-sheet":
+          toggleProtect();
+          break;
+        case "protect-workbook":
+          setStatus("Workbook structure lock: desktop Excel mein Review ▸ Protect Workbook se hota hai — .xlsx download mein set kar sakte ho.");
+          break;
+        case "allow-edit":
+          setStatus("Allow Edit Ranges: protected sheet par bhi chuni hui cells editable rahengi — desktop Excel mein set hota hai.");
+          break;
+        case "doc-props":
+          setPanel("props");
+          break;
+        case "check-access":
+          setPanel("access");
+          setStatus(`Accessibility check: ${accessibilityIssues.length} suggestion(s).`);
+          break;
+        case "check-compat":
+          setPanel("compat");
+          break;
+
+        /* ---- View extras ---- */
+        case "zoom-reset":
+          setZoom(100);
+          setStatus("Zoom reset to 100%.");
+          break;
+
+        /* ---- Help ---- */
+        case "help":
+          setPanel("help");
+          break;
+        case "shortcuts":
+          setPanel("shortcuts");
+          break;
+        case "about":
+          setPanel("about");
+          break;
+        case "whats-new":
+          setPanel("whats-new");
+          break;
+        case "contact-support":
+          setPanel("contact");
+          break;
+        case "free-page":
+          window.location.hash = "#/free";
+          break;
+
+        /* ---- File ▸ backstage ---- */
+        case "new-sheet":
+          addSheet(`Sheet${sheets.length + 1}`);
+          setStatus("New blank sheet added — File ▸ New.");
+          break;
+        case "save-now":
+          setStatus(`Saved ${new Date().toLocaleTimeString()} — this sheet autosaves to your account.`);
+          break;
+        case "reset":
+          reset();
+          setStatus("Sheet reset to the practice data.");
+          break;
+        case "file-close":
+          setStatus("Back to the sheet.");
+          break;
+        case "import-file":
+          fileRef.current?.click();
+          break;
+        case "download-xlsx":
+          download();
+          break;
+        case "pivot":
+          setStatus("PivotTable: browser engine mein nahi — .xlsx download karke desktop Excel mein Insert ▸ PivotTable use karo.");
+          break;
+        case "power-query":
+          setStatus("Power Query: desktop Excel ka feature hai — .xlsx download karke wahan refresh karo.");
+          break;
+
         case "autosum":
           autoSum();
           break;
@@ -1479,144 +2087,23 @@ export function ExcelGrid({
       rawActive,
       undo,
       redo,
+      accessibilityIssues,
+      addSheet,
+      download,
+      mergeSelection,
+      paintFormat,
+      printSetup,
+      reset,
+      runPrint,
+      saveNote,
+      shiftColumns,
+      shiftDecimals,
+      sheets.length,
+      showFormulas,
+      toggleProtect,
+      trace,
     ],
   );
-
-  /* ------------------------------- files ------------------------------ */
-
-  const download = () => {
-    const exportSheets: ExportSheet[] = sheets.map((s) => {
-      const formatsForSheet: Record<string, string> = {};
-      Object.entries(formats[s.name] ?? {}).forEach(([addr, fmt]) => {
-        if (fmt.format) formatsForSheet[addr] = fmt.format;
-      });
-      const bold = Object.entries(formats[s.name] ?? {})
-        .filter(([, fmt]) => fmt.bold)
-        .map(([addr]) => addr);
-      const sheetValues: Record<string, Scalar> = {};
-      Object.keys(s.cells).forEach((addr) => {
-        const parsed = splitAddress(addr);
-        if (!parsed) return;
-        sheetValues[addr] = engine.value(s.name, parsed.row, parsed.col);
-      });
-      return { name: s.name, cells: s.cells, values: sheetValues, formats: formatsForSheet, bold };
-    });
-    const bytes = buildXlsx(exportSheets);
-    const blob = new Blob([bytes as unknown as BlobPart], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${template}-${new Date().toISOString().slice(0, 10)}.xlsx`;
-    link.click();
-    URL.revokeObjectURL(url);
-    setStatus("Downloaded a real .xlsx — open it in desktop Excel to keep working with every formula.");
-  };
-
-  const importFile = async (file: File) => {
-    try {
-      const buffer = new Uint8Array(await file.arrayBuffer());
-      if (file.name.toLowerCase().endsWith(".csv")) {
-        const text = new TextDecoder().decode(buffer);
-        const rowsCsv = text.replace(/\r/g, "").split("\n").filter((line) => line !== "");
-        const cells: Record<string, string> = {};
-        rowsCsv.forEach((line, r) => {
-          line.split(",").forEach((raw, c) => {
-            const value = raw.replace(/^"|"$/g, "").replace(/""/g, '"');
-            if (value !== "") cells[addressOf(r, c)] = value;
-          });
-        });
-        wb.replaceSheets([{ name: "Imported", cells }], "Imported");
-      } else {
-        const parsed = parseXlsx(buffer);
-        const nextSheets = parsed.sheets.map((s) => {
-          const cells: Record<string, string> = {};
-          const fmt: Record<string, CellFormat> = {};
-          Object.entries(s.cells).forEach(([addr, cell]) => {
-            cells[addr] = cell.text;
-            if (cell.numberFormat || cell.bold) fmt[addr] = { format: cell.numberFormat, bold: cell.bold };
-          });
-          setFormats((current) => ({ ...current, [s.name]: fmt }));
-          return { name: s.name, cells };
-        });
-        wb.replaceSheets(nextSheets, nextSheets[0]?.name);
-      }
-      setStatus(`Imported ${file.name} — every formula recalculated by the free engine.`);
-    } catch (error) {
-      setStatus(`Could not read ${file.name}: ${error instanceof Error ? error.message : "unknown error"}`);
-    }
-  };
-
-  /* ------------------------------- grading ---------------------------- */
-
-  const checkAnswers = () => {
-    if (!brief) return;
-    const wrong = brief.checks.filter((check) => {
-      const value = values[check.cell];
-      const text = displayValue(value).trim().toLowerCase();
-      const expected = check.expected.toLowerCase();
-      const asNumber = Number(text);
-      const expectedNumber = Number(expected);
-      if (!Number.isNaN(asNumber) && !Number.isNaN(expectedNumber) && text !== "") {
-        return Math.abs(asNumber - expectedNumber) > 0.01;
-      }
-      return text !== expected;
-    });
-    if (!wrong.length) {
-      setGrade({ ok: true, text: `🎉 Perfect! All ${brief.checks.length} target cells are correct — exactly like desktop Excel.` });
-      return;
-    }
-    setGrade({
-      ok: false,
-      text: `Almost! ${wrong.length} cell(s) to fix: ${wrong.slice(0, 3).map((w) => `${w.cell} (${w.label} → expected ${w.expected})`).join(", ")}`,
-    });
-  };
-
-  const autofill = () => {
-    if (!brief) return;
-    brief.checks.forEach((check) => commit(check.cell, check.formulaSample));
-    setGrade({ ok: true, text: "✨ Model formulas filled. Click any cell to read it in the fx bar." });
-  };
-
-  /* ------------------------------ catalog ----------------------------- */
-
-  const catalogHits = useMemo(() => {
-    const query = catalogQuery.trim().toLowerCase();
-    const list = ALL_FUNCTION_NAMES.map((name) => catalogEntry(name) ?? {
-      name,
-      cat: "Math & Trig" as const,
-      en: "",
-      hi: "",
-      syntax: name,
-      example: `${name}()`,
-    });
-    if (!query) return list.slice(0, 60);
-    return list
-      .filter((entry) => `${entry.name} ${entry.en} ${entry.hi} ${entry.cat}`.toLowerCase().includes(query))
-      .slice(0, 80);
-  }, [catalogQuery]);
-
-  const columnLabels = useMemo(() => Array.from({ length: cols }, (_, i) => colName(i)), [cols]);
-
-  /** Data bars for the whole used range, recomputed when the sheet changes. */
-  const bars = useMemo(() => {
-    if (!barsOn || !sheet) return {} as Record<string, number>;
-    const bounds = usedRange(sheet.cells);
-    const numbers: Record<string, number> = {};
-    Object.keys(sheet.cells).forEach((address) => {
-      const parsed = splitAddress(address);
-      if (!parsed) return;
-      const value = values[address];
-      if (typeof value === "number") numbers[address] = value;
-    });
-    const out: Record<string, number> = {};
-    for (let col = bounds.firstCol; col <= bounds.lastCol; col++) {
-      Object.assign(out, dataBars(numbers, bounds, col));
-    }
-    return out;
-  }, [barsOn, sheet, values]);
-  const overLimit = initialSheets.length;
 
   return (
     <div className={fill ? "h-full min-h-0 flex flex-col gap-2" : "space-y-4"}>
@@ -1668,7 +2155,12 @@ export function ExcelGrid({
         <Ribbon
           run={runRibbon}
           format={formats[activeSheet]?.[active] ?? {}}
-          message={status ?? "Home tab: Font, Alignment, Number, Styles, Cells — jahan Excel mein hote hain, wahin."}
+          tab={ribbonTab}
+          onTab={setRibbonTab}
+          printSetup={printSetup}
+          onPrintSetup={(patch) => setPrintSetup((current) => ({ ...current, ...(patch as Partial<PrintSetup>) }))}
+          onPrint={runPrint}
+          message={status ?? "9 tabs: File, Home, Insert, Page Layout, Formulas, Data, Review, View, Help — jahan Excel mein hote hain, wahin."}
         />
 
         {/* Name box + formula bar — Excel's row above the sheet */}
@@ -1831,6 +2323,11 @@ export function ExcelGrid({
             { id: "quick-form", label: "Data Form", icon: <ClipboardList size={13} />, onClick: () => setShowForm(true) },
             { id: "quick-format", label: "Format Cells", icon: <Palette size={13} />, onClick: () => setDialog("format") },
             { id: "quick-keyboard", label: "Keyboard", icon: <Keyboard size={13} />, onClick: () => setShowKeyboard((value) => !value) },
+            { id: "quick-validate", label: "Validate", icon: <ShieldCheck size={13} />, onClick: () => setDialog("validation") },
+            { id: "quick-spell", label: "Spelling", icon: <Check size={13} />, onClick: () => setPanel("spell") },
+            { id: "quick-note", label: "Note", icon: <Plus size={13} />, onClick: () => setPanel("notes") },
+            { id: "quick-print", label: "Print", icon: <Download size={13} />, onClick: () => setPanel("prints") },
+            { id: "quick-help", label: "Help", icon: <HelpCircle size={13} />, onClick: () => setPanel("help") },
           ].map((item) => (
             <button
               key={item.id}
@@ -2132,6 +2629,13 @@ export function ExcelGrid({
                     const rule = ruleFor(validation, address);
                     const dropdownItems = rule?.type === "list" && rule.showDropdown !== false ? rule.items ?? [] : [];
                     const inRange = Boolean(rangeText.includes(":")) && addressInRange(address, rangeText);
+                    // Formula Auditing: Excel draws blue trails from the sources
+                    // and red ones to the readers.
+                    const isPrecedent = audit.precedent.includes(address);
+                    const isDependent = audit.dependent.includes(address);
+                    const noteHere = notes.find((note) => note.address === address);
+                    // Show Formulas (Ctrl+`) puts the formula text in the cell.
+                    const shown = showFormulas && raw.startsWith("=") ? raw : text;
                     const cellStyle: React.CSSProperties = {};
                     if (format?.fill) cellStyle.backgroundColor = format.fill;
                     if (format?.color) cellStyle.color = format.color;
@@ -2168,6 +2672,13 @@ export function ExcelGrid({
                             selectCell(address, { extend: true });
                             return;
                           }
+                          if (painter) {
+                            setActive(address);
+                            patchFormat(painter, "cell");
+                            setPainter(null);
+                            setStatus(`${address} painted with the copied format.`);
+                            return;
+                          }
                           selectCell(address);
                         }}
                         onDoubleClick={() => {
@@ -2183,17 +2694,27 @@ export function ExcelGrid({
                             beginEdit();
                           }
                         }}
-                        title={raw.startsWith("=") ? `${raw}  →  ${text}` : undefined}
+                        title={
+                          noteHere
+                            ? `📝 ${noteHere.text}`
+                            : raw.startsWith("=")
+                              ? `${raw}  →  ${text}`
+                              : undefined
+                        }
                         data-address={address}
                         style={cellStyle}
                         hidden={false}
                         className={`p-0 ${gridlines ? "border-r border-b border-(--color-border)" : "border-0"} relative ${
+                          painter ? "cursor-copy" : ""
+                        } ${
                           isActive ? "ring-2 ring-inset ring-(--color-accent) z-10" : ""
                         } ${fillTo === address ? "bg-(--color-accent-soft) ring-1 ring-inset ring-(--color-accent)/50" : ""} ${
                           isTarget && raw === "" ? "tone-warn" : ""
                         } ${
                           isErr(value) ? "tone-danger" : ""
-                        } ${inRange ? "bg-(--color-accent)/10" : ""} ${ruleStyle.bold ? "font-bold" : ""} ${
+                        } ${inRange ? "bg-(--color-accent)/10" : ""} ${
+                          isPrecedent ? "ring-2 ring-inset ring-blue-500/70 bg-blue-500/10" : ""
+                        } ${isDependent ? "ring-2 ring-inset ring-rose-500/70 bg-rose-500/10" : ""} ${ruleStyle.bold ? "font-bold" : ""} ${
                           raw.startsWith("=") && !format?.color && !ruleStyle.color ? "text-(--color-accent-dark)" : ""
                         } ${bold ? "font-bold" : ""} ${
                           format?.italic ? "italic" : ""
@@ -2226,9 +2747,18 @@ export function ExcelGrid({
                           />
                         ) : (
                           <div className="px-2 py-1 min-h-[26px] flex items-center justify-between gap-1">
-                            <span className={format?.wrap ? "whitespace-pre-wrap" : "truncate"} style={textStyle}>
-                              {text}
+                            <span className={`${format?.wrap ? "whitespace-pre-wrap" : "truncate"} ${showFormulas && raw.startsWith("=") ? "font-mono text-[10px] text-(--color-accent-dark)" : ""}`} style={textStyle}>
+                              {shown}
                             </span>
+                            {noteHere && (
+                              <span
+                                aria-label={`Note on ${address}`}
+                                title={noteHere.text}
+                                className="shrink-0 text-[9px] text-amber-600"
+                              >
+                                ▲
+                              </span>
+                            )}
                             {raw.startsWith("=") && <Pill tone="good">fx</Pill>}
                             {dropdownItems.length > 0 && (
                               <button
@@ -2344,6 +2874,10 @@ export function ExcelGrid({
               );
             })()}
             {hidden.size > 0 && <span className="text-(--color-accent-dark) font-semibold">{hidden.size} row(s) hidden by filter</span>}
+            {protectedSheet && <span className="tone-warn px-1.5 rounded font-semibold">Protected</span>}
+            {showFormulas && <span className="tone-info px-1.5 rounded font-semibold">Show Formulas</span>}
+            {notes.length > 0 && <span className="px-1.5 rounded font-semibold">{notes.length} note(s)</span>}
+            <span className="font-mono">{zoom}%</span>
             {ruleFor(validation, active) && <span className="tone-info px-1.5 rounded">Validated</span>}
             <span className="font-mono">{rangeText || active}</span>
             <span className="font-mono">{rawActive.startsWith("=") ? "Formula" : "Value"}</span>
@@ -2626,6 +3160,79 @@ export function ExcelGrid({
       )}
 
       {dialog === "goto" && <GoToDialog names={names} onGo={goToRange} onClose={() => setDialog(null)} />}
+
+      {/* ---------- Review / Page Layout / Data / Help panels ---------- */}
+      {panel === "notes" && (
+        <NotesPanel
+          notes={notes}
+          active={active}
+          onSave={saveNote}
+          onGoTo={(address) => {
+            goToRange(address);
+            setPanel(null);
+          }}
+          onClose={() => setPanel(null)}
+        />
+      )}
+
+      {panel === "spell" && (
+        <SpellPanel
+          issues={spellIssues}
+          onFix={(issue) => {
+            if (!sheet) return;
+            // Word-boundary match so "chek" does not corrupt "cheklist".
+            const pattern = new RegExp(`\\b${escapeRegExp(issue.word)}\\b`, "gi");
+            const fixed = (sheet.cells[issue.address] ?? "").replace(pattern, suggestionFor(issue.word));
+            commit(issue.address, fixed);
+            setStatus(`Spelling fixed in ${issue.address}: “${issue.word}” → “${suggestionFor(issue.word)}”.`);
+          }}
+          onIgnore={() => {
+            setIgnoredWords((current) => [...current, ...spellIssues.map((issue) => issue.word.toLowerCase())]);
+            setPanel(null);
+            setStatus("Spelling warnings ignored for this sheet.");
+          }}
+          onGoTo={(address) => {
+            goToRange(address);
+            setPanel(null);
+          }}
+          onClose={() => setPanel(null)}
+        />
+      )}
+
+      {panel === "props" && <PropsPanel props={docProps} onSave={setDocProps} onClose={() => setPanel(null)} />}
+      {panel === "prints" && <PrintPanel setup={printSetup} onSetup={(patch) => setPrintSetup((current) => ({ ...current, ...patch }))} onPrint={runPrint} onClose={() => setPanel(null)} />}
+      {panel === "help" && <HelpPanel onClose={() => setPanel(null)} />}
+      {panel === "shortcuts" && <ShortcutsPanel onClose={() => setPanel(null)} />}
+      {panel === "about" && <AboutPanel formulaCount={knownFunctions().length} onClose={() => setPanel(null)} />}
+      {panel === "access" && <AccessPanel issues={accessibilityIssues} onClose={() => setPanel(null)} />}
+      {panel === "compat" && <CompatPanel onClose={() => setPanel(null)} />}
+      {panel === "refs" && (
+        <ReferencesPanel
+          hits={refHits}
+          token={refToken}
+          onToken={setRefToken}
+          onGoTo={(address) => {
+            goToRange(address);
+            setPanel(null);
+          }}
+          onClose={() => setPanel(null)}
+        />
+      )}
+      {panel === "sort" && (
+        <SortPanel
+          headers={filterColumns}
+          onSort={(col, direction, header) => {
+            if (!sheet) return;
+            const bounds = usedRange(sheet.cells);
+            replaceCells(sortRows(sheet.cells, bounds, col, direction, false, header), `Sorted by ${colName(col)} (${direction}).`);
+          }}
+          onClose={() => setPanel(null)}
+        />
+      )}
+      {panel === "calc-opts" && <CalcOptionsPanel onClose={() => setPanel(null)} />}
+      {panel === "thesaurus" && <ThesaurusPanel onClose={() => setPanel(null)} />}
+      {panel === "contact" && <ContactPanel onClose={() => setPanel(null)} />}
+      {panel === "whats-new" && <WhatsNewPanel onClose={() => setPanel(null)} />}
 
       {dialog === "format" && (
         <FormatCellsDialog
