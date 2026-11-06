@@ -9,9 +9,11 @@ import {
   FlaskConical,
   LayoutDashboard,
   Library,
+  Monitor,
   Sparkles,
   StickyNote,
   Table2,
+  BadgeCheck,
   UserRound,
   Video,
   Wand2,
@@ -63,6 +65,8 @@ const ProToolkitLazy = lazy(() =>
 const WorkbookLazy = lazy(() =>
   import("./views/Workbook").then((m) => ({ default: m.Workbook })),
 );
+const FreeLazy = lazy(() => import("./views/Free").then((m) => ({ default: m.Free })));
+const WindowsLazy = lazy(() => import("./views/Windows").then((m) => ({ default: m.Windows })));
 
 const APP_NAME = "Excel Diploma Academy";
 
@@ -74,6 +78,8 @@ type ViewKey =
   | "notes"
   | "lab"
   | "workbook"
+  | "free"
+  | "windows"
   | "charts"
   | "toolkit"
   | "reference"
@@ -95,6 +101,8 @@ const VIEWS = new Set<ViewKey>([
   "notes",
   "lab",
   "workbook",
+  "free",
+  "windows",
   "charts",
   "toolkit",
   "reference",
@@ -113,6 +121,8 @@ const NAV: NavItem<ViewKey>[] = [
   { key: "charts", label: "Charts & Dashboards", icon: BarChart3, group: "Learn" },
   { key: "lab", label: "Live Practice Lab", icon: FlaskConical, group: "Practice & Tools" },
   { key: "workbook", label: "Free Excel Workbook", icon: Table2, group: "Practice & Tools" },
+  { key: "free", label: "Everything Free", icon: BadgeCheck, group: "Practice & Tools" },
+  { key: "windows", label: "Windows Desktop", icon: Monitor, group: "Practice & Tools" },
   { key: "toolkit", label: "Pro Toolkit & AI", icon: Wand2, group: "Practice & Tools" },
   { key: "reference", label: "Formulas & 400 Keys", icon: Library, group: "Practice & Tools" },
   { key: "exam", label: "Exams & Sample Papers", icon: ClipboardCheck, group: "Certification" },
@@ -285,6 +295,16 @@ export default function App() {
                 {view === "workbook" && (
                   <Suspense fallback={<p className="text-(--color-muted)">Loading the free workbook…</p>}>
                     <WorkbookLazy />
+                  </Suspense>
+                )}
+                {view === "free" && (
+                  <Suspense fallback={<p className="text-(--color-muted)">Loading the free feature list…</p>}>
+                    <FreeLazy onOpenDesktop={() => navigate("windows")} />
+                  </Suspense>
+                )}
+                {view === "windows" && (
+                  <Suspense fallback={<p className="text-(--color-muted)">Starting the desktop…</p>}>
+                    <WindowsLazy onExit={() => navigate("home")} />
                   </Suspense>
                 )}
                 {view === "exam" && (

@@ -126,6 +126,13 @@ describe("app shell", { timeout: 15000 }, () => {
     expect(await screen.findByRole("button", { name: /GST/i })).toBeTruthy();
   });
 
+  it("renders the free-features page with every promise listed", async () => {
+    await mountApp("#/free");
+    expect(await screen.findByRole("heading", { name: /Everything Excel charges for, free/i })).toBeTruthy();
+    // The list is data-driven; an empty render means the import broke.
+    expect(screen.getAllByText(/Flash Fill/i).length).toBeGreaterThan(0);
+  });
+
   it("renders the account view with a working sign-out and delete section", async () => {
     await mountApp("#/account");
     expect(await screen.findByText(/Delete my account/i)).toBeTruthy();

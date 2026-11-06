@@ -107,12 +107,12 @@ export function Certificate({ defaultName }: { defaultName: string }) {
 
       {cert && (
         <>
-          <div className="print-area bg-white border-[10px] border-double border-amber-500 p-6 sm:p-10 text-center rounded-lg text-slate-900">
+          <div className="print-area paper border-[10px] border-double border-amber-500 p-6 sm:p-10 text-center rounded-lg">
             <div className="text-xs tracking-[0.3em] text-amber-700 font-semibold">EXCEL MASTER ACADEMY</div>
             <h2 className="font-display text-3xl sm:text-4xl font-extrabold mt-3 text-(--color-accent-dark)">
               Certificate of Practice Completion
             </h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-(--color-muted)">
               Complete Excel Diploma Practice Curriculum — Basic to Advanced ({DIPLOMA_MODULES.length} Modules · {CHAPTERS.length} Chapters)
             </p>
             <p className="mt-6 text-sm">Yeh pramaanit kiya jata hai ki / This certifies that</p>
@@ -120,7 +120,7 @@ export function Certificate({ defaultName }: { defaultName: string }) {
             <p className="text-sm max-w-lg mx-auto">
               ne {CHAPTERS.length} chapters (Basic Excel, Formulas, Data Cleaning, Conditional Formatting, Data Validation, XLOOKUP/INDEX-MATCH, Pivot Dashboards, Power Query & VBA Macros) aur online practice exam safaltapoorvak poora kiya hai.
             </p>
-            <p className="text-[11px] text-slate-500 max-w-md mx-auto mt-3">
+            <p className="text-[11px] text-(--color-muted) max-w-md mx-auto mt-3">
               Self-attested practice certificate — not an externally verified diploma.
             </p>
             <div className="mt-8 flex justify-between items-end text-xs text-left">

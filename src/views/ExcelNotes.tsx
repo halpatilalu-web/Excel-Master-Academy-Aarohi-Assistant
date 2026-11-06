@@ -366,7 +366,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
                 <article
                   key={ch.n}
                   style={{ background: paperBg }}
-                  className="note relative rounded-2xl border border-amber-900/15 p-5 pl-9 shadow-sm text-slate-900 overflow-hidden"
+                  className="note relative rounded-2xl border border-amber-900/15 p-5 pl-9 shadow-sm text-(--color-ink) overflow-hidden"
                 >
                   {/* Red Notebook Margin Line */}
                   <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-rose-400/60" aria-hidden="true" />
@@ -382,7 +382,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
                       >
                         Ch {ch.n} · {ch.level}
                       </span>
-                      <h2 className="hand text-2xl sm:text-3xl font-bold text-slate-900 mt-1 leading-tight">
+                      <h2 className="hand text-2xl sm:text-3xl font-bold text-(--color-ink) mt-1 leading-tight">
                         {rich.emoji} {ch.title}
                       </h2>
                     </div>
@@ -390,7 +390,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
                       <button
                         type="button"
                         onClick={() => onGoChapter(ch.n)}
-                        className="text-xs font-bold px-2.5 py-1 rounded-lg bg-white/80 hover:bg-white border border-slate-300 text-emerald-800 shrink-0"
+                        className="text-xs font-bold px-2.5 py-1 rounded-lg bg-(--color-surface) hover:bg-(--color-accent-soft) border border-(--color-border-strong) text-(--color-accent-dark) shrink-0"
                       >
                         Open →
                       </button>
@@ -435,7 +435,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
                     </div>
                   )}
 
-                  <div className="mt-3 rounded-xl bg-yellow-200/75 border border-yellow-500/30 px-3 py-1.5 hand text-lg text-slate-900">
+                  <div className="mt-3 rounded-xl bg-yellow-200/75 border border-yellow-500/30 px-3 py-1.5 hand text-lg text-(--color-ink)">
                     📌 <b>Exam Tip:</b> {lang === "en" ? rich.enTip : lang === "hi" ? ch.tip : `${rich.enTip} (${ch.tip})`}
                   </div>
                 </article>

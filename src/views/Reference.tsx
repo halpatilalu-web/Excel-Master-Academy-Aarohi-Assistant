@@ -208,8 +208,8 @@ export function Reference({ tab, go, onTab, initialQuery = "" }: { tab: RefTab; 
                   <span className="font-display font-extrabold text-base">{c.name}</span>
                   <Pill tone="info">{c.cat} • {c.worksWith}</Pill>
                 </div>
-                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-xs">
-                  <div className="font-bold text-emerald-900">✓ Best For:</div>
+                <div className="p-2.5 rounded-xl bg-(--color-accent-soft) border border-emerald-200/80 text-xs">
+                  <div className="font-bold text-(--color-accent-dark)">✓ Best For:</div>
                   <Bilingual en={c.bestForEn} hi={c.bestForHi} compact />
                 </div>
                 <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200/80 text-xs">

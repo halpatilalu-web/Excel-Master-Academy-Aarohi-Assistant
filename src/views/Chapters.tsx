@@ -140,7 +140,7 @@ function Lesson({
 
       {/* Handwritten Notebook Notes (English + Hindi) */}
       <div
-        className="note relative rounded-2xl border border-black/10 p-5 pl-9 shadow-sm text-slate-900"
+        className="note relative rounded-2xl border border-black/10 p-5 pl-9 shadow-sm text-(--color-ink)"
         style={{ background: st.note }}
       >
         <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-rose-400/60" aria-hidden="true" />
@@ -156,8 +156,8 @@ function Lesson({
             <ul className="hand text-xl sm:text-2xl space-y-0.5 mt-1">
               {rich.enPoints.map((point, i) => (
                 <li key={i} className="flex gap-2">
-                  <span className="text-emerald-800">✓</span>
-                  <span className="text-slate-900">{point}</span>
+                  <span className="text-(--color-accent-dark)">✓</span>
+                  <span className="text-(--color-ink)">{point}</span>
                 </li>
               ))}
             </ul>
@@ -277,7 +277,7 @@ function Lesson({
 
       {/* Handwritten Sticky Pro-Tip */}
       <div
-        className="rounded-2xl p-4 flex gap-3 hand text-xl text-slate-900 border border-black/10"
+        className="rounded-2xl p-4 flex gap-3 hand text-xl text-(--color-ink) border border-black/10"
         style={{ background: colors[c.n % 4] }}
       >
         <Lightbulb className="shrink-0 text-amber-600 mt-1" />
@@ -321,9 +321,9 @@ function Lesson({
                   const shown = pick[qi] !== undefined;
                   const cls = shown
                     ? oi === question.a
-                      ? "border-green-500 bg-green-50 text-slate-900 font-semibold"
+                      ? "border-green-500 bg-green-50 text-(--color-ink) font-semibold"
                       : selected
-                        ? "border-red-400 bg-red-50 text-slate-900"
+                        ? "border-red-400 bg-red-50 text-(--color-ink)"
                         : "border-(--color-border)"
                     : "border-(--color-border) hover:bg-(--color-accent-soft)";
                   return (

@@ -30,7 +30,7 @@ export function Button({
   disabled?: boolean;
 }) {
   const styles = {
-    primary: "bg-(--color-accent) text-white hover:bg-(--color-accent-dark)",
+    primary: "bg-(--color-accent) text-white hover:brightness-110 hover:saturate-150",
     secondary: "bg-(--color-accent-soft) text-(--color-accent-dark) hover:brightness-95",
     ghost: "bg-transparent text-(--color-ink) hover:bg-(--color-accent-soft)",
     danger: "bg-(--color-danger) text-white hover:brightness-95",
