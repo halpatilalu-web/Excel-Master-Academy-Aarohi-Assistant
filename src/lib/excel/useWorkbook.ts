@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createStore } from "../store";
+import type { CfRule, NamedRange, ValidationRule } from "./sheetTools";
 import {
   Workbook,
   type SheetData,
@@ -52,7 +53,13 @@ export interface WorkbookDoc {
   updatedAt: string;
   /** Optional so old saved workbooks still load. */
   formats?: FormatMap;
+  /** Excel rules saved with the book: validation, conditional formats, names. */
+  validationRules?: ValidationRule[];
+  cfRules?: CfRule[];
+  names?: NamedRange[];
 }
+
+export type { ValidationRule, CfRule, NamedRange };
 
 /** One saved workbook per student is enough for the free lab; later copies get suffixes. */
 const workbooks = createStore<WorkbookDoc>("excelWorkbooks");
@@ -150,6 +157,16 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
 
   /** Latest formatting, kept in a ref so cell edits also save the colours. */
   const formatsRef = useRef<FormatMap>(saved?.formats ?? {});
+  /** Latest Excel rules (validation / conditional formatting / names). */
+  const rulesRef = useRef<{
+    validationRules?: ValidationRule[];
+    cfRules?: CfRule[];
+    names?: NamedRange[];
+  }>({
+    validationRules: saved?.validationRules,
+    cfRules: saved?.cfRules,
+    names: saved?.names,
+  });
 
   const persist = useCallback(
     (nextSheets: SheetData[], nextActive: string) => {
@@ -163,6 +180,7 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
           activeSheet: nextActive,
           updatedAt: new Date().toISOString(),
           formats: formatsRef.current,
+          ...rulesRef.current,
         };
         setSaving(true);
         const write = async () => {
@@ -201,6 +219,18 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
    * Save the formatting map. Called by the grid whenever a format changes so
    * bold/fill/number formats survive a reload and reach the .xlsx download.
    */
+  /** Save the Excel rules (validation, conditional formats, names) with the book. */
+  const saveRules = useCallback(
+    (patch: { validationRules?: ValidationRule[]; cfRules?: CfRule[]; names?: NamedRange[] }) => {
+      rulesRef.current = { ...rulesRef.current, ...patch };
+      setSheets((current) => {
+        persist(current, activeSheet);
+        return current;
+      });
+    },
+    [activeSheet, persist],
+  );
+
   const saveFormats = useCallback(
     (next: FormatMap) => {
       formatsRef.current = next;
@@ -309,6 +339,7 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
     removeSheet,
     reset,
     saveFormats,
+    saveRules,
     saving,
     savedAt,
     dirty,

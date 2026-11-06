@@ -19,14 +19,20 @@ import {
   Copy,
   Filter,
   Italic,
+  PaintBucket,
   Percent,
+  Plus,
   Scissors,
+  ShieldCheck,
   Sigma,
   Strikethrough,
   Table2,
   Trash,
   Underline,
   Wand2,
+  X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import type { CellFormat } from "../lib/excel/useWorkbook";
 
@@ -175,12 +181,52 @@ export function Ribbon({
     ],
   };
 
+  /** Data ▸ Data Validation / Filter / Get & Transform. */
+  const dataValidation: RibbonGroup = {
+    title: "Data Validation",
+    items: [
+      btn("validation", "Data Validation", "Allow only certain values / make a dropdown (Alt+A+V+V)", { type: "action", id: "validation" }, <ShieldCheck size={15} />, false, true),
+      btn("validation-copy", "Circle invalid", "Check a cell against its validation rule", { type: "action", id: "validation-check" }, <span className="text-[12px]">◎</span>),
+    ],
+  };
+
+  /** Home ▸ Conditional Formatting — the dialog plus the one-click rules. */
+  const conditional: RibbonGroup = {
+    title: "Conditional Formatting",
+    items: [
+      btn("cf-dialog", "Rules…", "Full conditional formatting dialog: greater than, top N, duplicates, data bars, scales", { type: "action", id: "cf-dialog" }, <PaintBucket size={15} />, false, true),
+      btn("cf-good2", "Good", "Green for above average", { type: "action", id: "cf-good" }, <span className="text-[12px]">✓</span>),
+      btn("cf-bad2", "Bad", "Red for below average", { type: "action", id: "cf-bad" }, <span className="text-[12px]">✕</span>),
+      btn("cf-bars2", "Bars", "Data bars on this column", { type: "action", id: "cf-bars" }, <span className="text-[12px]">▮▮</span>),
+      btn("cf-scale2", "Scale", "3-colour scale", { type: "action", id: "cf-scale" }, <span className="text-[12px]">◧</span>),
+    ],
+  };
+
+  const formatCells: RibbonGroup = {
+    title: "Format",
+    items: [
+      btn("format-cells", "Format Cells", "Number, fill, alignment, wrap (Ctrl+1)", { type: "action", id: "format-cells" }, <span className="text-[12px] font-mono">↔</span>, false, true),
+      btn("undo", "Undo", "Undo (Ctrl+Z)", { type: "action", id: "undo" }, <span className="text-[12px]">↶</span>),
+      btn("redo", "Redo", "Redo (Ctrl+Y)", { type: "action", id: "redo" }, <span className="text-[12px]">↷</span>),
+    ],
+  };
+
+  const sheetTabs: RibbonGroup = {
+    title: "Sheets",
+    items: [
+      btn("insert-sheet", "New sheet", "Insert a worksheet tab", { type: "action", id: "insert-sheet" }, <Plus size={15} />),
+      btn("names", "Name Manager", "Name a range, then use =SUM(Sales)", { type: "action", id: "names" }, <span className="text-[12px] font-mono">fx</span>),
+      btn("goto-dialog", "Go To", "Jump to a cell, range or name (F5)", { type: "action", id: "goto-dialog" }, <span className="text-[11px] font-mono">A1</span>),
+    ],
+  };
+
   const sortFilter: RibbonGroup = {
     title: "Sort & Filter",
     items: [
       btn("sort-asc", "A→Z", "Sort whole rows A→Z on this column", { type: "action", id: "sort-asc" }, <ArrowDownAZ size={15} />),
       btn("sort-desc", "Z→A", "Sort whole rows Z→A on this column", { type: "action", id: "sort-desc" }, <ArrowUpAZ size={15} />),
-      btn("filter", "Filter", "Filter a column by value", { type: "action", id: "filter" }, <Filter size={15} />),
+      btn("filter", "Filter", "Excel AutoFilter: condition chuno, failing rows chhup jaayengi", { type: "action", id: "filter" }, <Filter size={15} />, false, true),
+      btn("filter-clear", "Clear", "Clear the filter — all rows visible", { type: "action", id: "filter:clear" }, <X size={14} />),
     ],
   };
 
@@ -201,12 +247,14 @@ export function Ribbon({
       btn("split", "Split", "Split the window like View ▸ Split", { type: "action", id: "split" }, <span className="text-[12px]">◫</span>),
       btn("keyboard", "Virtual keyboard", "On-screen Excel keyboard (Ctrl+Shift+F1)", { type: "action", id: "keyboard" }, <span className="text-[12px]">⌨</span>),
       btn("gridlines", "Gridlines", "Toggle the cell borders", { type: "action", id: "gridlines" }, <span className="text-[12px]">▦</span>),
+      btn("zoom-in", "Zoom +", "Zoom in like View ▸ Zoom", { type: "action", id: "zoom-in" }, <ZoomIn size={14} />),
+      btn("zoom-out", "Zoom −", "Zoom out", { type: "action", id: "zoom-out" }, <ZoomOut size={14} />),
       btn("wide", "Focus mode", "Hide the practice brief and maximise the grid", { type: "action", id: "focus" }, <span className="text-[12px]">⛶</span>),
     ],
   };
 
   const groups: Record<typeof tab, RibbonGroup[]> = {
-    home: [clipboard, font, alignment, number, styles, cellsGroup],
+    home: [clipboard, font, alignment, number, styles, conditional, cellsGroup, formatCells],
     insert: [
       { title: "Tables", items: [btn("table", "Table", "Format the range as a table", { type: "action", id: "header-style" }, <Table2 size={15} />)] },
       { title: "Charts", items: [btn("chart", "Chart", "Build a chart from the selection (F11)", { type: "action", id: "chart" }, <span className="text-[12px]">📊</span>)] },
@@ -215,9 +263,14 @@ export function Ribbon({
       { title: "Special", items: [btn("symbol", "Symbol", "Insert a currency or symbol", { type: "action", id: "symbol" }, <span className="text-[12px]">₹</span>)] },
       dataTools,
     ],
-    formulas: [functionLibrary, definedNames, sortFilter, { title: "Data", items: [btn("data-form2", "Data form", "Data-entry form", { type: "action", id: "data-form" }, <span className="text-[12px]">▤</span>)] }],
-    data: [sortFilter, dataTools, { title: "Outline", items: [btn("subtotal", "Subtotal", "Insert SUBTOTAL rows", { type: "action", id: "subtotal" }, <Sigma size={15} />)] }],
-    view: [viewGroup, styles],
+    formulas: [
+      functionLibrary,
+      definedNames,
+      sheetTabs,
+      { title: "Data", items: [btn("data-form2", "Data form", "Data-entry form", { type: "action", id: "data-form" }, <span className="text-[12px]">▤</span>)] },
+    ],
+    data: [sortFilter, dataValidation, dataTools, sheetTabs, { title: "Outline", items: [btn("subtotal", "Subtotal", "Insert SUBTOTAL rows", { type: "action", id: "subtotal" }, <Sigma size={15} />)] }],
+    view: [viewGroup, styles, formatCells],
   };
 
   return (

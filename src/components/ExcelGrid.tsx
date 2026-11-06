@@ -14,12 +14,18 @@ import {
   Eraser,
   HelpCircle,
   Info,
+  ClipboardList,
+  Filter as FilterIcon,
   Keyboard,
   Maximize2,
   Minimize2,
+  PaintBucket,
+  Palette,
+  Pencil,
   Plus,
   Redo2,
   Save,
+  ShieldCheck,
   Sigma,
   Sparkles,
   Trash2,
@@ -31,6 +37,7 @@ import {
 import { Bilingual } from "../lib/lang";
 import { Button, Card, Pill } from "./ui";
 import type { Scalar } from "../lib/excel/formula/core";
+import type { CellValue } from "../lib/excel/sheetTools";
 import { isErr } from "../lib/excel/formula/core";
 import { knownFunctions } from "../lib/excel/formula/engine";
 import { buildXlsx, parseXlsx, type ExportSheet } from "../lib/excel/xlsx";
@@ -53,6 +60,32 @@ import { VirtualKeyboard } from "./VirtualKeyboard";
 import { Ribbon, type RibbonCommand } from "./Ribbon";
 import { DataForm } from "./DataForm";
 import { fillSeries } from "../lib/excel/series";
+import {
+  CF_PRESETS,
+  addressInRange,
+  cfStyleFor,
+  colLetter,
+  expandNamedRanges,
+  hiddenRows,
+  rangeBounds,
+  rangesOf,
+  ruleFor,
+  validateCell,
+  type CfRule,
+  type NamedRange,
+  type SheetFilter,
+  type ValidationRule,
+} from "../lib/excel/sheetTools";
+import {
+  ConditionalFormattingDialog,
+  GhostButton,
+  PrimaryButton,
+  DataValidationDialog,
+  FilterDialog,
+  FormatCellsDialog,
+  GoToDialog,
+  NameManagerDialog,
+} from "./excel/SheetDialogs";
 
 /** Column letter → 0-based index (A=0). Kept local so the grid never imports the engine's internals. */
 const colIdx = (label: string): number =>
@@ -103,6 +136,13 @@ export interface ExcelGridProps {
   onSaved?: (doc: WorkbookDoc) => void;
   /** Extra buttons rendered next to the file actions (e.g. "use this sheet elsewhere"). */
   headerActions?: React.ReactNode;
+  /**
+   * Fill the parent instead of scrolling inside a 70vh box — used by the
+   * desktop's Excel window, where the window itself has a fixed height.
+   */
+  fill?: boolean;
+  /** Data Validation rules to start with (the practice sheets' dropdowns). */
+  validation?: ValidationRule[];
 }
 
 type History = { sheet: string; address: string; before: string; after: string }[];
@@ -123,6 +163,8 @@ export function ExcelGrid({
   onSaved,
   headerActions,
   onCellsChange,
+  fill = false,
+  validation: initialValidation,
 }: ExcelGridProps) {
   const wbDocs = useWorkbooks();
   const wb = useWorkbook({
@@ -153,6 +195,20 @@ export function ExcelGrid({
   const [grade, setGrade] = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
+
+  /** Scroll the active cell into view (Excel keeps the cursor visible). */
+  useEffect(() => {
+    const container = gridRef.current;
+    if (!container) return;
+    const cell = container.querySelector<HTMLElement>(`[data-address="${active}"]`);
+    if (!cell) return;
+    const box = container.getBoundingClientRect();
+    const rect = cell.getBoundingClientRect();
+    if (rect.top < box.top + 28) container.scrollTop -= box.top + 28 - rect.top;
+    else if (rect.bottom > box.bottom - 8) container.scrollTop += rect.bottom - box.bottom + 8;
+    if (rect.left < box.left + 40) container.scrollLeft -= box.left + 40 - rect.left;
+    else if (rect.right > box.right - 8) container.scrollLeft += rect.right - box.right + 8;
+  }, [active]);
   /* ---- pro-editor extras: fill handle, flash fill, split view, widths ---- */
   const [fillTo, setFillTo] = useState<string | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(false);
@@ -162,6 +218,24 @@ export function ExcelGrid({
   const [, setTick] = useState(0);
   const [barsOn, setBarsOn] = useState(false);
   const [find, setFind] = useState<{ open: boolean; query: string; replace: string; withReplace: boolean } | null>(null);
+  /* ---- Excel rules: validation, conditional formatting, filter, names ---- */
+  const [validation, setValidation] = useState<ValidationRule[]>(initialValidation ?? []);
+  const [cfRules, setCfRules] = useState<CfRule[]>([]);
+  const [filter, setFilter] = useState<SheetFilter | null>(null);
+  const [names, setNames] = useState<NamedRange[]>([]);
+  const [dialog, setDialog] = useState<
+    "validation" | "cf" | "filter" | "names" | "goto" | "format" | null
+  >(null);
+  /** Excel's "stop" alert, shown over the grid until dismissed. */
+  const [alert, setAlert] = useState<{ address: string; message: string } | null>(null);
+  /** Full-screen on phones: the sheet gets the whole screen, chrome collapses. */
+  const [zen, setZen] = useState(false);
+  const [rangeText, setRangeText] = useState("");
+  const [zoom, setZoom] = useState(100);
+  /** Which cell's validation dropdown is open (Excel's in-cell arrow). */
+  const [picker, setPicker] = useState<string | null>(null);
+  const formulaInput = useRef<HTMLInputElement | null>(null);
+  const cellInput = useRef<HTMLInputElement | null>(null);
 
   const sheet = sheets.find((s) => s.name === activeSheet) ?? sheets[0];
   const rawActive = sheet?.cells[active] ?? "";
@@ -187,6 +261,24 @@ export function ExcelGrid({
     if (onCellsChange && sheet) onCellsChange(sheet.cells);
   }, [onCellsChange, sheet]);
 
+  // Rules live with the saved workbook so validation and conditional formatting
+  // survive a reload (same store as cells and formats).
+  useEffect(() => {
+    const saved = wbDocs.items.find((doc) => doc.template === template);
+    if (!saved) return;
+    if (validation.length === 0 && saved.validationRules?.length) setValidation(saved.validationRules);
+    if (cfRules.length === 0 && saved.cfRules?.length) setCfRules(saved.cfRules);
+    if (names.length === 0 && saved.names?.length) setNames(saved.names);
+    // Only seed once per template.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wbDocs.items.length, template]);
+
+  /** Keep validation / CF / names in the saved workbook. */
+  useEffect(() => {
+    wb.saveRules?.({ validationRules: validation, cfRules, names });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validation, cfRules, names]);
+
   const selected = useMemo(() => {
     const parsed = splitAddress(active);
     return parsed ?? { row: 0, col: 0, colLabel: "A", rowLabel: 1 };
@@ -197,15 +289,38 @@ export function ExcelGrid({
 
   /* ------------------------------ editing ----------------------------- */
 
+  /**
+   * Write a cell, but first run Excel's Data Validation for that address. A
+   * rule that fails blocks the write and shows the same "stop" alert Excel
+   * does, so students learn the rule instead of silently overwriting it.
+   */
   const commit = useCallback(
     (address: string, text: string) => {
       const before = sheet?.cells[address] ?? "";
       if (before === text) return;
-      setCell(activeSheet, address, text);
-      setHistory((h) => [...h.slice(-80), { sheet: activeSheet, address, before, after: text }]);
+      const rule = ruleFor(validation, address);
+      const problem = rule ? validateCell(rule, text) : null;
+      if (problem) {
+        setAlert({ address, message: problem });
+        setStatus(`Data Validation: ${address} par “${text}” allowed nahi hai.`);
+        return;
+      }
+      // Named ranges are expanded on the way in so =SUM(Sales) becomes a real
+      // range for the engine — Excel's Name Manager behaviour.
+      const nextText = text.startsWith("=") ? expandNamedRanges(text, names) : text;
+      setCell(activeSheet, address, nextText);
+      setHistory((h) => [...h.slice(-80), { sheet: activeSheet, address, before, after: nextText }]);
       setFuture([]);
     },
-    [activeSheet, setCell, sheet],
+    [activeSheet, names, setCell, sheet, validation],
+  );
+
+  /** Paste a block of cells (range paste, TSV or single value). */
+  const commitBlock = useCallback(
+    (cells: [string, string][]) => {
+      cells.forEach(([address, text]) => commit(address, text));
+    },
+    [commit],
   );
 
   const move = useCallback(
@@ -216,6 +331,47 @@ export function ExcelGrid({
       setEditing(false);
     },
     [cols, rows, selected.col, selected.row],
+  );
+
+  /**
+   * Select a cell. Unlike a spreadsheet on a desktop, a *tap* on a phone should
+   * also open the editor — otherwise students tap a cell, type, and nothing
+   * happens. `opts.edit` decides, `opts.anchor` turns the cell taps into a
+   * range selection (Excel's shift-click, needed for "applies to A2:F20").
+   */
+  const selectCell = useCallback(
+    (address: string, opts: { edit?: boolean; extend?: boolean } = {}) => {
+      if (opts.extend) {
+        const start = splitAddress(active);
+        const end = splitAddress(address);
+        if (start && end) {
+          const first = `${colName(Math.min(start.col, end.col))}${Math.min(start.row, end.row) + 1}`;
+          const last = `${colName(Math.max(start.col, end.col))}${Math.max(start.row, end.row) + 1}`;
+          setRangeText(`${first}:${last}`);
+          setStatus(`Range ${first}:${last} selected.`);
+          return;
+        }
+      }
+      setActive(address);
+      setRangeText(address);
+      if (opts.edit) {
+        setDraft(sheet?.cells[address] ?? "");
+        setEditing(true);
+      } else {
+        setEditing(false);
+      }
+    },
+    [active, sheet],
+  );
+
+  /** Start editing the active cell from the keyboard or a double tap. */
+  const beginEdit = useCallback(
+    (initial?: string) => {
+      setDraft(initial ?? sheet?.cells[active] ?? "");
+      setEditing(true);
+      setStatus(`Editing ${active} — Enter dabao ya bahar tap karo.`);
+    },
+    [active, sheet],
   );
 
   const undo = useCallback(() => {
@@ -266,6 +422,27 @@ export function ExcelGrid({
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     const meta = event.ctrlKey || event.metaKey;
+    // Excel's own shortcuts for the tools students are told to learn.
+    if (event.key === "F5") {
+      event.preventDefault();
+      setDialog("goto");
+      return;
+    }
+    if (event.key === "F4") {
+      event.preventDefault();
+      setDialog("cf");
+      return;
+    }
+    if (meta && event.key === "1") {
+      event.preventDefault();
+      setDialog("format");
+      return;
+    }
+    if (meta && event.shiftKey && event.key.toLowerCase() === "l") {
+      event.preventDefault();
+      openFilter();
+      return;
+    }
     // Ctrl+Shift+F1 — the Excel "hide the ribbon" chord — toggles this keypad,
     // which is the closest thing this app has to a ribbon.
     if (meta && event.shiftKey && event.key === "F1") {
@@ -573,6 +750,108 @@ export function ExcelGrid({
   }, [active, columnText, flash, rows]);
 
   /* --------------------------- formatting ---------------------------- */
+
+  /* ------------------- validation / CF / filter actions ------------------ */
+
+  /** Column letters of the used range, with the header text of row 1. */
+  const filterColumns = useMemo(() => {
+    if (!sheet) return [] as { col: number; label: string }[];
+    const bounds = usedRange(sheet.cells);
+    return Array.from({ length: bounds.lastCol - bounds.firstCol + 1 }, (_, i) => {
+      const col = bounds.firstCol + i;
+      const header = sheet.cells[`${colName(col)}1`] ?? "";
+      return { col, label: header ? `${colName(col)} — ${header}` : colName(col) };
+    });
+  }, [sheet]);
+
+  /** Rows hidden by the AutoFilter — recomputed when the data or filter changes. */
+  const hidden = useMemo(() => {
+    if (!filter || !sheet) return new Set<number>();
+    return hiddenRows(filter, (row, col) => {
+      const address = `${colName(col)}${row + 1}`;
+      return displayValue(values[address] ?? sheet.cells[address] ?? "");
+    });
+  }, [filter, sheet, values]);
+
+  const applyFilter = useCallback(
+    (next: SheetFilter) => {
+      setFilter(next.filters.length ? next : null);
+      setStatus(
+        next.filters.length
+          ? `Filter applied: ${next.filters.length} condition(s) — failing rows are hidden, not deleted.`
+          : "Filter cleared — all rows visible.",
+      );
+    },
+    [],
+  );
+
+  const openFilter = useCallback(() => {
+    if (!sheet) return;
+    const bounds = usedRange(sheet.cells);
+    setFilter(
+      (current) =>
+        current ?? {
+          filters: [],
+          headerRow: bounds.firstRow,
+          firstRow: bounds.firstRow,
+          lastRow: bounds.lastRow,
+          firstCol: bounds.firstCol,
+          lastCol: bounds.lastCol,
+        },
+    );
+    setDialog("filter");
+  }, [sheet]);
+
+  /** The CF style for a cell, from the rule list (not one-off paints). */
+  const cfStyle = useCallback(
+    (address: string): { fill?: string; color?: string; bold?: boolean; italic?: boolean; bar?: boolean; scale?: "good" | "mid" | "bad" } => {
+      if (!cfRules.length || !sheet) return {};
+      const valueOf = (col: number, row: number) => values[`${colName(col)}${row + 1}`] ?? sheet.cells[`${colName(col)}${row + 1}`] ?? "";
+      // Lambda values are not comparable — treat them as blank for rules.
+      const asText = (value: unknown): CellValue =>
+        typeof value === "object" && value !== null && "fn" in (value as object) ? "" : (value as CellValue);
+      return cfStyleFor(cfRules, address, asText(values[address]) || sheet.cells[address] || "", (rule) => {
+        const out: CellValue[] = [];
+        rangesOf(rule.range).forEach((bounds) => {
+          for (let row = bounds.firstRow; row <= bounds.lastRow; row++) {
+            for (let col = bounds.firstCol; col <= bounds.lastCol; col++) out.push(asText(valueOf(col, row)));
+          }
+        });
+        return out;
+      });
+    },
+    [cfRules, sheet, values],
+  );
+
+  /** Expand whatever the student typed in "Applies to" into a range string. */
+  const normaliseRange = useCallback(
+    (raw: string): string => {
+      const text = raw.trim();
+      if (!text) return active;
+      const named = names.find((item) => item.name.toLowerCase() === text.toLowerCase());
+      if (named) return named.range;
+      if (rangeBounds(text)) return text.toUpperCase();
+      return active;
+    },
+    [active, names],
+  );
+
+  const goToRange = useCallback(
+    (raw: string) => {
+      const text = normaliseRange(raw);
+      const first = text.split(/[,:]/)[0];
+      const parsed = splitAddress(first);
+      if (!parsed) {
+        setStatus(`“${raw}” samajh nahi aaya — A1 ya A1:F20 jaisa address likho.`);
+        return;
+      }
+      setActive(`${parsed.colLabel}${parsed.row + 1}`);
+      setRangeText(rangeBounds(text) ? text : first);
+      gridRef.current?.focus();
+      setStatus(`Moved to ${first}.`);
+    },
+    [normaliseRange],
+  );
 
   /** Patch the active cell (or every cell in a range) and keep it saved. */
   const patchFormat = useCallback(
@@ -1116,8 +1395,55 @@ export function ExcelGrid({
           setShowForm(true);
           break;
         case "filter":
-          setFilterColumn(selected.col);
-          setStatus(`Filter on column ${selected.colLabel} — values chuno.`);
+          openFilter();
+          break;
+        case "filter:clear":
+          setFilter(null);
+          setStatus("Filter cleared — every row is visible again.");
+          break;
+        case "validation":
+          setDialog("validation");
+          break;
+        case "validation-check": {
+          const rule = ruleFor(validation, active);
+          if (!rule) {
+            setStatus(`No validation rule covers ${active}. Data ▸ Data Validation se ek rule banao.`);
+            break;
+          }
+          const problem = validateCell(rule, rawActive);
+          setAlert(problem ? { address: active, message: problem } : null);
+          setStatus(problem ? `${active}: rule fail — ${problem}` : `${active} passes its validation rule.`);
+          break;
+        }
+        case "cf-dialog":
+          setDialog("cf");
+          break;
+        case "names":
+          setDialog("names");
+          break;
+        case "goto-dialog":
+          setDialog("goto");
+          break;
+        case "format-cells":
+          setDialog("format");
+          break;
+        case "undo":
+          undo();
+          break;
+        case "redo":
+          redo();
+          break;
+        case "insert-sheet":
+          addSheet(`Sheet${sheets.length + 1}`);
+          setStatus(`New sheet added — ${sheets.length + 1} tabs now.`);
+          break;
+        case "freeze-rows":
+          setSplit((value) => !value);
+          setStatus(split ? "Freeze panes off." : "Freeze panes on — header row stays visible while scrolling.");
+          break;
+        case "zoom-in":
+        case "zoom-out":
+          setZoom((value) => Math.max(80, Math.min(150, value + (command.id === "zoom-in" ? 10 : -10))));
           break;
         case "text-to-columns":
           setStatus("Text to Columns: TEXTSPLIT(A2,\",\") formula use karo — yahi kaam karta hai, browser mein bhi.");
@@ -1147,6 +1473,12 @@ export function ExcelGrid({
       selectedValue,
       sortByActiveColumn,
       split,
+      openFilter,
+      addSheet,
+      validation,
+      rawActive,
+      undo,
+      redo,
     ],
   );
 
@@ -1287,7 +1619,7 @@ export function ExcelGrid({
   const overLimit = initialSheets.length;
 
   return (
-    <div className="space-y-4">
+    <div className={fill ? "h-full min-h-0 flex flex-col gap-2" : "space-y-4"}>
       {brief && (
         <Card className="!p-4 space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -1325,7 +1657,13 @@ export function ExcelGrid({
         </Card>
       )}
 
-      <div className={`rounded-2xl overflow-hidden border border-(--color-border) bg-(--color-surface) shadow-sm ${focusMode ? "ring-2 ring-(--color-accent)/40" : ""}`}>
+      <div
+        className={`overflow-hidden border border-(--color-border) bg-(--color-surface) shadow-sm flex flex-col ${
+          zen
+            ? "fixed inset-0 z-[85] rounded-none border-0"
+            : `rounded-2xl ${focusMode ? "ring-2 ring-(--color-accent)/40" : ""} ${fill ? "flex-1 min-h-0" : ""}`
+        }`}
+      >
         {/* Ribbon — same tabs and groups as Windows Excel */}
         <Ribbon
           run={runRibbon}
@@ -1333,23 +1671,43 @@ export function ExcelGrid({
           message={status ?? "Home tab: Font, Alignment, Number, Styles, Cells — jahan Excel mein hote hain, wahin."}
         />
 
-        {/* Name box + formula bar */}
-        <div className="px-3 py-2.5 bg-(--color-canvas) border-b border-(--color-border) flex flex-wrap items-center gap-2">
-          <span className="w-16 text-center font-mono text-xs font-extrabold rounded-lg bg-(--color-accent-soft) text-(--color-accent-dark) py-1.5 border border-(--color-border)">
-            {active}
-          </span>
-          <span className="font-serif italic font-bold text-(--color-accent-dark) px-1">fx</span>
-          <div className="relative flex-1 min-w-[220px]">
+        {/* Name box + formula bar — Excel's row above the sheet */}
+        <div className="px-2 sm:px-3 py-2 bg-(--color-canvas) border-b border-(--color-border) flex items-center gap-1.5 sm:gap-2">
+          <input
+            aria-label="Name box"
+            value={rangeText || active}
+            onChange={(event) => setRangeText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                goToRange(rangeText || active);
+              }
+            }}
+            onBlur={() => setRangeText(active)}
+            title="Name box — address likho aur Enter dabao (jaise F5)"
+            className="w-16 sm:w-20 shrink-0 text-center font-mono text-[11px] sm:text-xs font-extrabold rounded-lg bg-(--color-accent-soft) text-(--color-accent-dark) py-1.5 border border-(--color-border)"
+          />
+          <button
+            type="button"
+            aria-label="Insert function"
+            title="Insert Function (Shift+F3)"
+            onClick={() => setShowCatalog((value) => !value)}
+            className="font-serif italic font-bold text-(--color-accent-dark) px-1 text-sm"
+          >
+            fx
+          </button>
+          <div className="relative flex-1 min-w-0">
             <input
+              ref={formulaInput}
               aria-label="Formula bar"
               value={editing ? draft : rawActive}
-              onFocus={() => {
-                // Cross into edit mode once, keeping whatever the student typed.
-                if (!editing) {
-                  setDraft(rawActive);
-                  setEditing(true);
-                }
-              }}
+              inputMode="text"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              onMouseDown={() => beginEdit()}
+              onTouchStart={() => beginEdit()}
+              onFocus={() => beginEdit()}
               onChange={(event) => {
                 // Edit *in place*: keep the caret where the student is typing, so a
                 // single argument can be fixed without retyping the whole formula.
@@ -1374,6 +1732,7 @@ export function ExcelGrid({
                   // accepts the highlighted function suggestion instead.
                   commit(active, draft);
                   setEditing(false);
+                  setStatus(`${active} saved — “${draft}”`);
                 }
                 if (event.key === "Escape") {
                   setEditing(false);
@@ -1390,11 +1749,11 @@ export function ExcelGrid({
                 if (editing && draft !== rawActive) commit(active, draft);
                 setEditing(false);
               }}
-              placeholder={'Type a value or any Excel formula — =XLOOKUP(...), =FILTER(...), =TEXT(TODAY(),"dd-mm-yyyy")'}
-              className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-1.5 font-mono text-xs sm:text-sm outline-none focus:ring-2 focus:ring-(--color-accent)"
+              placeholder='Cell par tap karo ya yahan type karo — =SUM(B2:B9), =XLOOKUP(...), =FILTER(...)'
+              className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-2.5 py-1.5 font-mono text-xs sm:text-sm outline-none focus:ring-2 focus:ring-(--color-accent)"
             />
             {suggest && (
-              <div className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-(--color-border) bg-(--color-surface) shadow-lg overflow-hidden">
+              <div className="absolute z-40 left-0 right-0 mt-1 rounded-xl border border-(--color-border) bg-(--color-surface) shadow-lg overflow-hidden">
                 {suggest.items.map((name) => {
                   const entry = catalogEntry(name);
                   return (
@@ -1412,12 +1771,88 @@ export function ExcelGrid({
                     </button>
                   );
                 })}
-                <div className="px-3 py-1 text-[10px] text-(--color-muted) border-t border-(--color-border)">
-                  Tab / Enter to insert
-                </div>
+                <div className="px-3 py-1 text-[10px] text-(--color-muted) border-t border-(--color-border)">Tab / Enter to insert</div>
               </div>
             )}
           </div>
+          {editing ? (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                aria-label="Commit edit"
+                title="Enter — accept this value"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  commit(active, draft);
+                  setEditing(false);
+                  setStatus(`${active} saved.`);
+                }}
+                className="p-1.5 rounded-lg bg-(--color-good) text-white"
+              >
+                <Check size={14} />
+              </button>
+              <button
+                type="button"
+                aria-label="Cancel edit"
+                title="Esc — cancel this edit"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setEditing(false);
+                  setDraft(rawActive);
+                  setSuggest(null);
+                }}
+                className="p-1.5 rounded-lg border border-(--color-border) text-(--color-muted)"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              aria-label={`Edit cell ${active}`}
+              title="Edit this cell in the formula bar"
+              onClick={() => {
+                beginEdit();
+                formulaInput.current?.focus();
+              }}
+              className="p-1.5 rounded-lg border border-(--color-border) bg-(--color-surface) text-(--color-accent-dark) shrink-0"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Quick access row: the four things students ask for most, always visible */}
+        <div className="px-2 sm:px-3 py-1.5 bg-(--color-surface-2) border-b border-(--color-border) flex items-center gap-1 overflow-x-auto no-print">
+          {[
+            { id: "quick-validation", label: "Data Validation", icon: <ShieldCheck size={13} />, onClick: () => setDialog("validation") },
+            { id: "quick-cf", label: "Conditional Formatting", icon: <PaintBucket size={13} />, onClick: () => setDialog("cf") },
+            { id: "quick-filter", label: `Filter${filter ? ` (${filter.filters.length})` : ""}`, icon: <FilterIcon size={13} />, onClick: openFilter },
+            { id: "quick-form", label: "Data Form", icon: <ClipboardList size={13} />, onClick: () => setShowForm(true) },
+            { id: "quick-format", label: "Format Cells", icon: <Palette size={13} />, onClick: () => setDialog("format") },
+            { id: "quick-keyboard", label: "Keyboard", icon: <Keyboard size={13} />, onClick: () => setShowKeyboard((value) => !value) },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={item.onClick}
+              className="inline-flex items-center gap-1 rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[10px] sm:text-[11px] font-semibold text-(--color-ink) whitespace-nowrap hover:bg-(--color-accent-soft)"
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setZen((value) => !value)}
+            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[10px] sm:text-[11px] font-semibold text-(--color-ink) whitespace-nowrap"
+          >
+            {zen ? <Minimize2 size={12} /> : <Maximize2 size={12} />} {zen ? "Exit full screen" : "Full screen"}
+          </button>
+        </div>
+
+        {/* Undo / redo / quick bold + number format — Excel's QAT, kept next to the bar */}
+        <div className="px-2 sm:px-3 py-1.5 bg-(--color-canvas) border-b border-(--color-border) flex flex-wrap items-center gap-1.5 no-print">
           <div className="flex items-center gap-1">
             <IconBtn title="Undo (Ctrl+Z)" onClick={undo} disabled={!history.length}>
               <Undo2 size={15} />
@@ -1615,9 +2050,11 @@ export function ExcelGrid({
             pasteBlock(activeSheet, active, text);
             setStatus(`Pasted ${text.split("\n").length} row(s) starting at ${active}.`);
           }}
-          className={`overflow-auto outline-none ${split ? "max-h-[46vh] ring-1 ring-inset ring-(--color-accent)/30 rounded-b-none" : "max-h-[70vh]"}`}
+          className={`overflow-auto outline-none ${
+            zen || fill ? "flex-1 min-h-0" : split ? "max-h-[46vh] ring-1 ring-inset ring-(--color-accent)/30 rounded-b-none" : "max-h-[70vh]"
+          }`}
         >
-          <table className="border-collapse text-xs sm:text-sm min-w-full">
+          <table className="border-collapse text-xs sm:text-sm min-w-full" style={{ fontSize: `${zoom}%` }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-(--color-canvas) text-(--color-muted)">
                 <th className="w-10 py-1.5 border-r border-b border-(--color-border) text-center font-mono text-[11px] bg-(--color-canvas)">
@@ -1669,7 +2106,7 @@ export function ExcelGrid({
             </thead>
             <tbody>
               {Array.from({ length: rows }, (_, rowIndex) => (
-                <tr key={rowIndex}>
+                <tr key={rowIndex} className={hidden.has(rowIndex) ? "hidden" : undefined}>
                   <td
                     className={`text-center font-mono text-[11px] font-bold border-r border-b border-(--color-border) ${
                       rowIndex === selected.row
@@ -1688,10 +2125,26 @@ export function ExcelGrid({
                     const bold = format?.bold;
                     const isTarget = Boolean(brief?.checks.some((check) => check.cell === address));
                     const text = displayValue(value, format?.format);
+                    // Excel rules paint the cell too; on-screen formatting wins
+                    // only where the student set it explicitly.
+                    const ruleStyle = cfStyle(address);
                     const align = format?.align ?? (typeof value === "number" ? "right" : "left");
+                    const rule = ruleFor(validation, address);
+                    const dropdownItems = rule?.type === "list" && rule.showDropdown !== false ? rule.items ?? [] : [];
+                    const inRange = Boolean(rangeText.includes(":")) && addressInRange(address, rangeText);
                     const cellStyle: React.CSSProperties = {};
                     if (format?.fill) cellStyle.backgroundColor = format.fill;
                     if (format?.color) cellStyle.color = format.color;
+                    if (ruleStyle.fill) cellStyle.backgroundColor = ruleStyle.fill;
+                    if (ruleStyle.color) cellStyle.color = ruleStyle.color;
+                    if (ruleStyle.scale) {
+                      cellStyle.backgroundColor =
+                        ruleStyle.scale === "good"
+                          ? "rgba(22,163,74,0.18)"
+                          : ruleStyle.scale === "bad"
+                            ? "rgba(220,38,38,0.16)"
+                            : "rgba(217,119,6,0.14)";
+                    }
                     if (format?.scale) {
                       if (format.scale === "good") cellStyle.backgroundColor = "rgba(22,163,74,0.16)";
                       if (format.scale === "bad") cellStyle.backgroundColor = "rgba(220,38,38,0.14)";
@@ -1709,25 +2162,40 @@ export function ExcelGrid({
                     return (
                       <td
                         key={address}
-                        onMouseDown={() => {
-                          setActive(address);
-                          setEditing(false);
+                        onMouseDown={(event) => {
+                          // Shift = extend the selection, exactly like Excel.
+                          if (event.shiftKey) {
+                            selectCell(address, { extend: true });
+                            return;
+                          }
+                          selectCell(address);
                         }}
                         onDoubleClick={() => {
                           setActive(address);
-                          setEditing(true);
-                          setDraft(raw);
+                          beginEdit();
+                        }}
+                        onPointerUp={(event) => {
+                          // Phones have no hover and no double-tap habit: a single
+                          // tap on a cell starts editing, which is what students
+                          // expect when they tap a cell and then type.
+                          if (event.pointerType === "touch" || event.pointerType === "pen") {
+                            setActive(address);
+                            beginEdit();
+                          }
                         }}
                         title={raw.startsWith("=") ? `${raw}  →  ${text}` : undefined}
                         data-address={address}
                         style={cellStyle}
+                        hidden={false}
                         className={`p-0 ${gridlines ? "border-r border-b border-(--color-border)" : "border-0"} relative ${
                           isActive ? "ring-2 ring-inset ring-(--color-accent) z-10" : ""
                         } ${fillTo === address ? "bg-(--color-accent-soft) ring-1 ring-inset ring-(--color-accent)/50" : ""} ${
                           isTarget && raw === "" ? "tone-warn" : ""
                         } ${
                           isErr(value) ? "tone-danger" : ""
-                        } ${raw.startsWith("=") && !format?.color ? "text-(--color-accent-dark)" : ""} ${bold ? "font-bold" : ""} ${
+                        } ${inRange ? "bg-(--color-accent)/10" : ""} ${ruleStyle.bold ? "font-bold" : ""} ${
+                          raw.startsWith("=") && !format?.color && !ruleStyle.color ? "text-(--color-accent-dark)" : ""
+                        } ${bold ? "font-bold" : ""} ${
                           format?.italic ? "italic" : ""
                         }`}
                       >
@@ -1741,7 +2209,12 @@ export function ExcelGrid({
                         {isActive && editing ? (
                           <input
                             autoFocus
+                            ref={(element) => {
+                              if (element && document.activeElement !== element) element.focus({ preventScroll: true });
+                            }}
                             aria-label={`Edit cell ${address}`}
+                            inputMode={rawActive.startsWith("=") ? "text" : undefined}
+                            enterKeyHint="done"
                             value={draft}
                             onChange={(event) => setDraft(event.target.value)}
                             onBlur={() => {
@@ -1757,6 +2230,53 @@ export function ExcelGrid({
                               {text}
                             </span>
                             {raw.startsWith("=") && <Pill tone="good">fx</Pill>}
+                            {dropdownItems.length > 0 && (
+                              <button
+                                type="button"
+                                aria-label={`Choose value for ${address}`}
+                                title={`Dropdown: ${dropdownItems.join(", ")}`}
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setActive(address);
+                                }}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setPicker(address === picker ? null : address);
+                                }}
+                                className="shrink-0 px-0.5 rounded text-(--color-accent-dark) hover:bg-(--color-accent-soft) text-[10px] leading-none"
+                              >
+                                ▾
+                              </button>
+                            )}
+                            {picker === address && (
+                              <div
+                                role="listbox"
+                                aria-label={`Values for ${address}`}
+                                className="absolute z-40 left-0 top-full min-w-[120px] rounded-lg border border-(--color-border) bg-(--color-surface) shadow-xl py-1"
+                              >
+                                {dropdownItems.map((item) => (
+                                  <button
+                                    key={item}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={raw === item}
+                                    onMouseDown={(event) => event.preventDefault()}
+                                    onClick={() => {
+                                      commit(address, item);
+                                      setPicker(null);
+                                      setStatus(`${address} = ${item} (list validation).`);
+                                    }}
+                                    className="block w-full text-left px-2.5 py-1 text-[11px] text-(--color-ink) hover:bg-(--color-accent-soft) whitespace-nowrap"
+                                  >
+                                    {item}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {isActive && !editing && (
+                              <span aria-hidden className="text-(--color-accent) text-[9px] shrink-0">✎</span>
+                            )}
                             {/* Fill handle: drag it down to copy (relative refs shift like Excel). */}
                             {isActive && (
                               <span
@@ -1812,18 +2332,20 @@ export function ExcelGrid({
           <div className="flex items-center gap-3">
             {(() => {
               // Excel's status bar totals the numbers it can see in the sheet.
-              const numbers = Object.values(values).filter((v): v is number => typeof v === "number");
-              if (!numbers.length) return null;
-              const sum = numbers.reduce((a, b) => a + b, 0);
+              const visibleNumbers = Object.values(values).filter((item): item is number => typeof item === "number");
+              if (!visibleNumbers.length) return null;
+              const sum = visibleNumbers.reduce((a, b) => a + b, 0);
               return (
                 <>
                   <span>Sum: {displayValue(sum)}</span>
-                  <span>Average: {displayValue(sum / numbers.length)}</span>
-                  <span>Count: {numbers.length}</span>
+                  <span>Average: {displayValue(sum / visibleNumbers.length)}</span>
+                  <span>Count: {visibleNumbers.length}</span>
                 </>
               );
             })()}
-            <span className="font-mono">{active}</span>
+            {hidden.size > 0 && <span className="text-(--color-accent-dark) font-semibold">{hidden.size} row(s) hidden by filter</span>}
+            {ruleFor(validation, active) && <span className="tone-info px-1.5 rounded">Validated</span>}
+            <span className="font-mono">{rangeText || active}</span>
             <span className="font-mono">{rawActive.startsWith("=") ? "Formula" : "Value"}</span>
           </div>
         </div>
@@ -2015,6 +2537,102 @@ export function ExcelGrid({
             </Button>
           </div>
         </Card>
+      )}
+
+      {/* Excel's "stop" alert — Data Validation refused the value */}
+      {alert && (
+        <div className="fixed inset-0 z-[95] bg-black/40 flex items-center justify-center p-4" role="alertdialog" aria-label="Data Validation alert">
+          <div className="w-full max-w-sm rounded-2xl bg-(--color-surface) border border-(--color-border) shadow-2xl p-4">
+            <div className="flex items-center gap-2 text-sm font-extrabold text-(--color-danger)">
+              <ShieldCheck size={16} /> Data Validation
+            </div>
+            <p className="text-xs text-(--color-ink) mt-2 leading-relaxed">
+              <b>{alert.address}</b>: {alert.message}
+            </p>
+            <div className="flex justify-end gap-2 mt-3">
+              <GhostButton onClick={() => setAlert(null)}>OK</GhostButton>
+              <PrimaryButton
+                onClick={() => {
+                  setAlert(null);
+                  setDialog("validation");
+                }}
+              >
+                Edit rule
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dialog === "validation" && (
+        <DataValidationDialog
+          range={rangeText.includes(":") ? rangeText : active}
+          rules={validation}
+          onSave={(rule) => {
+            setValidation((current) => [...current.filter((item) => item.range !== rule.range), rule]);
+            setStatus(`Data Validation set for ${rule.range}: ${rule.type}.`);
+          }}
+          onDelete={(id) => setValidation((current) => current.filter((item) => item.id !== id))}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {dialog === "cf" && (
+        <ConditionalFormattingDialog
+          range={rangeText.includes(":") ? rangeText : `${colName(selected.col)}1:${colName(selected.col)}${Math.max(rows, PREVIEW_ROWS)}`}
+          rules={cfRules}
+          onSave={(rule) => {
+            setCfRules((current) => [...current, rule]);
+            setStatus(`Conditional formatting added to ${rule.range} (${rule.type}).`);
+          }}
+          onDelete={(id) => setCfRules((current) => current.filter((item) => item.id !== id))}
+          onClear={() => {
+            setCfRules([]);
+            setStatus("All conditional formatting rules cleared.");
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {dialog === "filter" && (
+        <FilterDialog
+          columns={filterColumns}
+          filter={filter}
+          onApply={applyFilter}
+          onClear={() => {
+            setFilter(null);
+            setStatus("Filter cleared — every row is visible again.");
+            setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {dialog === "names" && (
+        <NameManagerDialog
+          names={names}
+          selection={rangeText.includes(":") ? rangeText : active}
+          onSave={(item) => {
+            setNames((current) => [...current, item]);
+            setStatus(`Name “${item.name}” = ${item.range}. Ab =SUM(${item.name}) likh sakte ho.`);
+          }}
+          onDelete={(id) => setNames((current) => current.filter((item) => item.id !== id))}
+          onGoTo={(range) => {
+            goToRange(range);
+            setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {dialog === "goto" && <GoToDialog names={names} onGo={goToRange} onClose={() => setDialog(null)} />}
+
+      {dialog === "format" && (
+        <FormatCellsDialog
+          current={formats[activeSheet]?.[active] ?? {}}
+          onApply={(patch) => patchFormat(patch as Partial<CellFormat>)}
+          onClose={() => setDialog(null)}
+        />
       )}
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
