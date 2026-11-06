@@ -16,6 +16,32 @@ import {
 } from "./formula/engine";
 import { formatGeneral, isErr, parseDateText, type Scalar } from "./formula/core";
 
+/**
+ * Per-cell formatting that survives a reload and travels to the .xlsx.
+ * Mirrors the Format Cells dialog in Excel (Ctrl+1).
+ */
+export interface CellFormat {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+  align?: "left" | "center" | "right";
+  wrap?: boolean;
+  /** Raw number format code: General, #,##0.00, 0.00%, dd-mm-yyyy … */
+  format?: string;
+  /** Hex fill colour, e.g. #fef3c7. */
+  fill?: string;
+  /** Hex font colour. */
+  color?: string;
+  /** Conditional formatting data bars. */
+  bar?: boolean;
+  /** Colour scale, first/last colour already resolved to a tint. */
+  scale?: "good" | "bad" | "mid";
+}
+
+/** Formatting map: sheet name → address → format. */
+export type FormatMap = Record<string, Record<string, CellFormat>>;
+
 export interface WorkbookDoc {
   id: string;
   /** Which sheet template this copy came from ("sheet-marks", "blank", …). */
@@ -24,6 +50,8 @@ export interface WorkbookDoc {
   sheets: SheetData[];
   activeSheet: string;
   updatedAt: string;
+  /** Optional so old saved workbooks still load. */
+  formats?: FormatMap;
 }
 
 /** One saved workbook per student is enough for the free lab; later copies get suffixes. */
@@ -58,11 +86,13 @@ export function displayValue(value: Scalar, format?: string, dark = false): stri
     }
     if (format && /[#0?]/.test(format)) {
       const decimals = (format.split(".")[1] ?? "").replace(/[^#0?]/g, "").length;
-      const grouped = /[#0?],+[#0?]/.test(format);
-      const fixed = value.toFixed(decimals);
-      if (!grouped) return fixed;
-      const [int, dec] = fixed.split(".");
-      return dec ? `${int.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${dec}` : int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      if (/[,]/.test(format)) {
+        const fixed = value.toFixed(decimals);
+        const [whole, fraction] = fixed.split(".");
+        const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return fraction !== undefined ? `${grouped}.${fraction}` : grouped;
+      }
+      return value.toFixed(decimals);
     }
     return formatGeneral(value);
   }
@@ -76,6 +106,13 @@ export interface UseWorkbookOptions {
   initialSheets: SheetData[];
   /** Load a previously saved copy for this template when the student returns. */
   restore?: boolean;
+}
+
+/** Saved formatting for one template (used by the grid and the Office shell). */
+export function useWorkbookFormats(template: string) {
+  const { items } = useWorkbooks();
+  const doc = items.find((item) => item.template === template);
+  return (doc?.formats ?? {}) as FormatMap;
 }
 
 export function useWorkbook({ template, title, initialSheets, restore = true }: UseWorkbookOptions) {
@@ -111,6 +148,9 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
     return new Workbook(data);
   }, [sheets]);
 
+  /** Latest formatting, kept in a ref so cell edits also save the colours. */
+  const formatsRef = useRef<FormatMap>(saved?.formats ?? {});
+
   const persist = useCallback(
     (nextSheets: SheetData[], nextActive: string) => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -122,6 +162,7 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
           sheets: nextSheets,
           activeSheet: nextActive,
           updatedAt: new Date().toISOString(),
+          formats: formatsRef.current,
         };
         setSaving(true);
         const write = async () => {
@@ -151,6 +192,21 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
         );
         persist(next, activeSheet);
         return next;
+      });
+    },
+    [activeSheet, persist],
+  );
+
+  /**
+   * Save the formatting map. Called by the grid whenever a format changes so
+   * bold/fill/number formats survive a reload and reach the .xlsx download.
+   */
+  const saveFormats = useCallback(
+    (next: FormatMap) => {
+      formatsRef.current = next;
+      setSheets((current) => {
+        persist(current, activeSheet);
+        return current;
       });
     },
     [activeSheet, persist],
@@ -252,6 +308,7 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
     addSheet,
     removeSheet,
     reset,
+    saveFormats,
     saving,
     savedAt,
     dirty,
