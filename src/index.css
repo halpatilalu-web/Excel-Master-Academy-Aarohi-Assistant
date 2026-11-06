@@ -3,8 +3,21 @@
 /* Tailwind v4: tokens live here, no tailwind.config.*. Change the values to
    the brief's palette; keep the names — every component references them. */
 @theme {
-  --font-display: "Cabinet Grotesk", system-ui, -apple-system, sans-serif;
-  --font-body: "Satoshi", system-ui, -apple-system, sans-serif;
+  /* Fonts resolve to faces that are actually downloaded (index.html) and that
+     render on every OS — no missing "Cabinet Grotesk"/"Satoshi" fallback to an
+     invisible or mismatched face. */
+  --font-display: "Inter Tight", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, -apple-system, "Noto Sans", sans-serif;
+
+  /* Semantic tones. Components never hard-code #1b7f45; they read these. */
+  --color-tone-good: #15803d;
+  --color-tone-good-bg: #dcfce7;
+  --color-tone-warn: #b45309;
+  --color-tone-warn-bg: #fef3c7;
+  --color-tone-danger: #b91c1c;
+  --color-tone-danger-bg: #fee2e2;
+  --color-tone-info: #1d4ed8;
+  --color-tone-info-bg: #dbeafe;
 
   --color-canvas: #f7fbf8;
   --color-surface: #ffffff;
@@ -16,8 +29,10 @@
   --color-accent-dark: #135e33;
   --color-accent-soft: #e6f6ec;
 
-  --color-good: #16a34a;
-  --color-warn: #d97706;
+  /* Darkened so they pass AA as *text* on a white card (they are used both as
+     text and as fills). */
+  --color-good: #15803d;
+  --color-warn: #b45309;
   --color-danger: #dc2626;
   --color-info: #2563eb;
 }
@@ -35,6 +50,16 @@ body {
   box-sizing: border-box;
 }
 
+/* One class per semantic tone: same readable pair in light and dark, so a
+   component never has to know which theme is on. */
+.tone-good { background: var(--color-tone-good-bg); color: var(--color-tone-good); border-color: color-mix(in oklab, var(--color-tone-good) 35%, transparent); }
+.tone-warn { background: var(--color-tone-warn-bg); color: var(--color-tone-warn); border-color: color-mix(in oklab, var(--color-tone-warn) 35%, transparent); }
+.tone-danger { background: var(--color-tone-danger-bg); color: var(--color-tone-danger); border-color: color-mix(in oklab, var(--color-tone-danger) 35%, transparent); }
+.tone-info { background: var(--color-tone-info-bg); color: var(--color-tone-info); border-color: color-mix(in oklab, var(--color-tone-info) 35%, transparent); }
+
+/* Paper looks like paper in either theme (used by the certificate + notes). */
+.paper { background: #ffffff; color: #0f172a; }
+
 .hand { font-family: "Caveat", "Segoe Print", cursive; }
 .note { background-image: repeating-linear-gradient(transparent, transparent 31px, rgba(0,0,0,.07) 32px); line-height: 32px; }
 @media print {
@@ -45,12 +70,45 @@ body {
 
 .dark {
   color-scheme: dark;
-  --color-canvas: #0f172a;
-  --color-surface: #1e293b;
-  --color-ink: #f1f5f9;
-  --color-muted: #94a3b8;
-  --color-border: #334155;
-  --color-accent: #22c55e;
-  --color-accent-dark: #86efac;
-  --color-accent-soft: #143524;
+  --color-canvas: #0b1220;
+  --color-surface: #111c2e;
+  --color-surface-2: #16233a;
+  --color-ink: #eef2f7;
+  --color-muted: #9fb0c6;
+  --color-border: #2a3a52;
+  --color-border-strong: #3a4d68;
+  --color-accent: #34d399;
+  --color-accent-dark: #6ee7b7;
+  --color-accent-soft: #10301f;
+  --color-good: #4ade80;
+  --color-warn: #fbbf24;
+  --color-danger: #f87171;
+  --color-info: #60a5fa;
+
+  --color-tone-good: #6ee7b7;
+  --color-tone-good-bg: #0d2f22;
+  --color-tone-warn: #fcd34d;
+  --color-tone-warn-bg: #33240a;
+  --color-tone-danger: #fca5a5;
+  --color-tone-danger-bg: #3a1414;
+  --color-tone-info: #93c5fd;
+  --color-tone-info-bg: #12233f;
+}
+
+/* Light theme also needs the "secondary surface" token the tools read. */
+:root {
+  --color-surface-2: #eef4ef;
+  --color-border-strong: #c7d2dd;
+}
+
+/* Inputs must never inherit a dark text colour on a dark field (or the reverse):
+   every control states its own foreground. */
+input, select, textarea {
+  color: var(--color-ink);
+  background-color: var(--color-surface);
+}
+input::placeholder, textarea::placeholder { color: var(--color-muted); opacity: 1; }
+
+@media print {
+  .no-print { display: none !important; }
 }

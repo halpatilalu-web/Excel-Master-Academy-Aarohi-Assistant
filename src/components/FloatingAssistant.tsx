@@ -146,7 +146,7 @@ export function FloatingAssistant({
                 <img
                   src="/aarohi-avatar-desk.jpg"
                   alt="Aarohi AI"
-                  className="w-9 h-9 rounded-full object-cover border-2 border-emerald-300 shrink-0"
+                  className="w-9 h-9 rounded-full object-cover border-2 border-(--color-accent) shrink-0"
                 />
                 <div className="min-w-0">
                   <div className="font-display font-extrabold text-sm truncate">

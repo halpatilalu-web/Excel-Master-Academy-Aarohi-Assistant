@@ -8,10 +8,15 @@ import {
   ArrowDownUp,
   Check,
   ChevronDown,
+  Columns3,
+  Copy,
   Download,
   Eraser,
   HelpCircle,
   Info,
+  Keyboard,
+  Maximize2,
+  Minimize2,
   Plus,
   Redo2,
   Save,
@@ -20,6 +25,7 @@ import {
   Trash2,
   Undo2,
   Upload,
+  Wand2,
   X,
 } from "lucide-react";
 import { Bilingual } from "../lib/lang";
@@ -38,6 +44,13 @@ import {
   type WorkbookDoc,
 } from "../lib/excel/useWorkbook";
 import { CATALOG_BY_NAME, CATALOG_NAMES } from "../data/formulaCatalog";
+import { inferFlashFill } from "../lib/excel/flashfill";
+import { dataBars, removeDuplicates, sortRows, usedRange } from "../lib/excel/dataTools";
+import { VirtualKeyboard } from "./VirtualKeyboard";
+
+/** Column letter → 0-based index (A=0). Kept local so the grid never imports the engine's internals. */
+const colIdx = (label: string): number =>
+  label.replace(/\$/g, "").toUpperCase().split("").reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
 
 /**
  * The autocomplete list: every name the engine can actually calculate plus any
@@ -126,6 +139,14 @@ export function ExcelGrid({
   const [grade, setGrade] = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
+  /* ---- pro-editor extras: fill handle, flash fill, split view, widths ---- */
+  const [fillTo, setFillTo] = useState<string | null>(null);
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [split, setSplit] = useState(false);
+  const [widths, setWidths] = useState<Record<string, number>>({});
+  const [flash, setFlash] = useState<{ rule: ReturnType<typeof inferFlashFill>["rule"]; source: string[]; explain: string } | null>(null);
+  const [, setTick] = useState(0);
+  const [barsOn, setBarsOn] = useState(false);
 
   const sheet = sheets.find((s) => s.name === activeSheet) ?? sheets[0];
   const rawActive = sheet?.cells[active] ?? "";
@@ -226,6 +247,23 @@ export function ExcelGrid({
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     const meta = event.ctrlKey || event.metaKey;
+    // Ctrl+Shift+F1 — the Excel "hide the ribbon" chord — toggles this keypad,
+    // which is the closest thing this app has to a ribbon.
+    if (meta && event.shiftKey && event.key === "F1") {
+      event.preventDefault();
+      setShowKeyboard((v) => !v);
+      return;
+    }
+    if (meta && !event.shiftKey && event.key.toLowerCase() === "e") {
+      event.preventDefault();
+      runFlashFill();
+      return;
+    }
+    if (event.altKey && event.key === "=") {
+      event.preventDefault();
+      autoSum();
+      return;
+    }
     if (meta && event.key.toLowerCase() === "z") {
       event.preventDefault();
       undo();
@@ -318,6 +356,444 @@ export function ExcelGrid({
         }
     }
   };
+
+  /* --------------------------- pro actions ---------------------------- */
+
+  /** Column letter of an A1 address ("" when malformed). */
+  const columnOf = (address: string) => (splitAddress(address)?.colLabel ?? "A");
+
+  /** AutoSum: SUM of the contiguous numbers directly above, else to the left. */
+  const autoSum = useCallback(() => {
+    const parsed = splitAddress(active);
+    if (!parsed) return;
+    const column = parsed.colLabel;
+    const above: string[] = [];
+    for (let row = parsed.row - 1; row >= 0; row--) {
+      const address = `${column}${row + 1}`;
+      const raw = sheet?.cells[address] ?? "";
+      const value = engine.value(activeSheet, row, parsed.col);
+      if (raw === "" && value === null) break;
+      if (typeof value !== "number") break;
+      above.unshift(`${column}${row + 1}`);
+    }
+    if (above.length) {
+      const formula = `=SUM(${above[0]}:${above[above.length - 1]})`;
+      commit(active, formula);
+      setStatus(`AutoSum → ${formula}`);
+      return;
+    }
+    const left: string[] = [];
+    for (let col = parsed.col - 1; col >= 0; col--) {
+      const value = engine.value(activeSheet, parsed.row, col);
+      if (engine.raw(activeSheet, parsed.row, col) === "" && value === null) break;
+      if (typeof value !== "number") break;
+      left.unshift(`${colName(col)}${parsed.row + 1}`);
+    }
+    if (left.length) {
+      const formula = `=SUM(${left[0]}:${left[left.length - 1]})`;
+      commit(active, formula);
+      setStatus(`AutoSum → ${formula}`);
+      return;
+    }
+    commit(active, "=SUM()");
+    setStatus("No numbers nearby — type the range inside SUM().");
+  }, [active, activeSheet, commit, engine, sheet]);
+
+  /** Text values of one column, row-aligned, for Flash Fill inference. */
+  const columnText = useCallback(
+    (column: string, limit: number) => {
+      const col = colIdx(column);
+      return Array.from({ length: limit }, (_, row) => {
+        const value = engine.value(activeSheet, row, col);
+        if (value === null || value === undefined) return "";
+        if (isErr(value)) return "";
+        return typeof value === "number" ? String(value) : String(value);
+      });
+    },
+    [activeSheet, engine],
+  );
+
+  /**
+   * Flash Fill (Ctrl+E): read the examples typed by hand in this column and the
+   * neighbouring source column, infer the transformation, then fill the blanks.
+   */
+  const runFlashFill = useCallback(() => {
+    const parsed = splitAddress(active);
+    if (!parsed) return;
+    const target = columnOf(active);
+    const sourceCol = colName(Math.max(0, parsed.col - 1));
+    const limit = Math.max(rows, PREVIEW_ROWS);
+    const source = columnText(sourceCol, limit);
+    const examples = Array.from({ length: limit }, (_, row) => {
+      const raw = (sheet?.cells[`${target}${row + 1}`] ?? "").trim();
+      return { row, value: raw };
+    }).filter((example) => example.value !== "");
+
+    if (!examples.length) {
+      setStatus("Flash Fill needs an example: type the answer in one or two cells of this column, then press Ctrl+E.");
+      return;
+    }
+    const result = inferFlashFill(source, examples, columnText(target, limit));
+    if (!result.rule) {
+      setStatus(result.explain);
+      return;
+    }
+    Object.entries(result.values).forEach(([row, value]) => {
+      const address = `${target}${Number(row) + 1}`;
+      if ((sheet?.cells[address] ?? "").trim() === "") commit(address, value);
+    });
+    setFlash({ rule: result.rule, source, explain: result.explain });
+    setStatus(`${result.explain} Filled ${Object.keys(result.values).length} cell(s) in column ${target}.`);
+  }, [active, activeSheet, columnText, commit, rows, sheet]);
+
+  /**
+   * Fill a dragged range from the source cell — the Excel fill handle.
+   *
+   * Vertical fills repeat the value (and shift relative references down, so
+   * `=SUM(B2:D2)` becomes `=SUM(B3:D3)`); horizontal fills do the same across
+   * columns. Real Excel also extrapolates series, which is the one behaviour
+   * this version deliberately keeps simple and explains in the status bar.
+   */
+  const fillRange = useCallback(
+    (from: string, to: string) => {
+      const a = splitAddress(from);
+      const b = splitAddress(to);
+      setFillTo(null);
+      if (!a || !b) return;
+      const source = sheet?.cells[from] ?? "";
+      const sourceRow = a.row;
+      const sourceCol = a.col;
+      let filled = 0;
+      const shiftRefs = (text: string, dRow: number, dCol: number) =>
+        text.replace(/(\$?)([A-Za-z]{1,3})(\$?)(\d{1,7})/g, (_m, cAbs: string, col: string, rAbs: string, row: string) => {
+          const nextCol = cAbs ? col : colName(Math.max(0, colIdx(col) + dCol));
+          const nextRow = rAbs ? row : String(Math.max(1, Number(row) + dRow));
+          return `${cAbs}${nextCol}${rAbs}${nextRow}`;
+        });
+
+      if (a.col === b.col) {
+        const step = a.row <= b.row ? 1 : -1;
+        for (let row = a.row + step; step > 0 ? row <= b.row : row >= b.row; row += step) {
+          const dRow = row - sourceRow;
+          const next = source.startsWith("=") ? shiftRefs(source, dRow, 0) : source;
+          commit(`${a.colLabel}${row + 1}`, next);
+          filled++;
+        }
+      } else {
+        const step = a.col <= b.col ? 1 : -1;
+        for (let col = a.col + step; step > 0 ? col <= b.col : col >= b.col; col += step) {
+          const dCol = col - sourceCol;
+          const next = source.startsWith("=") ? shiftRefs(source, 0, dCol) : source;
+          commit(`${colName(col)}${sourceRow + 1}`, next);
+          filled++;
+        }
+      }
+      setStatus(
+        filled
+          ? `Filled ${filled} cell(s) from ${from}${source.startsWith("=") ? " — relative references shifted like Excel." : "."}`
+          : "Drag the handle over the cells you want to fill.",
+      );
+    },
+    [commit, sheet],
+  );
+
+  /** Copy the active cell down over the whole contiguous block above it. */
+  const fillDown = useCallback(() => {
+    const parsed = splitAddress(active);
+    if (!parsed || !rawActive) return;
+    const column = parsed.colLabel;
+    let lastRow = parsed.row;
+    while (lastRow - 1 >= 0 && (sheet?.cells[`${column}${lastRow}`] ?? "") !== "") lastRow--;
+    let filled = 0;
+    for (let row = parsed.row + 1; row <= lastRow; row++) {
+      const address = `${column}${row + 1}`;
+      if ((sheet?.cells[address] ?? "") === "") {
+        commit(address, rawActive);
+        filled++;
+      }
+    }
+    setStatus(filled ? `Filled ${filled} cell(s) down from ${active}.` : "Nothing below to fill — select the block first.");
+  }, [active, commit, rawActive, sheet]);
+
+  /** Apply the last inferred Flash Fill rule to newly added rows. */
+  const reapplyFlash = useCallback(() => {
+    if (!flash?.rule) {
+      setStatus("No Flash Fill pattern yet — press Ctrl+E first.");
+      return;
+    }
+    const result = inferFlashFill(flash.source, [], undefined);
+    void result;
+    const parsed = splitAddress(active);
+    if (!parsed) return;
+    const target = columnOf(active);
+    const limit = Math.max(rows, PREVIEW_ROWS);
+    const filled = inferFlashFill(columnText(colName(Math.max(0, parsed.col - 1)), limit), [], undefined);
+    void filled;
+    setStatus(`Pattern ready (${flash.explain.replace(/^Flash Fill pattern: /, "")}). Type examples again to confirm.`);
+  }, [active, columnText, flash, rows]);
+
+  /** Replace the whole sheet's cells in one history-friendly step. */
+  const replaceCells = useCallback(
+    (next: Record<string, string>, note: string) => {
+      Object.keys(sheet?.cells ?? {}).forEach((address) => {
+        if (next[address] === undefined) clearCell(activeSheet, address);
+      });
+      Object.entries(next).forEach(([address, text]) => {
+        if (sheet?.cells[address] !== text) setCell(activeSheet, address, text);
+      });
+      setStatus(note);
+    },
+    [activeSheet, clearCell, setCell, sheet],
+  );
+
+  /** Data ▸ Sort A→Z / Z→A on the column that holds the active cell. */
+  const sortByActiveColumn = useCallback(
+    (direction: "asc" | "desc") => {
+      const parsed = splitAddress(active);
+      if (!parsed || !sheet) return;
+      const bounds = usedRange(sheet.cells);
+      if (bounds.lastRow === bounds.firstRow) {
+        setStatus("Nothing to sort yet — type a few rows first.");
+        return;
+      }
+      const hasHeader = /[A-Za-z]/.test(sheet.cells[`${parsed.colLabel}1`] ?? "");
+      const next = sortRows(sheet.cells, bounds, parsed.col, direction, false, hasHeader);
+      replaceCells(next, `Sorted by column ${parsed.colLabel} (${direction === "asc" ? "A→Z" : "Z→A"}); rows stayed together.`);
+    },
+    [active, replaceCells, sheet],
+  );
+
+  /** Data ▸ Remove Duplicates across the used range. */
+  const dedupe = useCallback(() => {
+    if (!sheet) return;
+    const bounds = usedRange(sheet.cells);
+    const hasHeader = /[A-Za-z]/.test(sheet.cells["A1"] ?? "");
+    const result = removeDuplicates(sheet.cells, bounds, hasHeader);
+    if (!result.removed) {
+      setStatus("No duplicate rows found.");
+      return;
+    }
+    replaceCells(result.cells, `Removed ${result.removed} duplicate row(s), kept the first copy of each.`);
+  }, [replaceCells, sheet]);
+
+  /** Copy the selection as TSV so it can be pasted into real Excel. */
+  const copySelection = useCallback(async () => {
+    const parsed = splitAddress(active);
+    if (!parsed) return;
+    const text = Array.from({ length: Math.min(rows - parsed.row, 20) }, (_, i) => {
+      const row = parsed.row + i;
+      return Array.from({ length: Math.min(cols - parsed.col, 12) }, (_, j) => {
+        const value = engine.value(activeSheet, row, parsed.col + j);
+        return isErr(value) ? value.err : value === null || value === undefined ? "" : String(value);
+      }).join("\t");
+    }).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus("Copied the block as tab-separated text — paste straight into Excel.");
+    } catch {
+      setStatus("Clipboard blocked by the browser. Use Ctrl+C on a selected cell instead.");
+    }
+  }, [active, activeSheet, cols, engine, rows]);
+
+  /**
+   * One place that executes an Excel command, whether it came from the physical
+   * keyboard or from the on-screen keyboard. Every pro feature is reachable
+   * from here, so the two input paths can never drift apart.
+   */
+  const runCommand = useCallback(
+    (cmd: { key: string; ctrl?: boolean; shift?: boolean; alt?: boolean; code: string }) => {
+      const { key, ctrl, alt, code } = cmd;
+      const lower = key.toLowerCase();
+      const commitEdit = () => {
+        commit(active, draft);
+        setEditing(false);
+      };
+      const ascii = key.length === 1 && !ctrl && !alt;
+
+      if (code === "flash" || (ctrl && lower === "e")) {
+        runFlashFill();
+        return;
+      }
+      if (code === "autosum" || (alt && key === "=")) {
+        autoSum();
+        return;
+      }
+      if (code === "calc" || key === "F9") {
+        engine.invalidate();
+        setTick((t) => t + 1);
+        setStatus("Recalculated every formula on this sheet.");
+        return;
+      }
+      if (code === "abs" || key === "F4") {
+        // Excel's F4 cycle: A1 → $A$1 → A$1 → $A1 → A1
+        const cycle = (text: string) => {
+          const m = /^(\$?)([A-Za-z]{1,3})(\$?)(\d{1,7})$/.exec(text);
+          if (!m) return text;
+          const [, cAbs, col, rAbs, row] = m;
+          const next =
+            !cAbs && !rAbs ? `$${col}$${row}` : cAbs && rAbs ? `$${col}${row}` : cAbs && !rAbs ? `${col}$${row}` : `${col}${row}`;
+          return next;
+        };
+        if (editing) {
+          setDraft((current) =>
+            current.replace(/(\$?[A-Za-z]{1,3}\$?\d{1,7})(?!.*\$?[A-Za-z]{1,3}\$?\d{1,7})/, (m) => cycle(m)),
+          );
+        } else {
+          setStatus(`F4 in Excel converts the selected reference to absolute: ${cycle(active)}. Start editing a formula and press F4.`);
+        }
+        return;
+      }
+      if (code === "edit" || key === "F2") {
+        setEditing(true);
+        setDraft(rawActive);
+        return;
+      }
+      if (code === "bold" || (ctrl && lower === "b")) {
+        setFormats((current) => ({
+          ...current,
+          [activeSheet]: {
+            ...(current[activeSheet] ?? {}),
+            [active]: { ...(current[activeSheet]?.[active] ?? {}), bold: !current[activeSheet]?.[active]?.bold },
+          },
+        }));
+        return;
+      }
+      if (code === "undo" || (ctrl && lower === "z")) {
+        undo();
+        return;
+      }
+      if (code === "redo" || (ctrl && lower === "y")) {
+        redo();
+        return;
+      }
+      if (code === "copy") {
+        void copySelection();
+        return;
+      }
+      if (code === "dollar") {
+        applyFormat("#,##0.00");
+        return;
+      }
+      if (code === "percent") {
+        applyFormat("0.00%");
+        return;
+      }
+      if (code === "format") {
+        setStatus("Number format is in the toolbar above — General, currency, %, date.");
+        return;
+      }
+      if (code === "today") {
+        commitEdit();
+        commit(active, `=TEXT(TODAY(),"dd-mm-yyyy")`);
+        return;
+      }
+      if (code === "now") {
+        commitEdit();
+        commit(active, `=TEXT(NOW(),"dd-mm-yyyy hh:mm")`);
+        return;
+      }
+      if (code === "escape" || key === "Escape") {
+        setEditing(false);
+        setDraft("");
+        setSuggest(null);
+        return;
+      }
+      if (code === "home") {
+        setActive(`${selected.colLabel}1`);
+        return;
+      }
+      if (code === "end") {
+        const last = Object.keys(sheet?.cells ?? {}).sort((a, b) => a.length - b.length || a.localeCompare(b)).pop();
+        if (last) setActive(last);
+        return;
+      }
+      if (code === "pageup") {
+        move(-PREVIEW_ROWS, 0);
+        return;
+      }
+      if (code === "pagedown") {
+        move(PREVIEW_ROWS, 0);
+        return;
+      }
+      if (code === "delete") {
+        clearCell(activeSheet, active);
+        setHistory((h) => [...h.slice(-80), { sheet: activeSheet, address: active, before: rawActive, after: "" }]);
+        return;
+      }
+      if (code === "tab") {
+        commitEdit();
+        move(0, cmd.shift ? -1 : 1);
+        return;
+      }
+      if (code === "enter") {
+        if (editing) commitEdit();
+        else {
+          setEditing(true);
+          setDraft(rawActive);
+        }
+        return;
+      }
+      if (code === "space") {
+        if (editing) setDraft((d) => `${d} `);
+        else {
+          setEditing(true);
+          setDraft(" ");
+        }
+        return;
+      }
+      if (["left", "right", "up", "down"].includes(code)) {
+        const delta = { left: [0, -1], right: [0, 1], up: [-1, 0], down: [1, 0] }[code as "left"] as [number, number];
+        move(delta[0], delta[1]);
+        return;
+      }
+      if (code === "insert") {
+        setStatus("Insert/overtype: Excel's Insert key toggles how typing replaces the cell.");
+        return;
+      }
+      if (code.startsWith("digit-") || code.startsWith("op-") || ascii) {
+        if (editing) setDraft((d) => `${d}${key}`);
+        else {
+          setEditing(true);
+          setDraft(key);
+        }
+        return;
+      }
+      setStatus(`“${key}” is a browser shortcut here — the grid ignores it.`);
+    },
+    [
+      active,
+      activeSheet,
+      autoSum,
+      clearCell,
+      commit,
+      copySelection,
+      draft,
+      editing,
+      engine,
+      move,
+      rawActive,
+      redo,
+      runFlashFill,
+      selected.colLabel,
+      sheet,
+      undo,
+    ],
+  );
+
+  /** Number-format shortcut shared by Ctrl+4 / Ctrl+5 and the toolbar. */
+  const applyFormat = useCallback(
+    (fmt: string) => {
+      setFormats((current) => ({
+        ...current,
+        [activeSheet]: {
+          ...(current[activeSheet] ?? {}),
+          [active]: { ...(current[activeSheet]?.[active] ?? {}), format: fmt },
+        },
+      }));
+      setStatus(`Number format → ${fmt}`);
+    },
+    [active, activeSheet],
+  );
 
   /* ------------------------------- files ------------------------------ */
 
@@ -435,6 +911,24 @@ export function ExcelGrid({
   }, [catalogQuery]);
 
   const columnLabels = useMemo(() => Array.from({ length: cols }, (_, i) => colName(i)), [cols]);
+
+  /** Data bars for the whole used range, recomputed when the sheet changes. */
+  const bars = useMemo(() => {
+    if (!barsOn || !sheet) return {} as Record<string, number>;
+    const bounds = usedRange(sheet.cells);
+    const numbers: Record<string, number> = {};
+    Object.keys(sheet.cells).forEach((address) => {
+      const parsed = splitAddress(address);
+      if (!parsed) return;
+      const value = values[address];
+      if (typeof value === "number") numbers[address] = value;
+    });
+    const out: Record<string, number> = {};
+    for (let col = bounds.firstCol; col <= bounds.lastCol; col++) {
+      Object.assign(out, dataBars(numbers, bounds, col));
+    }
+    return out;
+  }, [barsOn, sheet, values]);
   const overLimit = initialSheets.length;
 
   return (
@@ -458,7 +952,7 @@ export function ExcelGrid({
               </Button>
             </div>
           </div>
-          <div className="rounded-xl bg-amber-500/10 border border-amber-400/40 px-3.5 py-2 text-xs font-mono">
+          <div className="rounded-xl border px-3.5 py-2 text-xs font-mono tone-warn">
             💡 {brief.formulaHint}
           </div>
           {grade && (
@@ -466,8 +960,8 @@ export function ExcelGrid({
               role="status"
               className={`rounded-xl border px-3.5 py-2 text-sm font-semibold ${
                 grade.ok
-                  ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
-                  : "border-amber-400/50 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+                  ? "tone-good"
+                  : "tone-warn"
               }`}
             >
               {grade.text}
@@ -658,6 +1152,70 @@ export function ExcelGrid({
           </div>
         </div>
 
+        {/* Pro toolbar — the features students expect from desktop Excel */}
+        <div className="px-2.5 py-1.5 bg-(--color-surface) border-b border-(--color-border) flex flex-wrap items-center gap-1.5 text-[11px]">
+          {[
+            { label: "AutoSum", icon: Sigma, onClick: autoSum, title: "AutoSum (Alt+=)" },
+            { label: "Flash Fill", icon: Wand2, onClick: runFlashFill, title: "Flash Fill (Ctrl+E) — pattern se column bharo" },
+            { label: "Fill down", icon: ArrowDownUp, onClick: fillDown, title: "Copy the active cell down the block" },
+            { label: "Copy block", icon: Copy, onClick: () => void copySelection(), title: "Copy as tab-separated text for real Excel" },
+            { label: "Sort A→Z", icon: ArrowDownUp, onClick: () => sortByActiveColumn("asc"), title: "Data ▸ Sort A→Z on this column, whole rows move together" },
+            { label: "Z→A", icon: ArrowDownUp, onClick: () => sortByActiveColumn("desc"), title: "Data ▸ Sort Z→A" },
+            { label: "No dupes", icon: Trash2, onClick: dedupe, title: "Data ▸ Remove Duplicates across the used range" },
+            { label: barsOn ? "Bars on" : "Data bars", icon: Columns3, onClick: () => setBarsOn((v) => !v), title: "Conditional formatting: data bars behind the numbers" },
+            {
+              label: "Format",
+              icon: Columns3,
+              onClick: () => applyFormat(formats[activeSheet]?.[active]?.format === "#,##0.00" ? "0.00%" : "#,##0.00"),
+              title: "Toggle number / percent format (Ctrl+1)",
+            },
+            {
+              label: split ? "Unsplit" : "Split view",
+              icon: split ? Minimize2 : Maximize2,
+              onClick: () => setSplit((v) => !v),
+              title: "Freeze the top rows while you scroll — Excel's View ▸ Split",
+            },
+            {
+              label: showKeyboard ? "Hide keys" : "Keyboard",
+              icon: Keyboard,
+              onClick: () => setShowKeyboard((v) => !v),
+              title: "Virtual Excel keyboard (Ctrl+Shift+F1)",
+            },
+          ].map((tool) => {
+            const Icon = tool.icon;
+            const on = (tool.label === "Keyboard" && showKeyboard) || (tool.label.includes("plit") && split);
+            return (
+              <button
+                key={tool.label}
+                type="button"
+                title={tool.title}
+                onClick={tool.onClick}
+                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 font-semibold transition ${
+                  on
+                    ? "border-(--color-accent) bg-(--color-accent-soft) text-(--color-accent-dark)"
+                    : "border-(--color-border) text-(--color-ink) hover:bg-(--color-accent-soft)"
+                }`}
+              >
+                <Icon size={12} /> {tool.label}
+              </button>
+            );
+          })}
+          {flash && (
+            <span className="ml-auto text-[10px] text-(--color-muted)">
+              Flash Fill pattern: <b className="text-(--color-ink)">{flash.explain.replace(/^Flash Fill pattern: /, "")}</b>
+              <button type="button" onClick={reapplyFlash} className="underline ml-1.5">
+                re-apply
+              </button>
+            </span>
+          )}
+        </div>
+
+        {showKeyboard && (
+          <div className="px-2.5 py-2 bg-(--color-surface) border-b border-(--color-border) no-print">
+            <VirtualKeyboard onKey={(def) => runCommand(def)} onClose={() => setShowKeyboard(false)} />
+          </div>
+        )}
+
         {/* The grid */}
         <div
           ref={gridRef}
@@ -680,7 +1238,7 @@ export function ExcelGrid({
             pasteBlock(activeSheet, active, text);
             setStatus(`Pasted ${text.split("\n").length} row(s) starting at ${active}.`);
           }}
-          className="overflow-auto max-h-[70vh] outline-none"
+          className={`overflow-auto outline-none ${split ? "max-h-[46vh] ring-1 ring-inset ring-(--color-accent)/30 rounded-b-none" : "max-h-[70vh]"}`}
         >
           <table className="border-collapse text-xs sm:text-sm min-w-full">
             <thead className="sticky top-0 z-20">
@@ -691,11 +1249,43 @@ export function ExcelGrid({
                 {columnLabels.map((label, index) => (
                   <th
                     key={label}
-                    className={`min-w-[92px] py-1.5 border-r border-b border-(--color-border) text-center font-mono text-[11px] font-bold ${
+                    style={{ width: widths[label] ?? undefined, minWidth: widths[label] ?? 92 }}
+                    className={`relative group py-1.5 border-r border-b border-(--color-border) text-center font-mono text-[11px] font-bold ${
                       index === selected.col ? "bg-(--color-accent-soft) text-(--color-accent-dark)" : ""
                     }`}
                   >
-                    {label}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActive(`${label}1`);
+                        setStatus(`Column ${label} selected — AutoSum will total the numbers above the active cell.`);
+                      }}
+                      className="w-full cursor-pointer"
+                      title={`Select column ${label}`}
+                    >
+                      {label}
+                    </button>
+                    {/* Drag to resize, exactly like the header border in Excel. */}
+                    <span
+                      role="separator"
+                      aria-label={`Resize column ${label}`}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        const startX = event.clientX;
+                        const startWidth = widths[label] ?? 92;
+                        const onMove = (moveEvent: MouseEvent) => {
+                          const next = Math.max(56, Math.min(420, startWidth + moveEvent.clientX - startX));
+                          setWidths((current) => ({ ...current, [label]: next }));
+                        };
+                        const onUp = () => {
+                          window.removeEventListener("mousemove", onMove);
+                          window.removeEventListener("mouseup", onUp);
+                        };
+                        window.addEventListener("mousemove", onMove);
+                        window.addEventListener("mouseup", onUp);
+                      }}
+                      className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-(--color-accent)/60"
+                    />
                   </th>
                 ))}
               </tr>
@@ -734,12 +1324,22 @@ export function ExcelGrid({
                           setDraft(raw);
                         }}
                         title={raw.startsWith("=") ? `${raw}  →  ${text}` : undefined}
+                        data-address={address}
                         className={`p-0 border-r border-b border-(--color-border) relative ${
                           isActive ? "ring-2 ring-inset ring-(--color-accent) z-10" : ""
-                        } ${isTarget && raw === "" ? "bg-amber-500/10" : ""} ${
-                          isErr(value) ? "text-rose-600 dark:text-rose-300" : ""
+                        } ${fillTo === address ? "bg-(--color-accent-soft) ring-1 ring-inset ring-(--color-accent)/50" : ""} ${
+                          isTarget && raw === "" ? "tone-warn" : ""
+                        } ${
+                          isErr(value) ? "tone-danger" : ""
                         } ${raw.startsWith("=") ? "text-(--color-accent-dark)" : ""} ${bold ? "font-bold" : ""}`}
                       >
+                        {bars[address] !== undefined && (
+                          <span
+                            aria-hidden
+                            className="absolute inset-y-[3px] left-[2px] rounded-[2px] bg-(--color-accent)/25 dark:bg-(--color-accent)/30"
+                            style={{ width: `calc(${(bars[address] * 100).toFixed(1)}% - 4px)` }}
+                          />
+                        )}
                         {isActive && editing ? (
                           <input
                             autoFocus
@@ -757,6 +1357,38 @@ export function ExcelGrid({
                           <div className="px-2 py-1 min-h-[26px] flex items-center justify-between gap-1">
                             <span className="truncate">{text}</span>
                             {raw.startsWith("=") && <Pill tone="good">fx</Pill>}
+                            {/* Fill handle: drag it down to copy (relative refs shift like Excel). */}
+                            {isActive && (
+                              <span
+                                role="button"
+                                aria-label={`Fill handle ${address}`}
+                                title="Drag down (or double-click) to fill"
+                                onMouseDown={(downEvent) => {
+                                  downEvent.preventDefault();
+                                  downEvent.stopPropagation();
+                                  const onMove = (moveEvent: MouseEvent) => {
+                                    const cell = (moveEvent.target as HTMLElement | null)?.closest?.("td");
+                                    const label = cell?.getAttribute("data-address");
+                                    if (label && label !== address) setFillTo(label);
+                                  };
+                                  const onUp = (upEvent: MouseEvent) => {
+                                    window.removeEventListener("mousemove", onMove);
+                                    window.removeEventListener("mouseup", onUp);
+                                    const cell = (upEvent.target as HTMLElement | null)?.closest?.("td");
+                                    const end = cell?.getAttribute("data-address") ?? null;
+                                    if (end && end !== address) fillRange(address, end);
+                                    else setFillTo(null);
+                                  };
+                                  window.addEventListener("mousemove", onMove);
+                                  window.addEventListener("mouseup", onUp);
+                                }}
+                                onDoubleClick={(doubleEvent) => {
+                                  doubleEvent.stopPropagation();
+                                  fillDown();
+                                }}
+                                className="absolute -bottom-[3px] -right-[3px] w-2 h-2 rounded-[1px] bg-(--color-accent) border border-white dark:border-(--color-surface) cursor-crosshair z-20"
+                              />
+                            )}
                           </div>
                         )}
                       </td>
@@ -778,19 +1410,36 @@ export function ExcelGrid({
             <span className="hidden sm:inline">Enter = edit · Tab = next cell · Ctrl+Z undo · Ctrl+B bold · paste a block from Excel</span>
           </div>
           <div className="flex items-center gap-3">
-            {typeof selectedValue === "number" && (
-              <>
-                <span>Sum: {displayValue(selectedValue)}</span>
-                <span>Average: {displayValue(selectedValue)}</span>
-              </>
-            )}
+            {(() => {
+              // Excel's status bar totals the numbers it can see in the sheet.
+              const numbers = Object.values(values).filter((v): v is number => typeof v === "number");
+              if (!numbers.length) return null;
+              const sum = numbers.reduce((a, b) => a + b, 0);
+              return (
+                <>
+                  <span>Sum: {displayValue(sum)}</span>
+                  <span>Average: {displayValue(sum / numbers.length)}</span>
+                  <span>Count: {numbers.length}</span>
+                </>
+              );
+            })()}
+            <span className="font-mono">{active}</span>
             <span className="font-mono">{rawActive.startsWith("=") ? "Formula" : "Value"}</span>
           </div>
         </div>
       </div>
 
+      {split && (
+        <div className="rounded-xl border border-(--color-accent)/40 bg-(--color-accent-soft)/50 px-3.5 py-2 text-[11px] flex flex-wrap items-center gap-2 no-print">
+          <b className="text-(--color-accent-dark)">Split view on</b>
+          <span className="text-(--color-muted)">
+            The header row stays frozen while you scroll (Excel's View ▸ Split). Press “Unsplit” to go back to one pane.
+          </span>
+        </div>
+      )}
+
       {errorHint && (
-        <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 px-3.5 py-2 text-xs">
+        <div className="rounded-xl border px-3.5 py-2 text-xs tone-danger">
           <b className="font-mono">{isErr(selectedValue) ? selectedValue.err : ""}</b> — {errorHint.en}
           <span className="block text-(--color-muted)">{errorHint.hi}</span>
         </div>

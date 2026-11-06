@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import {
   ArrowRight,
+  BadgeCheck,
   Award,
   BookOpen,
   Box,
@@ -13,6 +14,7 @@ import {
   PlayCircle,
   Sparkles,
   StickyNote,
+  Table2,
   Trophy,
   Video,
   Wand2,
@@ -31,6 +33,8 @@ import { PASS_PCT, useExams, useProgress, useSubmissions } from "../lib/academy"
 import { useLang } from "../lib/lang";
 
 export type DashDest =
+  | "free"
+  | "workbook"
   | "chapters"
   | "exam"
   | "lab"
@@ -59,6 +63,7 @@ export function Dashboard({
   const { items: exams, loading: examsLoading, error: examsError } = useExams();
   const { items: subs, error: submissionsError } = useSubmissions();
   const [trackFilter, setTrackFilter] = useState<ModuleTrackFilter>("all");
+  const [showAllModules, setShowAllModules] = useState(false);
 
   const loadError = progressError || examsError || submissionsError;
 
@@ -78,6 +83,7 @@ export function Dashboard({
     if (trackFilter === "automation") return idx >= 6;
     return true;
   });
+  const visibleModules = showAllModules || trackFilter !== "all" ? filteredModules : filteredModules.slice(0, 6);
 
   const studios: {
     key: DashDest;
@@ -145,9 +151,9 @@ export function Dashboard({
   ];
 
   return (
-    <div className="space-y-10">
-      {/* ==================== 1. EXECUTIVE HERO & UNIFIED PROGRESS ==================== */}
-      <section className="rounded-3xl border border-(--color-border) bg-(--color-surface) p-6 sm:p-8 shadow-xs">
+    <div className="space-y-7">
+      {/* ==================== 1. HERO: one promise, one primary action ==================== */}
+      <section className="relative overflow-hidden rounded-3xl border border-(--color-border) bg-(--color-surface) p-6 sm:p-8">
         <div className="grid lg:grid-cols-12 gap-8 items-center">
           {/* Left Column: Clean Value Prop & Focused CTAs */}
           <div className="lg:col-span-7 space-y-5">
@@ -192,30 +198,23 @@ export function Dashboard({
                 </Button>
               )}
               <Button variant="secondary" onClick={() => go("lab")} className="!px-4 !py-3">
-                <FlaskConical size={16} /> Practice Lab
+                <FlaskConical size={16} /> Practice in the browser
               </Button>
-              <button
-                type="button"
-                onClick={() => go("toolkit")}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold text-(--color-muted) hover:text-(--color-accent-dark) transition cursor-pointer"
-              >
-                Pro Toolkit & AI <ArrowRight size={15} />
-              </button>
             </div>
 
-            {/* Clean Program Metrics Bar */}
-            <div className="pt-4 border-t border-(--color-border) grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Program metrics — same numbers, calmer presentation */}
+            <div className="pt-4 border-t border-(--color-border) grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { v: `${CHAPTERS.length}`, l: "Structured Chapters" },
-                { v: `${FORMULAS.length}+`, l: "Excel Formulas" },
-                { v: `${SHORTCUTS.length}`, l: "Shortcut Keys" },
-                { v: `${LABS.length}`, l: "Real Office Projects" },
+                { v: `${CHAPTERS.length}`, l: "Chapters" },
+                { v: `${FORMULAS.length}+`, l: "Formulas" },
+                { v: `${SHORTCUTS.length}`, l: "Shortcuts" },
+                { v: `${LABS.length}`, l: "Projects" },
               ].map((m) => (
-                <div key={m.l}>
-                  <div className="font-display text-lg sm:text-xl font-extrabold text-(--color-ink)">
+                <div key={m.l} className="rounded-xl bg-(--color-canvas) border border-(--color-border) px-3 py-2">
+                  <div className="font-display text-base sm:text-lg font-extrabold text-(--color-ink) leading-tight">
                     {m.v}
                   </div>
-                  <div className="text-xs text-(--color-muted)">{m.l}</div>
+                  <div className="text-[11px] text-(--color-muted)">{m.l}</div>
                 </div>
               ))}
             </div>
@@ -296,14 +295,57 @@ export function Dashboard({
         {loadError && (
           <p
             role="alert"
-            className="mt-4 text-xs rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-2.5"
+            className="mt-4 text-xs rounded-xl border px-4 py-2.5 tone-danger"
           >
             Could not load saved progress: {loadError}
           </p>
         )}
       </section>
 
-      {/* ==================== 2. STRUCTURED 9-MODULE CURRICULUM (3x3 GRID) ==================== */}
+      {/* ==================== 2. FREE EXCEL PROMISE — the differentiator ==================== */}
+      <section className="grid sm:grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => go("workbook")}
+          className="group text-left rounded-2xl border border-(--color-accent)/40 bg-(--color-accent-soft)/60 p-4 sm:p-5 hover:border-(--color-accent) transition cursor-pointer"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-(--color-accent-dark)">
+              <Table2 size={13} /> Live spreadsheet
+            </span>
+            <ArrowRight size={15} className="text-(--color-accent-dark) group-hover:translate-x-0.5 transition-transform" />
+          </div>
+          <h2 className="font-display font-extrabold text-base mt-1.5 text-(--color-ink)">
+            Free Excel workbook — {FORMULAS.length}+ formulas, zero subscription
+          </h2>
+          <p className="text-xs text-(--color-muted) mt-1 leading-relaxed">
+            XLOOKUP, FILTER, LET, LAMBDA, Flash Fill, AutoSum — type them and they calculate. Har sheet .xlsx mein
+            download ho sakti hai.
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => go("free")}
+          className="group text-left rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 sm:p-5 hover:border-(--color-accent) transition cursor-pointer"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">
+              <BadgeCheck size={13} /> Free, itemised
+            </span>
+            <ArrowRight size={15} className="text-(--color-muted) group-hover:translate-x-0.5 transition-transform" />
+          </div>
+          <h2 className="font-display font-extrabold text-base mt-1.5 text-(--color-ink)">
+            What Office 365 charges for — and what you get here
+          </h2>
+          <p className="text-xs text-(--color-muted) mt-1 leading-relaxed">
+            Har feature ka status: yahan free chalta hai, formula se hota hai, ya aapki Excel file chahiye. Koi
+            chhupa hua paywall nahi.
+          </p>
+        </button>
+      </section>
+
+      {/* ==================== 3. STRUCTURED CURRICULUM ==================== */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -341,7 +383,7 @@ export function Dashboard({
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredModules.map((m) => {
+          {visibleModules.map((m) => {
             const doneCount = m.chapters.filter((chNum) => done.has(chNum)).length;
             const nextInModule = m.chapters.find((chNum) => !done.has(chNum)) ?? m.chapters[0];
             const complete = doneCount === m.chapters.length;
@@ -352,7 +394,7 @@ export function Dashboard({
                 transition={{ duration: 0.16 }}
                 className="group rounded-2xl border border-(--color-border) bg-(--color-surface) overflow-hidden flex flex-col hover:border-(--color-accent)/60 hover:shadow-md transition"
               >
-                <div className="relative h-36 overflow-hidden bg-slate-100">
+                <div className="relative h-24 overflow-hidden bg-(--color-surface-2)">
                   <img
                     src={m.image}
                     alt={m.titleEn}
@@ -360,7 +402,7 @@ export function Dashboard({
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-                  <span className="absolute top-3 left-3 rounded-lg bg-white/95 text-slate-900 text-[11px] font-bold px-2.5 py-1 shadow-xs">
+                  <span className="absolute top-3 left-3 rounded-lg bg-black/70 text-white text-[11px] font-bold px-2.5 py-1 backdrop-blur-sm">
                     {m.code}
                   </span>
                   <span className="absolute bottom-3 left-3 text-white text-xs font-medium">
@@ -371,7 +413,7 @@ export function Dashboard({
                   </span>
                 </div>
 
-                <div className="p-5 flex-1 flex flex-col justify-between gap-4">
+                <div className="p-4 flex-1 flex flex-col justify-between gap-3">
                   <div>
                     <h3 className="font-display font-bold text-base leading-snug text-(--color-ink)">
                       {lang === "hi" ? m.titleHi : m.titleEn}
@@ -383,11 +425,11 @@ export function Dashboard({
                       {lang === "hi" ? m.descHi : m.descEn}
                     </p>
 
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {m.skills.slice(0, 3).map((sk) => (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {m.skills.slice(0, 2).map((sk) => (
                         <span
                           key={sk}
-                          className="text-[11px] px-2 py-0.5 rounded-md bg-(--color-canvas) border border-(--color-border) text-(--color-muted) font-medium"
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-(--color-canvas) border border-(--color-border) text-(--color-muted) font-medium"
                         >
                           {sk}
                         </span>
@@ -415,14 +457,19 @@ export function Dashboard({
           })}
         </div>
 
-        <div className="flex justify-center pt-1">
+        <div className="flex flex-wrap justify-center gap-2 pt-1">
+          {trackFilter === "all" && filteredModules.length > 6 && (
+            <Button variant="ghost" onClick={() => setShowAllModules((v) => !v)}>
+              {showAllModules ? "Show fewer modules" : `Show all ${filteredModules.length} modules`}
+            </Button>
+          )}
           <Button variant="secondary" onClick={() => go("chapters")}>
-            <BookOpen size={15} /> Browse All {CHAPTERS.length} Chapters Index →
+            <BookOpen size={15} /> All {CHAPTERS.length} chapters →
           </Button>
         </div>
       </section>
 
-      {/* ==================== 3. LEARNING STUDIOS & PRACTICE HUB (3x2 CLEAN BENTO) ==================== */}
+      {/* ==================== 4. LEARNING STUDIOS & PRACTICE HUB ==================== */}
       <section className="space-y-4">
         <div>
           <div className="text-xs font-bold uppercase tracking-wider text-(--color-accent)">
@@ -441,7 +488,7 @@ export function Dashboard({
                 key={item.key}
                 type="button"
                 onClick={() => go(item.key)}
-                className="group text-left rounded-2xl border border-(--color-border) bg-(--color-surface) p-5 hover:border-(--color-accent) hover:shadow-sm transition flex flex-col justify-between gap-4 cursor-pointer"
+                className="group text-left rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 hover:border-(--color-accent) hover:shadow-sm transition flex flex-col justify-between gap-3 cursor-pointer"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
@@ -470,7 +517,7 @@ export function Dashboard({
         </div>
       </section>
 
-      {/* ==================== 4. INTERACTIVE 3D PREVIEW + DAILY MICRO-LEARNING ==================== */}
+      {/* ==================== 5. 3D PREVIEW + DAILY MICRO-LEARNING ==================== */}
       <section className="grid lg:grid-cols-12 gap-5 items-stretch">
         <Card className="lg:col-span-7 !p-5 flex flex-col justify-between gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2">

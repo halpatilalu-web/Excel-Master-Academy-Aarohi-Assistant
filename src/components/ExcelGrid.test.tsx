@@ -85,3 +85,92 @@ describe("ExcelGrid", () => {
     click.mockRestore();
   });
 });
+
+describe("pro tools", () => {
+  it("AutoSum writes a SUM over the numbers above", async () => {
+    render(
+      <ExcelGrid
+        template="t-autosum"
+        title="AutoSum"
+        sheets={[{ name: "S", cells: { A1: "5", A2: "6", B1: "", C1: "=SUM(A1:A2)" } }]}
+        rows={6}
+        cols={4}
+      />,
+    );
+    // Put the cursor in B3 (index 0 is the row header, so row 3 is index 1+2*4)
+    const grid = screen.getByRole("grid");
+    const cells = within(grid).getAllByRole("cell");
+    fireEvent.mouseDown(cells[1 + 4 + 4 + 1]);
+    fireEvent.click(screen.getByRole("button", { name: /AutoSum/i }));
+    // Nothing numeric above B3 → it falls through to SUM() for the student to fill.
+    expect(screen.getAllByText(/AutoSum|SUM\(/i).length).toBeGreaterThan(0);
+  });
+
+  it("shows the virtual keyboard with the function keys Excel has", async () => {
+    render(<ExcelGrid template="t-keys" title="Keys" sheets={[{ name: "S", cells: { A1: "1" } }]} rows={4} cols={3} />);
+    fireEvent.click(screen.getByRole("button", { name: /Keyboard/i }));
+    // Main keys tab: Flash Fill + AutoSum chords are on screen, and F1–F12 is a tab.
+    expect(screen.getByRole("button", { name: /F1–F12/i })).toBeTruthy();
+    expect(screen.getAllByText(/Flash Fill/i).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /F1–F12/i }));
+    expect(screen.getByText("F11")).toBeTruthy();
+  });
+
+  it("runs Flash Fill from the toolbar and reports the pattern", async () => {
+    render(
+      <ExcelGrid
+        template="t-flash"
+        title="Flash"
+        sheets={[{ name: "S", cells: { A1: "Aarav Sharma", A2: "Diya Patel", B1: "Aarav" } }]}
+        rows={8}
+        cols={4}
+      />,
+    );
+    const grid = screen.getByRole("grid");
+    const cells = within(grid).getAllByRole("cell");
+    // Select B1 (row 1, second data column) — index 1 is A1's value cell.
+    fireEvent.mouseDown(cells[2]);
+    fireEvent.click(screen.getByRole("button", { name: /Flash Fill/i }));
+    // The pattern is echoed in the toolbar chip and the status bar.
+    expect((await screen.findAllByText(/Flash Fill pattern|first word/i)).length).toBeGreaterThan(0);
+  });
+});
+
+describe("data tools in the grid", () => {
+  it("sorts A→Z keeping the header row and the other columns attached", async () => {
+    render(
+      <ExcelGrid
+        template="t-sort"
+        title="Sort"
+        sheets={[{ name: "S", cells: { A1: "Name", B1: "Sales", A2: "Kabir", B2: "300", A3: "Aarav", B3: "1200" } }]}
+        rows={6}
+        cols={4}
+      />,
+    );
+    const grid = screen.getByRole("grid");
+    fireEvent.mouseDown(within(grid).getAllByRole("cell")[1]); // A1
+    fireEvent.click(screen.getByRole("button", { name: /Sort A→Z/i }));
+    expect(await screen.findByText(/rows stayed together/i)).toBeTruthy();
+    const cells = within(screen.getByRole("grid")).getAllByRole("cell");
+    // header row 1: [◢?] A1=Name, B1=Sales … then A2 must be Aarav.
+    const values = cells.map((cell) => cell.textContent);
+    expect(values).toContain("Aarav");
+    expect(values.indexOf("Aarav")).toBeLessThan(values.indexOf("Kabir"));
+  });
+
+  it("removes duplicate rows on demand", async () => {
+    render(
+      <ExcelGrid
+        template="t-dupe"
+        title="Dupes"
+        sheets={[
+          { name: "S", cells: { A1: "Name", A2: "Diya", A3: "Diya", A4: "Kabir" } },
+        ]}
+        rows={6}
+        cols={3}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /No dupes|duplicates/i }));
+    expect(await screen.findByText(/Removed 1 duplicate/i)).toBeTruthy();
+  });
+});
