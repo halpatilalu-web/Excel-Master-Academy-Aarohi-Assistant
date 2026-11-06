@@ -8,6 +8,7 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act } from "@testing-library/react";
 import { Desktop, DESKTOP_APPS } from "./Desktop";
 
 beforeEach(() => {
@@ -24,7 +25,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const open = (name: RegExp) => fireEvent.doubleClick(screen.getAllByRole("button", { name })[0]);
+/** Desktop icons open on one tap (double-click was undiscoverable on phones). */
+const open = (name: RegExp) => fireEvent.click(screen.getAllByRole("button", { name })[0]);
 
 describe("Windows desktop", () => {
   it("lists every app on the desktop and in the Start menu", () => {
@@ -34,7 +36,7 @@ describe("Windows desktop", () => {
     }
     expect(screen.getByRole("application", { name: /Windows desktop/i })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Start menu/i }));
-    expect(screen.getByLabelText(/Search apps and files/i)).toBeTruthy();
+    expect(screen.getAllByLabelText(/Search apps and files/i).length).toBe(1);
   });
 
   it("opens Excel, Word and Paint as separate windows and shows them on the taskbar", () => {
@@ -102,5 +104,40 @@ describe("Windows desktop", () => {
     const taskbar = screen.getByRole("application", { name: /Windows desktop/i });
     fireEvent.click(within(taskbar).getByRole("button", { name: /Exit to the course/i }));
     expect(onExit).toHaveBeenCalled();
+  });
+
+  it("types a value and calculates a formula inside the desktop's Excel", async () => {
+    render(<Desktop onExit={() => undefined} />);
+    open(/^Excel$/i);
+    const grid = screen.getByRole("grid");
+
+    const enter = async (address: string, text: string) => {
+      const cell = grid.querySelector(`[data-address="${address}"]`) as HTMLElement;
+      fireEvent.mouseDown(cell);
+      fireEvent.doubleClick(cell);
+      const input = screen.getByLabelText(new RegExp(`Edit cell ${address}`, "i"));
+      fireEvent.change(input, { target: { value: text } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      });
+    };
+
+    // Regression: the apps used to be declared inside Desktop, so every parent
+    // render remounted the grid and threw the typed value away.
+    await enter("B2", "1250");
+    expect((grid.querySelector('[data-address="B2"]') as HTMLElement).textContent).toBe("1250");
+
+    await enter("B3", "=B2*2");
+    expect((grid.querySelector('[data-address="B3"]') as HTMLElement).textContent).toContain("2500");
+  });
+
+  it("exposes data validation and conditional formatting inside the desktop's Excel", async () => {
+    render(<Desktop onExit={() => undefined} />);
+    open(/^Excel$/i);
+    // The rail and the Quick Access row both offer it — either is fine.
+    expect(screen.getAllByRole("button", { name: /Data Validation/i }).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getAllByRole("button", { name: /^Conditional Formatting/i })[0]);
+    expect(await screen.findByRole("dialog", { name: /Conditional Formatting/i })).toBeTruthy();
   });
 });

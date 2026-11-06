@@ -119,6 +119,7 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
       A3: "Printer", B3: "2", C3: "15000", D3: "", E3: "Overdue", F3: "",
       A4: "Keyboard", B4: "10", C4: "800", D4: "", E4: "Paid", F4: "",
     },
+    dropdownCells: { "E2:E4": ["Paid", "Overdue", "Pending"] },
     checks: [
       { cell: "D2", expected: "36000", formulaSample: "=B2*C2", label: "Monitor Amount" },
       { cell: "D3", expected: "30000", formulaSample: "=B3*C3", label: "Printer Amount" },
@@ -186,6 +187,7 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
       A3: "Mumbai", B3: "240000", C3: "160000", D3: "", E3: "Max Rev", F3: "",
       A4: "Delhi", B4: "190000", C4: "120000", D4: "", E4: "Total Profit", F4: "",
     },
+    dropdownCells: { "B2:B8": ["Electronics", "Furniture", "Stationery"] },
     checks: [
       { cell: "D2", expected: "55000", formulaSample: "=B2-C2", label: "Ahmedabad Profit" },
       { cell: "D3", expected: "80000", formulaSample: "=B3-C3", label: "Mumbai Profit" },
@@ -211,6 +213,7 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
       A4: "Keyboard", B4: "3", C4: "1200", D4: "", E4: "SGST 9%", F4: "",
       E5: "Grand Total", F5: "",
     },
+    dropdownCells: { "D2:D6": ["Gujarat (18%)", "Maharashtra (18%)", "Delhi (18%)", "Kerala (5%)"] },
     checks: [
       { cell: "D2", expected: "90000", formulaSample: "=B2*C2", label: "Laptop Amount" },
       { cell: "D3", expected: "3000", formulaSample: "=B3*C3", label: "Mouse Amount" },
@@ -256,6 +259,11 @@ const NOTES: Record<PracticeSheetId, { en: string; hi: string }> = {
 
 export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeSheetId }) {
   const [sheetId, setSheetId] = useState<PracticeSheetId>(initialSheet);
+  // The goal/hint panel is collapsed on phones so the sheet is visible straight
+  // away — on a desktop there is room, so it starts open.
+  const [briefOpen, setBriefOpen] = useState(
+    () => typeof window === "undefined" || window.innerWidth >= 768,
+  );
   const [showHint, setShowHint] = useState(true);
   const [showNotes, setShowNotes] = useState(false);
   const sheet = PRACTICE_SHEETS.find((s) => s.id === sheetId) ?? PRACTICE_SHEETS[0];
@@ -270,6 +278,24 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
     () => savedWorkbooks.find((doc: WorkbookDoc) => doc.template === sheet.id),
     [savedWorkbooks, sheet.id],
   );
+
+  /**
+   * The practice sheets declare dropdowns (e.g. Status = Paid / Overdue). They
+   * become real Data Validation list rules, so the student taps the cell and
+   * picks a value instead of typing it — exactly like Excel's dropdown.
+   */
+  const validationRules = useMemo(() => {
+    const entries = Object.entries(sheet.dropdownCells ?? {});
+    return entries.map(([range, items], index) => ({
+      id: `${sheet.id}-dv-${index}`,
+      range,
+      type: "list" as const,
+      items,
+      allowBlank: true,
+      showDropdown: true,
+      message: `Is cell ke liye allowed: ${items.join(", ")}`,
+    }));
+  }, [sheet]);
 
   const gridSheets = useMemo(
     () => [{ name: "Practice", cells: { ...(saved?.sheets[0]?.cells ?? sheet.initialGrid) } }],
@@ -326,26 +352,38 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
         </a>
       </div>
 
-      <Card className="!p-4 space-y-3">
-        <div>
-          <h2 className="font-display font-extrabold text-lg">
-            {sheet.emoji} {sheet.titleEn}
-          </h2>
-          <p className="text-xs text-(--color-muted)">{sheet.titleHi}</p>
-        </div>
-        <Bilingual en={sheet.goalEn} hi={sheet.goalHi} />
-        {showHint && (
+      <Card className="!p-3 sm:!p-4 space-y-2 sm:space-y-3">
+        <button
+          type="button"
+          onClick={() => setBriefOpen((value) => !value)}
+          className="flex w-full items-start justify-between gap-2 text-left"
+          aria-expanded={briefOpen}
+        >
+          <span>
+            <span className="block font-display font-extrabold text-base sm:text-lg">
+              {sheet.emoji} {sheet.titleEn}
+            </span>
+            <span className="block text-xs text-(--color-muted)">{sheet.titleHi}</span>
+          </span>
+          <span className="text-[11px] font-semibold text-(--color-accent-dark) whitespace-nowrap shrink-0">
+            {briefOpen ? "Hide brief" : "Show brief"}
+          </span>
+        </button>
+        {briefOpen && (
+          <Bilingual en={sheet.goalEn} hi={sheet.goalHi} />
+        )}
+        {briefOpen && showHint && (
           <div className="rounded-xl bg-amber-500/10 border border-amber-400/40 px-3.5 py-2 text-xs font-mono">
             💡 Hint: <b>{sheet.hintFormula}</b>
           </div>
         )}
-        {showNotes && (
+        {briefOpen && showNotes && (
           <div className="rounded-xl border border-(--color-border) bg-(--color-canvas) px-3.5 py-2 text-xs">
             <div>{notes.en}</div>
             <div className="text-(--color-muted) mt-1">{notes.hi}</div>
           </div>
         )}
-        <div className="flex flex-wrap gap-1.5 text-[11px]">
+        <div className={`flex flex-wrap gap-1.5 text-[11px] ${briefOpen ? "" : "hidden"}`}>
           {sheet.checks.map((check) => (
             <Pill key={check.cell} tone="info">
               {check.cell} · {check.label}
@@ -359,8 +397,9 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
         template={sheet.id}
         title={sheet.titleEn}
         sheets={gridSheets}
-        rows={Math.max(12, Object.keys(sheet.initialGrid).length + 6)}
-        cols={Math.max(6, sheet.cols.length + 2)}
+        rows={Math.max(26, Object.keys(sheet.initialGrid).length + 12)}
+        cols={Math.max(8, sheet.cols.length + 2)}
+        validation={validationRules}
         brief={{
           title: `${sheet.emoji} ${sheet.titleEn}`,
           hint: sheet.titleHi,

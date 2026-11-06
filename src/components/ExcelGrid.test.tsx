@@ -310,7 +310,166 @@ describe("ribbon, formatting and the data form", () => {
       .filter((input) => input.getAttribute("aria-label") === null);
     fireEvent.change(inputs[0], { target: { value: "Diya" } });
     fireEvent.change(inputs[1], { target: { value: "Pune" } });
-    fireEvent.click(screen.getByRole("button", { name: /^New/ }));
+    fireEvent.click(within(dialog).getByRole("button", { name: /^New/ }));
     expect((await screen.findAllByText(/save ho gaya/i)).length).toBeGreaterThan(0);
+  });
+});
+
+describe("Excel parity: validation, conditional formatting, filter, names", () => {
+  const sheet = {
+    name: "S",
+    cells: {
+      A1: "Item",
+      B1: "Qty",
+      C1: "City",
+      A2: "Laptop",
+      B2: "2",
+      C2: "Surat",
+      A3: "Mouse",
+      B3: "10",
+      C3: "Pune",
+      A4: "Cable",
+      B4: "25",
+      C4: "Surat",
+    },
+  };
+  const mount = (template: string) =>
+    render(<ExcelGrid template={template} title="Parity" sheets={[sheet]} rows={12} cols={5} />);
+
+  it("adds a dropdown with Data Validation and rejects a value that is not in it", async () => {
+    mount("t-validation");
+    // The quick-access row is always visible, so the tool is discoverable.
+    fireEvent.click(screen.getByRole("button", { name: /Data Validation/i }));
+    const dialog = await screen.findByRole("dialog", { name: /Data Validation/i });
+    fireEvent.change(within(dialog).getByLabelText(/Applies to/i), { target: { value: "C2:C4" } });
+    fireEvent.change(within(dialog).getByLabelText(/List values/i), { target: { value: "Surat, Pune, Mumbai" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: /Apply to/i }));
+    expect(screen.queryByRole("dialog", { name: /Data Validation/i })).toBeNull();
+
+    // Type a bad value into C2 — Excel's stop alert appears and the cell keeps Surat.
+    const grid = screen.getByRole("grid");
+    fireEvent.mouseDown(within(grid).getAllByRole("cell")[1]); // header row cell A1 index
+    const c2 = document.querySelector('[data-address="C2"]') as HTMLElement;
+    fireEvent.mouseDown(c2);
+    fireEvent.doubleClick(c2);
+    const input = await screen.findByLabelText(/Edit cell C2/i);
+    fireEvent.change(input, { target: { value: "Delhi" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(await screen.findByRole("alertdialog", { name: /Data Validation alert/i })).toBeTruthy();
+    expect((screen.getByRole("alertdialog", { name: /Data Validation alert/i }).textContent ?? "")).toContain("Delhi");
+  });
+
+  it("applies a conditional formatting rule that colours the column", async () => {
+    mount("t-cf");
+    fireEvent.click(screen.getByRole("button", { name: /Conditional Formatting/i }));
+    const dialog = await screen.findByRole("dialog", { name: /Conditional Formatting/i });
+    fireEvent.change(within(dialog).getByLabelText(/Rule type/i), { target: { value: "greater" } });
+    fireEvent.change(within(dialog).getByLabelText(/Rule value/i), { target: { value: "5" } });
+    fireEvent.change(within(dialog).getByLabelText(/Applies to/i), { target: { value: "B2:B4" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: /Apply rule/i }));
+    const b4 = document.querySelector('[data-address="B4"]') as HTMLElement;
+    const b2 = document.querySelector('[data-address="B2"]') as HTMLElement;
+    // 25 > 5 gets a fill, 2 does not.
+    expect(b4.style.backgroundColor).toBeTruthy();
+    expect(b2.style.backgroundColor).toBeFalsy();
+  });
+
+  it("filters rows without deleting them", async () => {
+    mount("t-filter");
+    fireEvent.click(screen.getByRole("button", { name: /^Filter/i }));
+    const dialog = await screen.findByRole("dialog", { name: /^Filter$/i });
+    fireEvent.click(within(dialog).getByRole("button", { name: /Add condition/i }));
+    fireEvent.change(within(dialog).getByLabelText(/Filter column 1/i), { target: { value: "2" } });
+    fireEvent.change(within(dialog).getByLabelText(/Filter condition 1/i), { target: { value: "eq" } });
+    fireEvent.change(within(dialog).getByLabelText(/Filter value 1/i), { target: { value: "Surat" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: /Apply filter/i }));
+    // Row 3 (Pune) is hidden; the row is still in the sheet.
+    const pune = document.querySelector('[data-address="C3"]')?.closest("tr");
+    expect(pune?.className).toContain("hidden");
+    const surat = document.querySelector('[data-address="C4"]')?.closest("tr");
+    expect(surat?.className ?? "").not.toContain("hidden");
+  });
+
+  it("names a range and expands it inside a formula", async () => {
+    mount("t-names");
+    fireEvent.click(screen.getByRole("button", { name: /^Formulas$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Name Manager/i }));
+    const dialog = await screen.findByRole("dialog", { name: /Name Manager/i });
+    fireEvent.change(within(dialog).getByLabelText(/Range name/i), { target: { value: "Qty" } });
+    fireEvent.change(within(dialog).getByLabelText(/Range reference/i), { target: { value: "B2:B4" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: /Add name/i }));
+    fireEvent.click(within(dialog).getByRole("button", { name: /^Close$/ }));
+
+    // =SUM(Qty) must behave like =SUM(B2:B4) → 37.
+    const e1 = document.querySelector('[data-address="E1"]') as HTMLElement;
+    fireEvent.mouseDown(e1);
+    fireEvent.doubleClick(e1);
+    const input = await screen.findByLabelText(/Edit cell E1/i);
+    fireEvent.change(input, { target: { value: "=SUM(Qty)" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect((await screen.findAllByText("37")).length).toBeGreaterThan(0);
+  });
+
+  it("opens the formula bar by tapping it and edits in place", async () => {
+    mount("t-formulabar");
+    const c2 = document.querySelector('[data-address="C2"]') as HTMLElement;
+    fireEvent.mouseDown(c2);
+    const bar = screen.getByLabelText(/Formula bar/i) as HTMLInputElement;
+    fireEvent.mouseDown(bar);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.getByLabelText(/Commit edit/i)).toBeTruthy();
+    fireEvent.change(bar, { target: { value: '=UPPER(C1)&" 2026"' } });
+    fireEvent.click(screen.getByLabelText(/Commit edit/i));
+    expect((await screen.findAllByText(/CITY 2026/)).length).toBeGreaterThan(0);
+  });
+
+  it("has a full-screen mode that keeps the sheet and the formula bar", async () => {
+    mount("t-zen");
+    fireEvent.click(screen.getByRole("button", { name: /Full screen/i }));
+    expect(screen.getByRole("button", { name: /Exit full screen/i })).toBeTruthy();
+    expect(screen.getByLabelText(/Formula bar/i)).toBeTruthy();
+    expect(screen.getByRole("grid")).toBeTruthy();
+  });
+});
+
+describe("Excel dropdowns (data validation lists)", () => {
+  it("shows an arrow on a validated cell and writes the picked value", async () => {
+    render(
+      <ExcelGrid
+        template="t-dropdown"
+        title="Dropdown"
+        sheets={[{ name: "S", cells: { A1: "Status", A2: "Paid", A3: "" } }]}
+        rows={6}
+        cols={3}
+        validation={[
+          { id: "v1", range: "A2:A3", type: "list", items: ["Paid", "Overdue", "Pending"], showDropdown: true },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Choose value for A3/i }));
+    const list = await screen.findByRole("listbox", { name: /Values for A3/i });
+    fireEvent.click(within(list).getByRole("option", { name: "Overdue" }));
+    expect((await screen.findAllByText("Overdue")).length).toBeGreaterThan(0);
+  });
+
+  it("blocks a typed value that is not in the list", async () => {
+    render(
+      <ExcelGrid
+        template="t-dropdown2"
+        title="Dropdown"
+        sheets={[{ name: "S", cells: { A1: "Status", A2: "Paid" } }]}
+        rows={6}
+        cols={3}
+        validation={[{ id: "v1", range: "A2:A3", type: "list", items: ["Paid", "Overdue"], message: "Sirf Paid ya Overdue." }]}
+      />,
+    );
+    const a2 = document.querySelector('[data-address="A2"]') as HTMLElement;
+    fireEvent.mouseDown(a2);
+    fireEvent.doubleClick(a2);
+    const input = await screen.findByLabelText(/Edit cell A2/i);
+    fireEvent.change(input, { target: { value: "Unknown" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    const alert = await screen.findByRole("alertdialog", { name: /Data Validation alert/i });
+    expect(alert.textContent).toContain("Sirf Paid ya Overdue.");
   });
 });
