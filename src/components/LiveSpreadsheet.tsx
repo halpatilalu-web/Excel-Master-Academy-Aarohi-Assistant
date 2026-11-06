@@ -1,7 +1,33 @@
-import { useMemo, useState } from "react";
-import { CheckCircle2, Download, HelpCircle, RotateCcw, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BookOpen, CheckCircle2, Download, ExternalLink, FileSpreadsheet, HelpCircle, RotateCcw, Sparkles } from "lucide-react";
 import { Bilingual } from "../lib/lang";
 import { Button, Card, Pill } from "./ui";
+import { ExcelGrid, type GridCheck } from "./ExcelGrid";
+import { useWorkbooks, type WorkbookDoc } from "../lib/excel/useWorkbook";
+import { buildXlsx, type ExportSheet } from "../lib/excel/xlsx";
+
+/** File name of the .xlsx hand-off for one practice sheet. */
+const xlsxName = (id: string) => `Excel-Practice-${id.replace(/^sheet-/, "")}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+/**
+ * Turn a saved practice sheet into a real .xlsx download. Formulas stay text so
+ * desktop Excel / Excel mobile recalculates them with its own engine — that is
+ * the "use every function in real Excel" path.
+ */
+export function downloadPracticeXlsx(title: string, cells: Record<string, string>, template: string) {
+  const sheet: ExportSheet = { name: "Practice", cells };
+  const bytes = buildXlsx([sheet]);
+  const blob = new Blob([bytes as unknown as BlobPart], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = xlsxName(template);
+  link.title = title;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export type PracticeSheetId =
   | "sheet-marks"
@@ -20,10 +46,10 @@ interface PracticeTask {
   goalEn: string;
   goalHi: string;
   hintFormula: string;
-  cols: string[]; // e.g. ["A","B","C","D","E","F"]
+  cols: string[];
   initialGrid: Record<string, string>;
   dropdownCells?: Record<string, string[]>;
-  checks: { cell: string; expected: string; formulaSample: string; label: string }[];
+  checks: GridCheck[];
 }
 
 export const PRACTICE_SHEETS: PracticeTask[] = [
@@ -38,7 +64,7 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
     cols: ["A", "B", "C", "D", "E", "F", "G"],
     initialGrid: {
       A1: "Student", B1: "Maths", C1: "Science", D1: "English", E1: "Total", F1: "Average", G1: "Result",
-      A2: "Aarav", B2: "78", C2: "82", D2: "80", E2: "=SUM(B2:D2)", F2: "", G2: "",
+      A2: "Aarav", B2: "78", C2: "82", D2: "80", E2: "", F2: "", G2: "",
       A3: "Diya", B3: "90", C3: "85", D3: "95", E3: "", F3: "", G3: "",
       A4: "Kabir", B4: "32", C4: "38", D4: "35", E4: "", F4: "", G4: "",
     },
@@ -65,7 +91,7 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
     cols: ["A", "B", "C", "D"],
     initialGrid: {
       A1: "Dirty Name", B1: "City-PIN", C1: "Clean Name", D1: "PIN Code",
-      A2: "   ravi   sharma ", B2: "Ahmedabad-380001", C2: "=PROPER(TRIM(A2))", D2: "",
+      A2: "   ravi   sharma ", B2: "Ahmedabad-380001", C2: "", D2: "",
       A3: " NEHA   verma  ", B3: "Mumbai-400001", C3: "", D3: "",
       A4: "  ankit  PATEL ", B4: "Surat-395007", C4: "", D4: "",
     },
@@ -83,20 +109,15 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
     emoji: "🎨",
     titleEn: "3. Invoice Validation & Conditional Alert",
     titleHi: "3. Dropdown Validation aur Alert Formula",
-    goalEn: "Compute Amount in D2:D4 (=B2*C2), pick Status from dropdown in E2:E4, and write Alert in F2:F4 (=IF(E2=\"Overdue\",\"Action!\",\"OK\")).",
-    goalHi: "D2:D4 mein =B2*C2 likho, E column mein Dropdown chuno, aur F2:F4 mein =IF(E2=\"Overdue\",\"Action!\",\"OK\") lagao!",
+    goalEn: "Compute Amount in D2:D4 (=B2*C2), then write Alerts in F2:F4 (=IF(E2=\"Overdue\",\"Action!\",\"OK\")).",
+    goalHi: "D2:D4 mein =B2*C2 likho, E column mein status chuno, aur F2:F4 mein =IF(E2=\"Overdue\",\"Action!\",\"OK\") lagao!",
     hintFormula: '=B2*C2   |   =IF(E2="Overdue","Action!","OK")',
     cols: ["A", "B", "C", "D", "E", "F"],
     initialGrid: {
-      A1: "Item", B1: "Qty", C1: "Price", D1: "Amount", E1: "Status ▼", F1: "Alert",
-      A2: "Monitor", B2: "3", C2: "12000", D2: "=B2*C2", E2: "Paid", F2: "",
+      A1: "Item", B1: "Qty", C1: "Price", D1: "Amount", E1: "Status", F1: "Alert",
+      A2: "Monitor", B2: "3", C2: "12000", D2: "", E2: "Paid", F2: "",
       A3: "Printer", B3: "2", C3: "15000", D3: "", E3: "Overdue", F3: "",
       A4: "Keyboard", B4: "10", C4: "800", D4: "", E4: "Paid", F4: "",
-    },
-    dropdownCells: {
-      E2: ["Paid", "Overdue", "Pending"],
-      E3: ["Paid", "Overdue", "Pending"],
-      E4: ["Paid", "Overdue", "Pending"],
     },
     checks: [
       { cell: "D2", expected: "36000", formulaSample: "=B2*C2", label: "Monitor Amount" },
@@ -112,8 +133,8 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
     emoji: "🧮",
     titleEn: "4. Regional Summary (SUMIF & COUNTIF)",
     titleHi: "4. Shart ke saath Jodna (SUMIF aur COUNTIF)",
-    goalEn: "Find North Total Sales in E2 (=SUMIF(A2:A5,\"North\",C2:C5)) and North Order Count in E3 (=COUNTIF(A2:A5,\"North\")).",
-    goalHi: "E2 mein North ki kul bikri =SUMIF(A2:A5,\"North\",C2:C5) aur E3 mein North ke orders =COUNTIF(A2:A5,\"North\") nikalo!",
+    goalEn: "Find North Total Sales in E2 (=SUMIF(A2:A5,\"North\",C2:C5)), North Order Count in E3 (=COUNTIF(A2:A5,\"North\")), and West Sales in E4.",
+    goalHi: "E2 mein North ki kul bikri =SUMIF(A2:A5,\"North\",C2:C5), E3 mein orders =COUNTIF(A2:A5,\"North\"), aur E4 mein West ki bikri nikalo!",
     hintFormula: '=SUMIF(A2:A5,"North",C2:C5)   |   =COUNTIF(A2:A5,"North")',
     cols: ["A", "B", "C", "D", "E"],
     initialGrid: {
@@ -134,19 +155,16 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
     emoji: "🔎",
     titleEn: "5. XLOOKUP & VLOOKUP Employee Finder",
     titleHi: "5. XLOOKUP aur VLOOKUP se Salary Dhundho",
-    goalEn: "Use =XLOOKUP(E2,A2:A5,C2:C5) or =VLOOKUP(E2,A2:C5,3,0) in F2 to fetch Salary and in F3 to fetch Name for the ID in E2!",
+    goalEn: "For the ID in E2 (E103), fetch the Salary in F2 with =XLOOKUP(E2,A2:A5,C2:C5) and the Name in F3 with =XLOOKUP(E2,A2:A5,B2:B5).",
     goalHi: "E2 mein likhe EmpID (E103) ke liye F2 mein Salary (=XLOOKUP(E2,A2:A5,C2:C5)) aur F3 mein Name nikalo!",
     hintFormula: "=XLOOKUP(E2,A2:A5,C2:C5)   |   =XLOOKUP(E2,A2:A5,B2:B5)",
     cols: ["A", "B", "C", "D", "E", "F"],
     initialGrid: {
       A1: "EmpID", B1: "Name", C1: "Salary", D1: "", E1: "Search ID", F1: "Lookup Output",
       A2: "E101", B2: "Aarav", C2: "48000", D2: "", E2: "E103", F2: "",
-      A3: "E102", B3: "Diya", C3: "72000", D3: "", E3: "Name →", F3: "",
+      A3: "E102", B3: "Diya", C3: "72000", D3: "", E3: "", F3: "",
       A4: "E103", B4: "Rohan", C4: "65000", D4: "", E4: "", F4: "",
       A5: "E104", B5: "Meera", C5: "54000", D5: "", E5: "", F5: "",
-    },
-    dropdownCells: {
-      E2: ["E101", "E102", "E103", "E104"],
     },
     checks: [
       { cell: "F2", expected: "65000", formulaSample: "=XLOOKUP(E2,A2:A5,C2:C5)", label: "Salary Lookup" },
@@ -158,13 +176,13 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
     emoji: "🏆",
     titleEn: "6. Executive KPI Summary Sheet",
     titleHi: "6. Mini MIS Dashboard KPI Calculation",
-    goalEn: "Compute Profit in D2:D4 (=B2-C2), Total Revenue in F2 (=SUM(B2:B4)), and Highest Revenue in F3 (=MAX(B2:B4)).",
-    goalHi: "D2:D4 mein Profit (=B2-C2), F2 mein Total Revenue (=SUM(B2:B4)), aur F3 mein Highest Sale (=MAX(B2:B4)) nikalo!",
+    goalEn: "Compute Profit in D2:D4 (=B2-C2), Total Revenue in F2 (=SUM(B2:B4)), Highest Revenue in F3 (=MAX(B2:B4)) and Total Profit in F4 (=SUM(D2:D4)).",
+    goalHi: "D2:D4 mein Profit (=B2-C2), F2 mein Total Revenue (=SUM(B2:B4)), F3 mein Highest Sale (=MAX(B2:B4)) aur F4 mein Total Profit nikalo!",
     hintFormula: "=B2-C2   |   =SUM(B2:B4)   |   =MAX(B2:B4)",
     cols: ["A", "B", "C", "D", "E", "F"],
     initialGrid: {
       A1: "Branch", B1: "Revenue", C1: "Cost", D1: "Profit", E1: "KPI", F1: "Value",
-      A2: "Ahmedabad", B2: "150000", C2: "95000", D2: "=B2-C2", E2: "Total Rev", F2: "",
+      A2: "Ahmedabad", B2: "150000", C2: "95000", D2: "", E2: "Total Rev", F2: "",
       A3: "Mumbai", B3: "240000", C3: "160000", D3: "", E3: "Max Rev", F3: "",
       A4: "Delhi", B4: "190000", C4: "120000", D4: "", E4: "Total Profit", F4: "",
     },
@@ -182,390 +200,94 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
     emoji: "🧾",
     titleEn: "7. GST Tax Invoice (CGST, SGST, IGST & Grand Total)",
     titleHi: "7. GST Tax Invoice (CGST 9%, SGST 9%, IGST 18% aur Bill Total)",
-    goalEn: 'Home State is "Gujarat". If Buyer State (B2:B4) = "Gujarat", charge 9% CGST in D & 9% SGST in E, else 18% IGST in F, and Invoice Total in G (=SUM(C2:F2))!',
-    goalHi: 'Home State "Gujarat" hai. Agar State (B2:B4) = "Gujarat" ho to D mein 9% CGST aur E mein 9% SGST lagao, warna F mein 18% IGST aur G mein =SUM(C2:F2) se Bill Total nikalo!',
-    hintFormula: '=IF(B2="Gujarat",C2*0.09,0)  |  =IF(B2="Gujarat",0,C2*0.18)  |  =SUM(C2:F2)',
-    cols: ["A", "B", "C", "D", "E", "F", "G"],
-    dropdownCells: {
-      B2: ["Gujarat", "Maharashtra", "Delhi"],
-      B3: ["Gujarat", "Maharashtra", "Delhi"],
-      B4: ["Gujarat", "Maharashtra", "Delhi"],
-    },
+    goalEn: "Amount D2:D4 = Qty × Rate. Taxable in F2 (=SUM(D2:D4)), CGST in F3 (=ROUND(F2*9%,2)), SGST in F4 (=ROUND(F2*9%,2)) and Grand Total in F5 (=F2+F3+F4).",
+    goalHi: "D2:D4 mein Amount (Qty × Rate), F2 mein Taxable Value, F3/F4 mein CGST/SGST 9% (ROUND ke saath) aur F5 mein Grand Total nikalo!",
+    hintFormula: "=D2  ...  =SUM(D2:D4)   |   =ROUND(F2*9%,2)   |   =F2+F3+F4",
+    cols: ["A", "B", "C", "D", "E", "F"],
     initialGrid: {
-      A1: "Client", B1: "BuyerState", C1: "Taxable", D1: "CGST_9%", E1: "SGST_9%", F1: "IGST_18%", G1: "BillTotal",
-      A2: "Surat Textiles", B2: "Gujarat", C2: "10000", D2: '=IF(B2="Gujarat",C2*0.09,0)', E2: "", F2: "", G2: "",
-      A3: "Mumbai Traders", B3: "Maharashtra", C3: "20000", D3: "", E3: "", F3: "", G3: "",
-      A4: "Rajkot Mart", B4: "Gujarat", C4: "15000", D4: "", E4: "", F4: "", G4: "",
+      A1: "Item", B1: "Qty", C1: "Rate", D1: "Amount", E1: "GST Head", F1: "Value",
+      A2: "Laptop", B2: "2", C2: "45000", D2: "", E2: "Taxable", F2: "",
+      A3: "Mouse", B3: "5", C3: "600", D3: "", E3: "CGST 9%", F3: "",
+      A4: "Keyboard", B4: "3", C4: "1200", D4: "", E4: "SGST 9%", F4: "",
+      E5: "Grand Total", F5: "",
     },
     checks: [
-      { cell: "D2", expected: "900", formulaSample: '=IF(B2="Gujarat",C2*0.09,0)', label: "Row 2 CGST" },
-      { cell: "E2", expected: "900", formulaSample: '=IF(B2="Gujarat",C2*0.09,0)', label: "Row 2 SGST" },
-      { cell: "F2", expected: "0", formulaSample: '=IF(B2="Gujarat",0,C2*0.18)', label: "Row 2 IGST" },
-      { cell: "G2", expected: "11800", formulaSample: "=SUM(C2:F2)", label: "Row 2 Total" },
-      { cell: "D3", expected: "0", formulaSample: '=IF(B3="Gujarat",C3*0.09,0)', label: "Row 3 CGST" },
-      { cell: "E3", expected: "0", formulaSample: '=IF(B3="Gujarat",C3*0.09,0)', label: "Row 3 SGST" },
-      { cell: "F3", expected: "3600", formulaSample: '=IF(B3="Gujarat",0,C3*0.18)', label: "Row 3 IGST" },
-      { cell: "G3", expected: "23600", formulaSample: "=SUM(C3:F3)", label: "Row 3 Total" },
-      { cell: "G4", expected: "17700", formulaSample: '=IF(B4="Gujarat",C4*1.18,C4*1.18)', label: "Row 4 Total" },
+      { cell: "D2", expected: "90000", formulaSample: "=B2*C2", label: "Laptop Amount" },
+      { cell: "D3", expected: "3000", formulaSample: "=B3*C3", label: "Mouse Amount" },
+      { cell: "D4", expected: "3600", formulaSample: "=B4*C4", label: "Keyboard Amount" },
+      { cell: "F2", expected: "96600", formulaSample: "=SUM(D2:D4)", label: "Taxable Value" },
+      { cell: "F3", expected: "8694", formulaSample: "=ROUND(F2*9%,2)", label: "CGST" },
+      { cell: "F4", expected: "8694", formulaSample: "=ROUND(F2*9%,2)", label: "SGST" },
+      { cell: "F5", expected: "113988", formulaSample: "=F2+F3+F4", label: "Grand Total" },
     ],
   },
 ];
 
-function colIndex(col: string): number {
-  return col.toUpperCase().charCodeAt(0) - 65;
-}
-
-function expandRange(rangeStr: string): string[] {
-  const clean = rangeStr.replace(/\$/g, "").trim().toUpperCase();
-  const m = /^([A-Z])(\d+):([A-Z])(\d+)$/.exec(clean);
-  if (!m) return [clean];
-  const c1 = colIndex(m[1]);
-  const r1 = Number(m[2]);
-  const c2 = colIndex(m[3]);
-  const r2 = Number(m[4]);
-  const cells: string[] = [];
-  for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) {
-    for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) {
-      cells.push(`${String.fromCharCode(65 + c)}${r}`);
-    }
-  }
-  return cells;
-}
-
-function splitTopArgs(inside: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let depth = 0;
-  let inQuotes = false;
-  for (let i = 0; i < inside.length; i++) {
-    const ch = inside[i];
-    if (ch === '"') inQuotes = !inQuotes;
-    if (!inQuotes) {
-      if (ch === "(") depth++;
-      if (ch === ")") depth--;
-      if (ch === "," && depth === 0) {
-        out.push(cur.trim());
-        cur = "";
-        continue;
-      }
-    }
-    cur += ch;
-  }
-  if (cur.trim() || inside.endsWith(",")) out.push(cur.trim());
-  return out;
-}
-
-function evalExpr(
-  rawExpr: string,
-  getCell: (addr: string) => string,
-): string {
-  const expr = rawExpr.trim();
-  if (!expr) return "";
-  if (expr.startsWith('"') && expr.endsWith('"')) return expr.slice(1, -1);
-  if (/^-?\d+(\.\d+)?$/.test(expr)) return String(Number(expr));
-
-  // Function call NAME(...)
-  const fnMatch = /^([A-Z0-9._]+)\(([\s\S]*)\)$/i.exec(expr);
-  if (fnMatch) {
-    const fn = fnMatch[1].toUpperCase();
-    const args = splitTopArgs(fnMatch[2]);
-
-    const numList = (a: string) =>
-      expandRange(a)
-        .map((c) => Number(getCell(c)))
-        .filter((n) => !Number.isNaN(n));
-
-    if (fn === "SUM") {
-      return String(args.flatMap(numList).reduce((a, b) => a + b, 0));
-    }
-    if (fn === "AVERAGE") {
-      const nums = args.flatMap(numList);
-      return nums.length ? String(Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100) : "#DIV/0!";
-    }
-    if (fn === "MIN") {
-      const nums = args.flatMap(numList);
-      return nums.length ? String(Math.min(...nums)) : "0";
-    }
-    if (fn === "MAX") {
-      const nums = args.flatMap(numList);
-      return nums.length ? String(Math.max(...nums)) : "0";
-    }
-    if (fn === "COUNT") {
-      return String(args.flatMap(numList).length);
-    }
-    if (fn === "COUNTA") {
-      return String(
-        args
-          .flatMap(expandRange)
-          .map(getCell)
-          .filter((v) => v !== "").length,
-      );
-    }
-    if (fn === "TRIM") {
-      const v = evalExpr(args[0] ?? "", getCell);
-      return v.trim().replace(/\s+/g, " ");
-    }
-    if (fn === "UPPER") return evalExpr(args[0] ?? "", getCell).toUpperCase();
-    if (fn === "LOWER") return evalExpr(args[0] ?? "", getCell).toLowerCase();
-    if (fn === "PROPER") {
-      return evalExpr(args[0] ?? "", getCell)
-        .toLowerCase()
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-    }
-    if (fn === "LEN") return String(evalExpr(args[0] ?? "", getCell).length);
-    if (fn === "LEFT") {
-      const s = evalExpr(args[0] ?? "", getCell);
-      const n = Number(evalExpr(args[1] ?? "1", getCell));
-      return s.slice(0, n);
-    }
-    if (fn === "RIGHT") {
-      const s = evalExpr(args[0] ?? "", getCell);
-      const n = Number(evalExpr(args[1] ?? "1", getCell));
-      return s.slice(Math.max(0, s.length - n));
-    }
-    if (fn === "CONCAT") {
-      return args.map((a) => evalExpr(a, getCell)).join("");
-    }
-    if (fn === "IF") {
-      const cond = args[0] ?? "";
-      const cmp = /^(.*?)(>=|<=|<>|=|>|<)(.*)$/.exec(cond);
-      let ok = false;
-      if (cmp) {
-        const lv = evalExpr(cmp[1], getCell);
-        const op = cmp[2];
-        const rv = evalExpr(cmp[3], getCell);
-        const ln = Number(lv);
-        const rn = Number(rv);
-        const bothNum = lv !== "" && rv !== "" && !Number.isNaN(ln) && !Number.isNaN(rn);
-        if (op === "=") ok = lv.toLowerCase() === rv.toLowerCase();
-        else if (op === "<>") ok = lv.toLowerCase() !== rv.toLowerCase();
-        else if (op === ">=") ok = bothNum ? ln >= rn : lv >= rv;
-        else if (op === "<=") ok = bothNum ? ln <= rn : lv <= rv;
-        else if (op === ">") ok = bothNum ? ln > rn : lv > rv;
-        else if (op === "<") ok = bothNum ? ln < rn : lv < rv;
-      }
-      return evalExpr(ok ? (args[1] ?? "") : (args[2] ?? ""), getCell);
-    }
-    if (fn === "COUNTIF") {
-      const cells = expandRange(args[0] ?? "");
-      const crit = evalExpr(args[1] ?? "", getCell).toLowerCase();
-      return String(cells.filter((c) => getCell(c).toLowerCase() === crit).length);
-    }
-    if (fn === "SUMIF") {
-      const critCells = expandRange(args[0] ?? "");
-      const crit = evalExpr(args[1] ?? "", getCell).toLowerCase();
-      const sumCells = args[2] ? expandRange(args[2]) : critCells;
-      let total = 0;
-      critCells.forEach((c, idx) => {
-        if (getCell(c).toLowerCase() === crit) {
-          total += Number(getCell(sumCells[idx] ?? "")) || 0;
-        }
-      });
-      return String(total);
-    }
-    if (fn === "XLOOKUP") {
-      const needle = evalExpr(args[0] ?? "", getCell).toLowerCase();
-      const lookArr = expandRange(args[1] ?? "");
-      const retArr = expandRange(args[2] ?? "");
-      const fallback = args[3] ? evalExpr(args[3], getCell) : "#N/A";
-      const idx = lookArr.findIndex((c) => getCell(c).toLowerCase() === needle);
-      return idx >= 0 ? getCell(retArr[idx] ?? "") : fallback;
-    }
-    if (fn === "VLOOKUP") {
-      const needle = evalExpr(args[0] ?? "", getCell).toLowerCase();
-      const cleanTbl = (args[1] ?? "").replace(/\$/g, "").toUpperCase();
-      const m = /^([A-Z])(\d+):([A-Z])(\d+)$/.exec(cleanTbl);
-      const colOffset = Number(evalExpr(args[2] ?? "1", getCell)) - 1;
-      if (!m) return "#REF!";
-      const startCol = colIndex(m[1]);
-      const r1 = Number(m[2]);
-      const r2 = Number(m[4]);
-      for (let r = r1; r <= r2; r++) {
-        const firstAddr = `${String.fromCharCode(65 + startCol)}${r}`;
-        if (getCell(firstAddr).toLowerCase() === needle) {
-          const retAddr = `${String.fromCharCode(65 + startCol + colOffset)}${r}`;
-          return getCell(retAddr);
-        }
-      }
-      return "#N/A";
-    }
-    if (fn === "MATCH") {
-      const needle = evalExpr(args[0] ?? "", getCell).toLowerCase();
-      const arr = expandRange(args[1] ?? "");
-      const idx = arr.findIndex((c) => getCell(c).toLowerCase() === needle);
-      return idx >= 0 ? String(idx + 1) : "#N/A";
-    }
-    if (fn === "INDEX") {
-      const arr = expandRange(args[0] ?? "");
-      const pos = Number(evalExpr(args[1] ?? "1", getCell)) - 1;
-      return pos >= 0 && pos < arr.length ? getCell(arr[pos]) : "#REF!";
-    }
-  }
-
-  // Single cell reference like B2 or $B$2
-  const refClean = expr.replace(/\$/g, "").toUpperCase();
-  if (/^[A-Z]\d+$/.test(refClean)) {
-    return getCell(refClean);
-  }
-
-  // Simple binary arithmetic A2*B2, B2-C2, B2+C2, B2/C2
-  for (const op of ["+", "-", "*", "/"] as const) {
-    const idx = expr.lastIndexOf(op);
-    if (idx > 0) {
-      const left = Number(evalExpr(expr.slice(0, idx), getCell));
-      const right = Number(evalExpr(expr.slice(idx + 1), getCell));
-      if (!Number.isNaN(left) && !Number.isNaN(right)) {
-        if (op === "+") return String(left + right);
-        if (op === "-") return String(left - right);
-        if (op === "*") return String(Math.round(left * right * 100) / 100);
-        if (op === "/") return right === 0 ? "#DIV/0!" : String(Math.round((left / right) * 100) / 100);
-      }
-    }
-  }
-
-  return "#NAME?";
-}
+const NOTES: Record<PracticeSheetId, { en: string; hi: string }> = {
+  "sheet-marks": {
+    en: "Excel's SUM ignores text in a range, so one dirty cell never breaks a total. AVERAGE divides by the count of numbers only.",
+    hi: "Excel ka SUM range ke text ko chhod deta hai, isliye ek ganda cell total nahi todta. AVERAGE sirf numbers ki ginti se bhaag karta hai.",
+  },
+  "sheet-cleaning": {
+    en: "TRIM removes extra spaces, PROPER fixes capitalisation, RIGHT/LEFT/MID extract part of the text — the 3-step data-cleaning ritual of every MIS job.",
+    hi: "TRIM faaltu space hatata hai, PROPER capitalisation theek karta hai, RIGHT/LEFT/MID text ka hissa nikaalte hain — har MIS job ka cleaning mantra.",
+  },
+  "sheet-validation": {
+    en: "If you type a status that is not allowed, Excel's Data Validation shows a dropdown instead. Our grid accepts anything — try breaking the IF and see the result flip.",
+    hi: "Galat status type karne par Excel ka Data Validation dropdown dikhata hai. Yahan kuch bhi likh sakte ho — IF todkar dekho, result palat jaayega.",
+  },
+  "sheet-sumifs": {
+    en: "SUMIF's third argument is optional: leave it out and Excel adds the criteria range itself. Wildcards like \"*o*\" work inside the criteria string.",
+    hi: "SUMIF ka teesra argument optional hai: chhod do to Excel khud criteria range jodta hai. Criteria mein \"*o*\" jaise wildcard chalte hain.",
+  },
+  "sheet-lookup": {
+    en: "XLOOKUP replaces VLOOKUP+HLOOKUP+IFERROR: it searches in any direction and its 4th argument is the 'not found' message.",
+    hi: "XLOOKUP, VLOOKUP+HLOOKUP+IFERROR ka replacement hai: kisi bhi direction mein dhoondhta hai aur chautha argument 'nahi mila' ka message hai.",
+  },
+  "sheet-dashboard": {
+    en: "A dashboard is just sums of sums. Build the KPI cells with SUM/MAX/COUNTIF, then any filter or slicer updates them automatically.",
+    hi: "Dashboard matlab sums ka sum. KPI cells SUM/MAX/COUNTIF se banao, phir koi bhi filter ya slicer unhe khud update karega.",
+  },
+  "sheet-gst": {
+    en: "Always ROUND the tax to 2 decimals — otherwise CGST+SGST can be one paisa different from IGST and your invoice gets rejected.",
+    hi: "Tax ko hamesha 2 decimal tak ROUND karo — warna CGST+SGST aur IGST mein ek paisa ka farak aata hai aur invoice reject ho jaata hai.",
+  },
+};
 
 export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeSheetId }) {
   const [sheetId, setSheetId] = useState<PracticeSheetId>(initialSheet);
+  const [showHint, setShowHint] = useState(true);
+  const [showNotes, setShowNotes] = useState(false);
   const sheet = PRACTICE_SHEETS.find((s) => s.id === sheetId) ?? PRACTICE_SHEETS[0];
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
 
-  const [grids, setGrids] = useState<Record<PracticeSheetId, Record<string, string>>>(() =>
-    Object.fromEntries(PRACTICE_SHEETS.map((s) => [s.id, { ...s.initialGrid }])) as Record<
-      PracticeSheetId,
-      Record<string, string>
-    >,
+  useEffect(() => {
+    setSheetId(initialSheet);
+  }, [initialSheet]);
+
+  const savedWorkbooks = useWorkbooks().items;
+  const saved = useMemo(
+    () => savedWorkbooks.find((doc: WorkbookDoc) => doc.template === sheet.id),
+    [savedWorkbooks, sheet.id],
   );
-  const [activeCell, setActiveCell] = useState("E2");
-  const [showHint, setShowHint] = useState(false);
-  const [gradeMsg, setGradeMsg] = useState<{ passed: boolean; text: string } | null>(null);
 
-  const grid = grids[sheetId];
+  const gridSheets = useMemo(
+    () => [{ name: "Practice", cells: { ...(saved?.sheets[0]?.cells ?? sheet.initialGrid) } }],
+    [sheet, saved],
+  );
 
-  const setCellRaw = (addr: string, val: string) => {
-    setGradeMsg(null);
-    setGrids((cur) => ({
-      ...cur,
-      [sheetId]: { ...cur[sheetId], [addr]: val },
-    }));
-  };
-
-  const evaluated = useMemo(() => {
-    const cache = new Map<string, string>();
-    const visiting = new Set<string>();
-    const getVal = (addr: string): string => {
-      if (cache.has(addr)) return cache.get(addr)!;
-      if (visiting.has(addr)) return "#CYCLE!";
-      visiting.add(addr);
-      const raw = grid[addr] ?? "";
-      const out = raw.startsWith("=") ? evalExpr(raw.slice(1), getVal) : raw;
-      visiting.delete(addr);
-      cache.set(addr, out);
-      return out;
-    };
-    const res: Record<string, string> = {};
-    for (let r = 1; r <= 5; r++) {
-      for (const c of sheet.cols) {
-        const addr = `${c}${r}`;
-        res[addr] = getVal(addr);
-      }
-    }
-    return res;
-  }, [grid, sheet.cols]);
-
-  function checkWork() {
-    const wrong = sheet.checks.filter(
-      (chk) => (evaluated[chk.cell] ?? "").trim().toLowerCase() !== chk.expected.toLowerCase(),
-    );
-    if (wrong.length === 0) {
-      setGradeMsg({
-        passed: true,
-        text: `🎉 Shandar / Perfect! All ${sheet.checks.length}/${sheet.checks.length} target cells are 100% accurate!`,
-      });
-    } else {
-      const sample = wrong
-        .slice(0, 3)
-        .map((w) => `${w.cell} (${w.label}: expected ${w.expected})`)
-        .join(", ");
-      setGradeMsg({
-        passed: false,
-        text: `Almost there! Check ${wrong.length} cell(s): ${sample}`,
-      });
-    }
-  }
-
-  function fillSolution() {
-    const next = { ...grid };
-    // Restore E2 if lookup sheet changed dropdown
-    if (sheet.id === "sheet-lookup") next.E2 = "E103";
-    for (const chk of sheet.checks) {
-      next[chk.cell] = chk.formulaSample;
-    }
-    setGrids((cur) => ({ ...cur, [sheetId]: next }));
-    setGradeMsg({
-      passed: true,
-      text: "✨ Solution formulas filled! Click any green cell to inspect its formula in the fx bar above.",
+  const openInExcel = useCallback(() => {
+    const cells: Record<string, string> = {};
+    Object.entries(sheet.initialGrid).forEach(([address, text]) => {
+      if (text !== "") cells[address] = text;
     });
-  }
+    downloadPracticeXlsx(sheet.titleEn, cells, sheet.id);
+  }, [sheet]);
 
-  function resetSheet() {
-    setGrids((cur) => ({ ...cur, [sheetId]: { ...sheet.initialGrid } }));
-    setGradeMsg(null);
-  }
-
-  function downloadWorkbook() {
-    const esc = (v: string) =>
-      v.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-    const toXmlSheet = (name: string, rows: string[][]) =>
-      `<Worksheet ss:Name="${esc(name)}"><Table>${rows
-        .map(
-          (row) =>
-            `<Row>${row
-              .map((cell) => {
-                if (cell.startsWith("=")) {
-                  return `<Cell ss:Formula="${esc(cell)}"><Data ss:Type="String"></Data></Cell>`;
-                }
-                const num = Number(cell);
-                const isNum = cell !== "" && Number.isFinite(num);
-                return `<Cell><Data ss:Type="${isNum ? "Number" : "String"}">${esc(cell)}</Data></Cell>`;
-              })
-              .join("")}</Row>`,
-        )
-        .join("")}</Table></Worksheet>`;
-
-    const aoa: string[][] = [];
-    for (let r = 1; r <= 5; r++) {
-      aoa.push(sheet.cols.map((c) => grid[`${c}${r}`] ?? ""));
-    }
-    const guideAoa: string[][] = [
-      ["Excel Diploma Practice Workbook", sheet.titleEn],
-      ["English Goal", sheet.goalEn],
-      ["Hindi Goal", sheet.goalHi],
-      ["Formula Hints", sheet.hintFormula],
-      [""],
-      ["Target Cell", "Expected Value", "Model Formula"],
-      ...sheet.checks.map((c) => [c.cell, c.expected, c.formulaSample]),
-    ];
-
-    const xml = [
-      '<?xml version="1.0" encoding="UTF-8"?>',
-      '<?mso-application progid="Excel.Sheet"?>',
-      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">',
-      toXmlSheet("Practice_Sheet", aoa),
-      toXmlSheet("Instructions_Key", guideAoa),
-      "</Workbook>",
-    ].join("");
-
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" }));
-    a.download = `${sheet.id}-diploma-practice.xls`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
+  const notes = NOTES[sheet.id];
 
   return (
     <div className="space-y-4">
-      {/* Worksheet Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {PRACTICE_SHEETS.map((s) => (
           <button
@@ -573,9 +295,7 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
             type="button"
             onClick={() => {
               setSheetId(s.id);
-              setActiveCell(s.checks[0]?.cell ?? "B2");
-              setGradeMsg(null);
-              setShowHint(false);
+              setShowNotes(false);
             }}
             className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap border transition ${
               s.id === sheetId
@@ -588,173 +308,81 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
         ))}
       </div>
 
-      {/* Task Prompt */}
+      <div ref={toolbarRef} id="practice-toolbar" className="flex flex-wrap items-center gap-2">
+        <Button variant="secondary" onClick={() => setShowHint((h) => !h)}>
+          <HelpCircle size={15} /> {showHint ? "Hide hint" : "Formula hint"}
+        </Button>
+        <Button variant="secondary" onClick={() => setShowNotes((v) => !v)}>
+          <BookOpen size={15} /> {showNotes ? "Hide note" : "Why it works"}
+        </Button>
+        <Button variant="ghost" onClick={() => window.print()}>
+          <Download size={15} /> Print / PDF
+        </Button>
+        <a
+          href="#/workbook"
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold bg-(--color-surface) border border-(--color-border) hover:bg-(--color-accent-soft)"
+        >
+          <ExternalLink size={15} /> Open full workbook
+        </a>
+      </div>
+
       <Card className="!p-4 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="font-display font-extrabold text-lg">
-              {sheet.emoji} {sheet.titleEn}
-            </h2>
-            <p className="text-xs text-(--color-muted)">{sheet.titleHi}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setShowHint((h) => !h)}>
-              <HelpCircle size={15} /> {showHint ? "Hide Hint" : "Formula Hint"}
-            </Button>
-            <Button variant="secondary" onClick={() => void downloadWorkbook()}>
-              <Download size={15} /> Download .xlsx
-            </Button>
-          </div>
+        <div>
+          <h2 className="font-display font-extrabold text-lg">
+            {sheet.emoji} {sheet.titleEn}
+          </h2>
+          <p className="text-xs text-(--color-muted)">{sheet.titleHi}</p>
         </div>
-
         <Bilingual en={sheet.goalEn} hi={sheet.goalHi} />
-
         {showHint && (
           <div className="rounded-xl bg-amber-500/10 border border-amber-400/40 px-3.5 py-2 text-xs font-mono">
             💡 Hint: <b>{sheet.hintFormula}</b>
           </div>
         )}
+        {showNotes && (
+          <div className="rounded-xl border border-(--color-border) bg-(--color-canvas) px-3.5 py-2 text-xs">
+            <div>{notes.en}</div>
+            <div className="text-(--color-muted) mt-1">{notes.hi}</div>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1.5 text-[11px]">
+          {sheet.checks.map((check) => (
+            <Pill key={check.cell} tone="info">
+              {check.cell} · {check.label}
+            </Pill>
+          ))}
+        </div>
       </Card>
 
-      {/* Live Spreadsheet Grid */}
-      <div className="rounded-2xl overflow-hidden border border-(--color-border) bg-(--color-surface) shadow-sm">
-        {/* Formula Bar */}
-        <div className="px-3 py-2.5 bg-(--color-canvas) border-b border-(--color-border) flex items-center gap-2">
-          <span className="w-14 text-center font-mono text-xs font-extrabold rounded-lg bg-(--color-accent-soft) text-(--color-accent-dark) py-1.5 border border-(--color-border)">
-            {activeCell}
-          </span>
-          <span className="font-serif italic font-bold text-(--color-accent-dark) px-1">fx</span>
-          <input
-            aria-label="Formula Bar"
-            value={grid[activeCell] ?? ""}
-            onChange={(e) => setCellRaw(activeCell, e.target.value)}
-            placeholder="Type a value or formula starting with = (e.g., =SUM(B2:D2))"
-            className="flex-1 rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-1.5 font-mono text-xs sm:text-sm outline-none focus:ring-2 focus:ring-(--color-accent)"
-          />
-        </div>
+      <ExcelGrid
+        key={sheet.id}
+        template={sheet.id}
+        title={sheet.titleEn}
+        sheets={gridSheets}
+        rows={Math.max(12, Object.keys(sheet.initialGrid).length + 6)}
+        cols={Math.max(6, sheet.cols.length + 2)}
+        brief={{
+          title: `${sheet.emoji} ${sheet.titleEn}`,
+          hint: sheet.titleHi,
+          formulaHint: sheet.hintFormula,
+          checks: sheet.checks,
+        }}
+        headerActions={
+          <Button onClick={openInExcel}>
+            <FileSpreadsheet size={15} /> Open this sheet in Excel
+          </Button>
+        }
+      />
 
-        {/* Cells Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs sm:text-sm">
-            <thead>
-              <tr className="bg-(--color-canvas) text-(--color-muted)">
-                <th className="w-10 py-2 border-r border-b border-(--color-border) text-center font-mono text-xs">
-                  ◢
-                </th>
-                {sheet.cols.map((col) => (
-                  <th
-                    key={col}
-                    className="min-w-[115px] py-2 border-r border-b border-(--color-border) text-center font-mono text-xs font-bold"
-                  >
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[1, 2, 3, 4, 5].map((r) => (
-                <tr key={r}>
-                  <td className="py-2 text-center font-mono text-xs font-bold bg-(--color-canvas) text-(--color-muted) border-r border-b border-(--color-border)">
-                    {r}
-                  </td>
-                  {sheet.cols.map((c) => {
-                    const addr = `${c}${r}`;
-                    const isHeader = r === 1;
-                    const isSelected = activeCell === addr;
-                    const isTarget = sheet.checks.some((chk) => chk.cell === addr);
-                    const raw = grid[addr] ?? "";
-                    const val = evaluated[addr] ?? "";
-                    const dropdown = sheet.dropdownCells?.[addr];
-
-                    // Live Conditional Formatting colors!
-                    const low = val.toLowerCase();
-                    const condCls =
-                      low === "pass" || low === "paid" || low === "ok"
-                        ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 font-bold"
-                        : low === "fail" || low === "overdue" || low === "action!"
-                          ? "bg-rose-500/15 text-rose-800 dark:text-rose-200 font-bold"
-                          : isHeader
-                            ? "bg-(--color-accent-soft)/70 font-bold"
-                            : isTarget && raw === ""
-                              ? "bg-amber-500/10"
-                              : "";
-
-                    return (
-                      <td
-                        key={addr}
-                        onClick={() => setActiveCell(addr)}
-                        className={`p-0 border-r border-b border-(--color-border) transition ${condCls} ${
-                          isSelected ? "ring-2 ring-inset ring-(--color-accent)" : ""
-                        }`}
-                      >
-                        {dropdown ? (
-                          <select
-                            aria-label={`Cell ${addr}`}
-                            value={raw}
-                            onChange={(e) => setCellRaw(addr, e.target.value)}
-                            className="w-full px-2.5 py-2 bg-transparent outline-none text-xs sm:text-sm font-semibold"
-                          >
-                            {dropdown.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        ) : isSelected && !isHeader ? (
-                          <input
-                            aria-label={`Cell ${addr}`}
-                            value={raw}
-                            onChange={(e) => setCellRaw(addr, e.target.value)}
-                            className="w-full px-2.5 py-2 bg-transparent font-mono text-xs sm:text-sm outline-none"
-                          />
-                        ) : (
-                          <div className="px-2.5 py-2 min-h-[36px] flex items-center justify-between gap-1">
-                            <span className="truncate">{val}</span>
-                            {raw.startsWith("=") && (
-                              <Pill tone="good">fx</Pill>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Grading Bar */}
-        <div className="p-3.5 bg-(--color-canvas) flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={checkWork}>
-              <CheckCircle2 size={16} /> Check My Sheet
-            </Button>
-            <Button variant="secondary" onClick={fillSolution}>
-              <Sparkles size={16} /> Auto-Fill Formulas
-            </Button>
-            <Button variant="ghost" onClick={resetSheet}>
-              <RotateCcw size={15} /> Reset
-            </Button>
-          </div>
-          <span className="text-xs text-(--color-muted)">
-            Yellow-tinted cells are formula targets · Click any cell to type!
-          </span>
-        </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-(--color-muted)">
+        <CheckCircle2 size={14} /> Type any formula — the same engine behind the free workbook calculates it.
+        <span className="inline-flex items-center gap-1">
+          <RotateCcw size={13} /> Reset sheet restores the practice data.
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <Sparkles size={13} /> Show solution fills the model formulas.
+        </span>
       </div>
-
-      {gradeMsg && (
-        <div
-          role="status"
-          className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
-            gradeMsg.passed
-              ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
-              : "border-amber-400/50 bg-amber-500/10 text-amber-900 dark:text-amber-200"
-          }`}
-        >
-          {gradeMsg.text}
-        </div>
-      )}
     </div>
   );
 }

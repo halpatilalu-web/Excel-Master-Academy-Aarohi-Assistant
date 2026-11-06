@@ -113,6 +113,19 @@ describe("app shell", { timeout: 15000 }, () => {
     expect(await screen.findByRole("button", { name: /Start|Shuru/i })).toBeTruthy();
   });
 
+  it("renders the free Workbook route with a real formula engine", async () => {
+    await mountApp("#/workbook");
+    expect(await screen.findByRole("heading", { name: /Free Excel Workbook/i })).toBeTruthy();
+    // The grid is the point of this view: a blank render means the engine import broke.
+    expect(screen.getAllByText(/fx/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /Open in|Excel/i }).length).toBeGreaterThan(0);
+  });
+
+  it("renders the live practice lab with its seven practice sheets", async () => {
+    await mountApp("#/lab");
+    expect(await screen.findByRole("button", { name: /GST/i })).toBeTruthy();
+  });
+
   it("renders the account view with a working sign-out and delete section", async () => {
     await mountApp("#/account");
     expect(await screen.findByText(/Delete my account/i)).toBeTruthy();
