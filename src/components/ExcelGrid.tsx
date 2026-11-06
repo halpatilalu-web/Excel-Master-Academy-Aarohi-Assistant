@@ -147,6 +147,7 @@ export function ExcelGrid({
   const [flash, setFlash] = useState<{ rule: ReturnType<typeof inferFlashFill>["rule"]; source: string[]; explain: string } | null>(null);
   const [, setTick] = useState(0);
   const [barsOn, setBarsOn] = useState(false);
+  const [find, setFind] = useState<{ open: boolean; query: string; replace: string; withReplace: boolean } | null>(null);
 
   const sheet = sheets.find((s) => s.name === activeSheet) ?? sheets[0];
   const rawActive = sheet?.cells[active] ?? "";
@@ -257,6 +258,16 @@ export function ExcelGrid({
     if (meta && !event.shiftKey && event.key.toLowerCase() === "e") {
       event.preventDefault();
       runFlashFill();
+      return;
+    }
+    if (meta && event.key.toLowerCase() === "f") {
+      event.preventDefault();
+      setFind((current) => ({ open: true, query: current?.query ?? "", replace: current?.replace ?? "", withReplace: false }));
+      return;
+    }
+    if (meta && event.key.toLowerCase() === "h") {
+      event.preventDefault();
+      setFind((current) => ({ open: true, query: current?.query ?? "", replace: current?.replace ?? "", withReplace: true }));
       return;
     }
     if (event.altKey && event.key === "=") {
@@ -545,6 +556,47 @@ export function ExcelGrid({
     },
     [activeSheet, clearCell, setCell, sheet],
   );
+
+  /** Ctrl+F jump to the next matching cell (Excel keeps the last search). */
+  const findNext = useCallback(() => {
+    if (!find?.query.trim()) return;
+    const needle = find.query.trim().toLowerCase();
+    if (!sheet) return;
+    const addresses = Object.keys(values)
+      .filter((address) => {
+        const raw = sheet.cells[address] ?? "";
+        const shown = displayValue(values[address]).toLowerCase();
+        return raw.toLowerCase().includes(needle) || shown.includes(needle);
+      })
+      .sort((a, b) => {
+        const pa = splitAddress(a);
+        const pb = splitAddress(b);
+        if (!pa || !pb) return 0;
+        return pa.row - pb.row || pa.col - pb.col;
+      });
+    if (!addresses.length) {
+      setStatus(`No match for “${find.query}”.`);
+      return;
+    }
+    const activeIndex = addresses.indexOf(active);
+    const next = addresses[(activeIndex + 1) % addresses.length];
+    setActive(next);
+    setStatus(`Found “${find.query}” in ${next} (${addresses.length} match(es), Enter on a cell keeps searching).`);
+  }, [active, find, sheet, values]);
+
+  /** Ctrl+H replace-all across the sheet, formulas included. */
+  const replaceAll = useCallback(() => {
+    if (!find?.query || !sheet) return;
+    const needle = find.query;
+    const withText = find.replace;
+    let count = 0;
+    Object.entries(sheet.cells).forEach(([address, text]) => {
+      if (!text.includes(needle)) return;
+      setCell(activeSheet, address, text.split(needle).join(withText));
+      count++;
+    });
+    setStatus(count ? `Replaced “${needle}” in ${count} cell(s).` : `No cell contains “${needle}”.`);
+  }, [activeSheet, find, setCell, sheet]);
 
   /** Data ▸ Sort A→Z / Z→A on the column that holds the active cell. */
   const sortByActiveColumn = useCallback(
@@ -1162,6 +1214,12 @@ export function ExcelGrid({
             { label: "Sort A→Z", icon: ArrowDownUp, onClick: () => sortByActiveColumn("asc"), title: "Data ▸ Sort A→Z on this column, whole rows move together" },
             { label: "Z→A", icon: ArrowDownUp, onClick: () => sortByActiveColumn("desc"), title: "Data ▸ Sort Z→A" },
             { label: "No dupes", icon: Trash2, onClick: dedupe, title: "Data ▸ Remove Duplicates across the used range" },
+            {
+              label: "Find",
+              icon: HelpCircle,
+              onClick: () => setFind((current) => ({ open: true, query: current?.query ?? "", replace: current?.replace ?? "", withReplace: false })),
+              title: "Find (Ctrl+F) / Replace (Ctrl+H)",
+            },
             { label: barsOn ? "Bars on" : "Data bars", icon: Columns3, onClick: () => setBarsOn((v) => !v), title: "Conditional formatting: data bars behind the numbers" },
             {
               label: "Format",
@@ -1213,6 +1271,60 @@ export function ExcelGrid({
         {showKeyboard && (
           <div className="px-2.5 py-2 bg-(--color-surface) border-b border-(--color-border) no-print">
             <VirtualKeyboard onKey={(def) => runCommand(def)} onClose={() => setShowKeyboard(false)} />
+          </div>
+        )}
+
+        {find?.open && (
+          <div className="px-2.5 py-2 bg-(--color-surface-2) border-b border-(--color-border) flex flex-wrap items-center gap-1.5 text-xs no-print">
+            <span className="font-bold text-(--color-ink)">{find.withReplace ? "Find & Replace" : "Find"}</span>
+            <input
+              autoFocus
+              aria-label="Find text"
+              value={find.query}
+              onChange={(event) => setFind({ ...find, query: event.target.value })}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  findNext();
+                }
+                if (event.key === "Escape") setFind(null);
+              }}
+              placeholder="Search values or formulas"
+              className="w-44 rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1 text-xs"
+            />
+            {find.withReplace && (
+              <>
+                <span className="text-(--color-muted)">→</span>
+                <input
+                  aria-label="Replace with"
+                  value={find.replace}
+                  onChange={(event) => setFind({ ...find, replace: event.target.value })}
+                  placeholder="Replace with"
+                  className="w-40 rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1 text-xs"
+                />
+                <Button variant="secondary" onClick={replaceAll} className="!px-2.5 !py-1 !text-xs">
+                  Replace all
+                </Button>
+              </>
+            )}
+            <Button variant="secondary" onClick={findNext} className="!px-2.5 !py-1 !text-xs">
+              Find next
+            </Button>
+            <button
+              type="button"
+              onClick={() => setFind((current) => (current ? { ...current, withReplace: !current.withReplace } : current))}
+              className="px-2 py-1 rounded-lg border border-(--color-border) text-[11px] font-semibold text-(--color-muted) hover:text-(--color-ink)"
+            >
+              {find.withReplace ? "Just find" : "Replace…"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFind(null)}
+              aria-label="Close find"
+              className="ml-auto p-1 rounded-lg text-(--color-muted) hover:bg-(--color-accent-soft)"
+            >
+              <X size={14} />
+            </button>
           </div>
         )}
 
@@ -1496,10 +1608,19 @@ export function ExcelGrid({
 
       {!compact && (
         <Card className="!p-4">
-          <h3 className="font-display font-extrabold text-sm flex items-center gap-2 mb-2">
-            <HelpCircle size={15} /> Open this workbook in desktop Excel / Office 365
-          </h3>
-          <div className="text-xs space-y-2 text-(--color-muted)">
+          <button
+            type="button"
+            onClick={() => setShowHelp((v) => !v)}
+            aria-expanded={showHelp}
+            className="w-full flex items-center justify-between gap-2 text-left"
+          >
+            <h3 className="font-display font-extrabold text-sm flex items-center gap-2">
+              <HelpCircle size={15} /> Open this workbook in desktop Excel / Office 365
+            </h3>
+            <ChevronDown size={16} className={`shrink-0 text-(--color-muted) transition ${showHelp ? "rotate-180" : ""}`} />
+          </button>
+          {showHelp && (
+          <div className="mt-2 text-xs space-y-2 text-(--color-muted)">
             <p>
               Click <b>Download .xlsx</b> above. The file keeps your formulas (not just values), so
               desktop Excel, Excel <i>mobile</i>, LibreOffice and Google Sheets all recalculate it —
@@ -1518,6 +1639,7 @@ export function ExcelGrid({
               </span>
             </p>
           </div>
+          )}
         </Card>
       )}
 

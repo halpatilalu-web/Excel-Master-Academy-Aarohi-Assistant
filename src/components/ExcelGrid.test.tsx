@@ -174,3 +174,40 @@ describe("data tools in the grid", () => {
     expect(await screen.findByText(/Removed 1 duplicate/i)).toBeTruthy();
   });
 });
+
+describe("find & replace", () => {
+  it("finds a value and jumps the selection to it", async () => {
+    render(
+      <ExcelGrid
+        template="t-find"
+        title="Find"
+        sheets={[{ name: "S", cells: { A1: "Delhi", A2: "Mumbai", A3: "Delhi" } }]}
+        rows={5}
+        cols={3}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Find$/i }));
+    fireEvent.change(screen.getByLabelText("Find text"), { target: { value: "Delhi" } });
+    fireEvent.click(screen.getByRole("button", { name: /Find next/i }));
+    expect(await screen.findByText(/Found .Delhi./i)).toBeTruthy();
+  });
+
+  it("replaces every occurrence", async () => {
+    render(
+      <ExcelGrid
+        template="t-replace"
+        title="Replace"
+        sheets={[{ name: "S", cells: { A1: "GST 5", A2: "GST 12" } }]}
+        rows={4}
+        cols={3}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Find$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Replace/i }));
+    fireEvent.change(screen.getByLabelText("Find text"), { target: { value: "GST" } });
+    fireEvent.change(screen.getByLabelText("Replace with"), { target: { value: "Tax" } });
+    fireEvent.click(screen.getByRole("button", { name: /Replace all/i }));
+    expect(await screen.findByText(/Replaced .GST. in 2 cell/i)).toBeTruthy();
+    expect(screen.getAllByText(/Tax 5/).length).toBeGreaterThan(0);
+  });
+});

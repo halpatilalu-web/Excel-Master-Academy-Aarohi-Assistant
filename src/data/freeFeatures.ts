@@ -39,6 +39,7 @@ export const FREE_FEATURES: FreeFeature[] = [
   { name: "Paste a block from Excel", group: "Grid", status: "full", en: "Paste a whole table copied from desktop Excel or Google Sheets.", hi: "Desktop Excel ya Google Sheets se poori table paste karo." },
   { name: "Copy back to Excel", group: "Grid", status: "full", en: "One click copies the block as tab-separated text for a real Excel paste.", hi: "Ek click mein block tab-separated text ban jaata hai — Excel mein paste karo." },
   { name: "Virtual Excel keyboard", group: "Grid", status: "full", en: "Every key on screen: F1–F12, Ctrl/Alt chords, Insert, Home, End, PgUp/PgDn, Flash Fill. Ctrl+Shift+F1 shows/hides it.", hi: "Screen par saari keys: F1–F12, Ctrl/Alt, Insert, Home, End, PgUp/PgDn, Flash Fill. Ctrl+Shift+F1 se chhupta/dikhta hai." },
+  { name: "Find & Replace (Ctrl+F / Ctrl+H)", group: "Grid", status: "full", en: "Search values or formulas, jump to the next match, and replace every occurrence in one click.", hi: "Value ya formula dhoondo, agle match par jao, aur ek click mein sab replace karo." },
   { name: "Grade my practice sheet", group: "Grid", status: "full", en: "Check answers compares each target cell with the expected value and shows the model formula.", hi: "Check answers har cell ko expected value se milata hai aur model formula dikhata hai." },
 
   // --------------------------------------------------------------- files
