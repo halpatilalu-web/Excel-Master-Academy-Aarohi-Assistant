@@ -90,6 +90,8 @@ export interface GridSheet {
 export interface ExcelGridProps {
   template: string;
   title: string;
+  /** Notify the parent of the live cell map (used by the desktop's Save). */
+  onCellsChange?: (cells: Record<string, string>) => void;
   /** Sheets to start with. */
   sheets: { name: string; cells: Record<string, string> }[];
   rows?: number;
@@ -120,6 +122,7 @@ export function ExcelGrid({
   compact = false,
   onSaved,
   headerActions,
+  onCellsChange,
 }: ExcelGridProps) {
   const wbDocs = useWorkbooks();
   const wb = useWorkbook({
@@ -179,6 +182,10 @@ export function ExcelGrid({
     });
     return out;
   }, [engine, sheet, activeSheet, rows, cols]);
+
+  useEffect(() => {
+    if (onCellsChange && sheet) onCellsChange(sheet.cells);
+  }, [onCellsChange, sheet]);
 
   const selected = useMemo(() => {
     const parsed = splitAddress(active);

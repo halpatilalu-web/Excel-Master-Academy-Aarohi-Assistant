@@ -20,6 +20,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { DonutChart } from "../components/charts";
+import { DesktopPromo } from "./Windows";
 import { Excel3DHeroCube } from "../components/Excel3DModel";
 import { StreakBadges } from "../components/StreakBadges";
 import { Button, Card, ProgressBar } from "../components/ui";
@@ -45,7 +46,8 @@ export type DashDest =
   | "notes"
   | "charts"
   | "toolkit"
-  | "aarohi";
+  | "aarohi"
+  | "windows";
 
 type ModuleTrackFilter = "all" | "foundation" | "analytics" | "automation";
 
@@ -303,6 +305,8 @@ export function Dashboard({
       </section>
 
       {/* ==================== 2. FREE EXCEL PROMISE — the differentiator ==================== */}
+      <DesktopPromo onOpen={() => go("windows")} />
+
       <section className="grid sm:grid-cols-2 gap-3">
         <button
           type="button"

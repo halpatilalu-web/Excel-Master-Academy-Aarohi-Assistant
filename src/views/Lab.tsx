@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Download, FileCheck2, FileSpreadsheet, FolderKanban, Table2, Upload } from "lucide-react";
+import { Download, FileCheck2, FileSpreadsheet, FolderKanban, Monitor, Table2, Upload } from "lucide-react";
 import { LiveSpreadsheet, type PracticeSheetId } from "../components/LiveSpreadsheet";
 import { LABS, datasetCSV, downloadLabXlsx, downloadText } from "../data/labs";
 import { useSubmissions, type Submission } from "../lib/academy";
@@ -86,6 +86,20 @@ export function Lab({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeS
         </div>
         <LangSwitcher />
       </div>
+
+      {/* The desktop is one click away from the lab — students can practise the
+          same sheet inside the PC-like Windows mode. */}
+      <a
+        href="#/windows"
+        className="flex flex-wrap items-center gap-2 rounded-xl border border-(--color-accent)/40 bg-(--color-accent-soft)/60 px-3.5 py-2.5 text-xs no-underline"
+      >
+        <Monitor size={15} className="text-(--color-accent-dark)" />
+        <span className="font-bold text-(--color-ink)">Windows Desktop mode</span>
+        <span className="text-(--color-muted)">
+          Poora PC ek tab mein — Excel, Word, PowerPoint, Paint, File Explorer, Calculator…
+        </span>
+        <span className="ml-auto font-semibold text-(--color-accent-dark)">Open desktop →</span>
+      </a>
 
       {/* Mode Tabs */}
       <div className="flex flex-wrap gap-2">

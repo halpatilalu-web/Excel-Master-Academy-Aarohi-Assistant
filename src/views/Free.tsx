@@ -9,12 +9,13 @@
 import { useMemo, useState } from "react";
 import { BadgeCheck, Filter, Info, Sparkles, Table2 } from "lucide-react";
 import { Card, Pill } from "../components/ui";
+import { DesktopPromo } from "./Windows";
 import { Bilingual } from "../lib/lang";
 import { FREE_FEATURES, FREE_GROUPS, STATUS_STYLE, type FreeStatus } from "../data/freeFeatures";
 import { knownFunctions } from "../lib/excel/formula/engine";
 import { M365_COUNT } from "../data/formulaCatalog";
 
-export function Free() {
+export function Free({ onOpenDesktop }: { onOpenDesktop?: () => void } = {}) {
   const [group, setGroup] = useState<string>("All");
   const [status, setStatus] = useState<FreeStatus | "All">("All");
 
@@ -36,6 +37,8 @@ export function Free() {
   );
 
   return (
+    <div className="space-y-4">
+      {onOpenDesktop ? <DesktopPromo onOpen={onOpenDesktop} /> : null}
     <div className="space-y-5">
       <section className="rounded-3xl border border-(--color-border) bg-(--color-surface) p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -142,6 +145,7 @@ export function Free() {
           and try it, or download the .xlsx and do the same thing in real Excel.
         </p>
       </Card>
+    </div>
     </div>
   );
 }
