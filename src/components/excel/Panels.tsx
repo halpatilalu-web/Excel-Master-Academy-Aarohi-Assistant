@@ -381,6 +381,7 @@ const SHORTCUTS: [string, string][] = [
   ["F5", "Go To"],
   ["F7", "Spelling"],
   ["Shift+F2", "New note on this cell"],
+  ["Ctrl+F1", "Fold or show the ribbon"],
   ["Shift+Click", "Extend the selection (range)"],
   ["Ctrl+Shift+F1", "Virtual keyboard"],
   ["Ctrl+`", "Show formulas"],

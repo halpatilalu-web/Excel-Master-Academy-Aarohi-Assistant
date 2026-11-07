@@ -28,6 +28,13 @@ afterEach(() => {
 /** Desktop icons open on one tap (double-click was undiscoverable on phones). */
 const open = (name: RegExp) => fireEvent.click(screen.getAllByRole("button", { name })[0]);
 
+/** Excel opens on its Start screen, like the real app: pick Blank workbook. */
+const newWorkbook = () => {
+  const win = screen.getByRole("dialog", { name: /Excel window/i });
+  fireEvent.click(within(win).getByRole("button", { name: /New blank workbook/i }));
+  return win;
+};
+
 describe("Windows desktop", () => {
   it("lists every app on the desktop and in the Start menu", () => {
     render(<Desktop onExit={() => undefined} />);
@@ -106,10 +113,35 @@ describe("Windows desktop", () => {
     expect(onExit).toHaveBeenCalled();
   });
 
+  it("opens Excel maximised with a Start screen, then a sheet that has room to type", () => {
+    render(<Desktop onExit={() => undefined} />);
+    open(/^Excel$/i);
+    const win = screen.getByRole("dialog", { name: /Excel window/i });
+    // No workbook yet → the Start screen offers "Blank workbook" and the recent
+    // files, instead of a blank grid with nothing to save.
+    expect(within(win).getByRole("button", { name: /New blank workbook/i })).toBeTruthy();
+    expect(within(win).getByText(/Recent workbooks on this PC/i)).toBeTruthy();
+    fireEvent.click(within(win).getByRole("button", { name: /New blank workbook/i }));
+    expect(within(win).getByLabelText(/Workbook name/i)).toBeTruthy();
+    // A cascade window left ~400 px of sheet; Excel now fills the desktop.
+    expect(win.getAttribute("style") ?? "").toContain("100%");
+    // The ribbon is there, and Ctrl+F1-style collapse gives the sheet its rows.
+    const ribbon = within(win).getByLabelText("Ribbon tabs");
+    expect(within(ribbon).getAllByRole("button").length).toBeGreaterThanOrEqual(9);
+    const collapse = within(win).getByRole("button", { name: /Collapse ribbon/i });
+    expect(within(win).getByLabelText("Ribbon groups")).toBeTruthy();
+    fireEvent.click(collapse);
+    // Folded away: the tab strip stays so a tab can still be picked.
+    expect(within(win).queryByLabelText("Ribbon groups")).toBeNull();
+    fireEvent.click(within(win).getByRole("button", { name: /Expand ribbon/i }));
+    expect(within(win).getByLabelText("Ribbon groups")).toBeTruthy();
+  });
+
   it("types a value and calculates a formula inside the desktop's Excel", async () => {
     render(<Desktop onExit={() => undefined} />);
     open(/^Excel$/i);
-    const grid = screen.getByRole("grid");
+    newWorkbook();
+    const grid = within(screen.getByRole("dialog", { name: /Excel window/i })).getByRole("grid");
 
     const enter = async (address: string, text: string) => {
       const cell = grid.querySelector(`[data-address="${address}"]`) as HTMLElement;
@@ -132,9 +164,36 @@ describe("Windows desktop", () => {
     expect((grid.querySelector('[data-address="B3"]') as HTMLElement).textContent).toContain("2500");
   });
 
+  it("saves a new workbook and lists it back on Excel's Start screen", async () => {
+    render(<Desktop onExit={() => undefined} />);
+    open(/^Excel$/i);
+    const win = newWorkbook();
+
+    const grid = within(win).getByRole("grid");
+    const b2 = grid.querySelector('[data-address="B2"]') as HTMLElement;
+    fireEvent.mouseDown(b2);
+    fireEvent.doubleClick(b2);
+    const input = within(win).getByLabelText(/Edit cell B2/i);
+    fireEvent.change(input, { target: { value: "999" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    fireEvent.change(within(win).getByLabelText(/Workbook name/i), { target: { value: "Budget-2026.xlsx" } });
+    fireEvent.click(within(win).getByRole("button", { name: /Save to desktop/i }));
+
+    // The file lands in the desktop's own store…
+    await waitFor(() =>
+      expect(localStorage.getItem("ema_local_col_desktopFiles") ?? "").toContain("Budget-2026.xlsx"),
+    );
+    // …and Excel's Start screen lists it as recent work.
+    fireEvent.click(within(win).getByRole("button", { name: /New workbook/i }));
+    const again = screen.getByRole("dialog", { name: /Excel window/i });
+    await waitFor(() => expect(within(again).getByRole("button", { name: /Budget-2026\.xlsx/i })).toBeTruthy());
+  });
+
   it("exposes data validation and conditional formatting inside the desktop's Excel", async () => {
     render(<Desktop onExit={() => undefined} />);
     open(/^Excel$/i);
+    newWorkbook();
     // The rail and the Quick Access row both offer it — either is fine.
     expect(screen.getAllByRole("button", { name: /Data Validation/i }).length).toBeGreaterThan(0);
     fireEvent.click(screen.getAllByRole("button", { name: /^Conditional Formatting/i })[0]);

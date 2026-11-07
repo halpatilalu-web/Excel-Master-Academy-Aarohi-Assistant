@@ -25,6 +25,7 @@ import {
   Maximize2,
   Minimize2,
   Monitor,
+  Plus,
   Power,
   Presentation,
   Search,
@@ -118,6 +119,11 @@ export function Desktop({ onExit }: { onExit: () => void }) {
         // comfortable 980/860 px cascade.
         const availableW = typeof window === "undefined" ? 1000 : window.innerWidth;
         const availableH = typeof window === "undefined" ? 700 : window.innerHeight;
+        // Excel carries the ribbon, the formula bar, the sheet tabs and the
+        // status bar, so a 560-620 px cascade window leaves almost no rows to
+        // type in. It opens maximised, exactly like double-clicking a workbook
+        // on a real PC; the student can still un-maximise it from the title bar.
+        const startMax = id === "excel";
         return [
           ...current,
           {
@@ -125,9 +131,10 @@ export function Desktop({ onExit }: { onExit: () => void }) {
             x: availableW < 720 ? 0 : 48 + step,
             y: availableW < 720 ? 0 : 32 + step,
             w: Math.min(wide ? 980 : 860, availableW - (availableW < 720 ? 0 : 24)),
-            h: Math.min(wide ? 620 : 560, availableH - (availableW < 720 ? 96 : 60)),
+            // Leave room for the taskbar (44 px) and the title/status bars.
+            h: Math.min(wide ? 680 : 560, availableH - 64),
             min: false,
-            max: false,
+            max: startMax,
             z: zRef.current,
             openFileId,
           },
@@ -311,9 +318,20 @@ export function Desktop({ onExit }: { onExit: () => void }) {
               <div className="flex-1 min-h-0 overflow-auto">
                 {win.id === "excel" && (
                   <ExcelAppBody
-                    fileId={win.openFileId}
                     file={openFileById(win.openFileId)}
-                    onSave={(name, content) => void saveFile("sheet", name, content, win.openFileId)}
+                    files={files}
+                    onOpenFile={(next) => openApp("excel", next.id)}
+                    onSave={async (name, content) => {
+                      const saved = await saveFile("sheet", name, content, win.openFileId);
+                      if (saved && !win.openFileId) {
+                        // First save of a brand-new book: bind the window to it so
+                        // the next save updates the same file instead of a copy.
+                        setWindows((current) =>
+                          current.map((item) => (item.id === "excel" ? { ...item, openFileId: saved.id } : item)),
+                        );
+                      }
+                      return saved;
+                    }}
                     onStatus={setStatus}
                   />
                 )}
@@ -583,19 +601,34 @@ export interface AppStatus {
   setStatus: (message: string) => void;
 }
 
-/** Excel inside a window: the course grid with a Save-to-desktop header. */
+/**
+ * Excel inside a window.
+ *
+ * Two states, exactly like the real app:
+ *  - **Start screen** when no saved workbook is open: "Blank workbook" plus the
+ *    workbooks already on this PC. Without it the window showed a blank grid the
+ *    student could not name, save or reopen — "workbook hi nahi hai".
+ *  - **A real sheet** once a workbook exists: the full ribbon grid, saved to the
+ *    desktop so File Explorer and a reload both find it.
+ */
 function ExcelAppBody({
   file,
+  files,
+  onOpenFile,
   onSave,
   onStatus,
 }: {
-  fileId?: string;
   file: DesktopFile | null;
-  onSave: (name: string, content: string) => void;
+  files: DesktopFile[];
+  onOpenFile: (file: DesktopFile) => void;
+  onSave: (name: string, content: string) => Promise<DesktopFile | void> | void;
   onStatus: (message: string) => void;
 }) {
   const [liveCells, setLiveCells] = useState<Record<string, string>>({});
   const [name, setName] = useState(file?.name ?? "Workbook1.xlsx");
+  /** The workbook this window is editing (created on first save / New). */
+  const [book, setBook] = useState<DesktopFile | null>(file);
+  const [savingNow, setSavingNow] = useState(false);
   const initial = useMemo(() => {
     try {
       const parsed = file?.content ? (JSON.parse(file.content) as Record<string, string>) : {};
@@ -607,27 +640,154 @@ function ExcelAppBody({
 
   useEffect(() => {
     setName(file?.name ?? "Workbook1.xlsx");
-  }, [file?.name]);
+    setBook(file);
+  }, [file?.id, file?.name]);
+
+  const sheets = files.filter((item) => item.kind === "sheet");
+
+  /** Save the sheet now, and open a fresh workbook tab if this one is new. */
+  const saveWorkbook = async () => {
+    const fileName = name.trim() || "Workbook1.xlsx";
+    setSavingNow(true);
+    try {
+      const saved = await onSave(fileName, JSON.stringify(liveCells));
+      if (saved) setBook(saved);
+      onStatus(`Excel: “${fileName}” saved to the desktop — File Explorer mein bhi dikhega.`);
+    } finally {
+      setSavingNow(false);
+    }
+  };
+
+  /* ------------------------------ start screen ----------------------------- */
+
+  if (!book) {
+    return (
+      <div className="h-full min-h-0 overflow-auto bg-(--color-surface) p-3 sm:p-4">
+        <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">
+          <FileSpreadsheet size={13} className="text-(--color-accent)" /> Excel · Start
+        </div>
+        <div className="mt-2 grid sm:grid-cols-2 gap-2">
+          <button
+            type="button"
+            aria-label="New blank workbook"
+            onClick={() => {
+              const fresh: DesktopFile = {
+                id: "new",
+                name: `Workbook${sheets.length + 1}.xlsx`,
+                kind: "sheet",
+                content: "{}",
+                folder: "Desktop",
+                updatedAt: new Date().toISOString(),
+              };
+              setName(fresh.name);
+              setBook(fresh);
+              setLiveCells({});
+              onStatus("Naya blank workbook khul gaya — cells mein type karo, phir Save dabao.");
+            }}
+            className="flex items-center gap-2.5 rounded-xl border border-(--color-accent)/50 bg-(--color-accent-soft)/40 px-3 py-3 text-left hover:border-(--color-accent)"
+          >
+            <span className="grid place-items-center h-10 w-10 rounded-lg bg-(--color-accent) text-white shrink-0">
+              <Plus size={18} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs font-bold text-(--color-ink)">Blank workbook</span>
+              <span className="block text-[10px] text-(--color-muted)">Khaali sheet — 60 rows × 14 columns, poora ribbon</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-label="Import a sheet from Excel"
+            onClick={() => {
+              const fresh: DesktopFile = {
+                id: "new",
+                name: `Imported${sheets.length + 1}.xlsx`,
+                kind: "sheet",
+                content: "{}",
+                folder: "Desktop",
+                updatedAt: new Date().toISOString(),
+              };
+              setName(fresh.name);
+              setBook(fresh);
+              onStatus("Naya workbook khula — File ▸ Open se .xlsx ya .csv import karo.");
+            }}
+            className="flex items-center gap-2.5 rounded-xl border border-(--color-border) px-3 py-3 text-left hover:border-(--color-accent)"
+          >
+            <span className="grid place-items-center h-10 w-10 rounded-lg bg-(--color-surface-2) text-(--color-ink) shrink-0">
+              <FolderOpen size={17} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs font-bold text-(--color-ink)">Open / import</span>
+              <span className="block text-[10px] text-(--color-muted)">.xlsx ya .csv file apne device se</span>
+            </span>
+          </button>
+        </div>
+
+        <div className="mt-3 text-[11px] font-bold text-(--color-ink)">Recent workbooks on this PC</div>
+        {sheets.length === 0 ? (
+          <p className="text-[11px] text-(--color-muted) mt-1">
+            Abhi koi workbook save nahi hua. “Blank workbook” par tap karo — phir Save, aur woh yahan aa jaayega.
+          </p>
+        ) : (
+          <ul className="mt-1 grid sm:grid-cols-2 gap-1.5">
+            {sheets.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenFile(item);
+                    onStatus(`Opening ${item.name}…`);
+                  }}
+                  className="w-full flex items-center gap-2 rounded-lg border border-(--color-border) px-2.5 py-2 text-left hover:border-(--color-accent) hover:bg-(--color-accent-soft)/40"
+                >
+                  <FileSpreadsheet size={14} className="text-emerald-600 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-[11px] font-semibold text-(--color-ink) truncate">{item.name}</span>
+                    <span className="block text-[10px] text-(--color-muted)">
+                      {new Date(item.updatedAt).toLocaleDateString()} · {Object.keys(JSON.parse(item.content || "{}")).length} cell(s)
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-[10px] text-(--color-muted) mt-3 leading-relaxed">
+          Yahi Excel tab hai jo real app mein khulta hai — File ▸ New, Open, Print aur Download .xlsx sab isi window ke ribbon mein hain.
+        </p>
+      </div>
+    );
+  }
+
+  /* -------------------------------- the sheet ------------------------------ */
 
   return (
     <div className="h-full min-h-0 flex flex-col">
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-(--color-border) bg-(--color-surface-2) px-2 py-1.5">
-        <FileSpreadsheet size={13} className="text-(--color-accent)" />
+      <div className="flex items-center gap-1.5 border-b border-(--color-border) bg-(--color-surface-2) px-2 py-1 overflow-x-auto shrink-0">
+        <FileSpreadsheet size={13} className="text-(--color-accent) shrink-0" />
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
           aria-label="Workbook name"
-          className="rounded-md border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px] text-(--color-ink) w-48"
+          className="rounded-md border border-(--color-border) bg-(--color-surface) px-2 py-0.5 text-[11px] text-(--color-ink) w-40 shrink-0"
         />
         <button
           type="button"
-          onClick={() => {
-            onSave(name, JSON.stringify(liveCells));
-            onStatus(`Excel: “${name}” saved to the desktop.`);
-          }}
-          className="inline-flex items-center gap-1 rounded-md bg-(--color-accent) text-white px-2.5 py-1 text-[11px] font-semibold"
+          onClick={() => void saveWorkbook()}
+          className="inline-flex items-center gap-1 rounded-md bg-(--color-accent) text-white px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap shrink-0"
         >
-          <FileSpreadsheet size={12} /> Save to desktop
+          <FileSpreadsheet size={12} /> {savingNow ? "Saving…" : "Save to desktop"}
+        </button>
+        <button
+          type="button"
+          aria-label="New workbook"
+          onClick={() => {
+            setBook(null);
+            setLiveCells({});
+            onStatus("Naya workbook — naam likho aur Save dabao.");
+          }}
+          className="inline-flex items-center gap-1 rounded-md border border-(--color-border) px-2 py-0.5 text-[11px] font-semibold text-(--color-ink) whitespace-nowrap shrink-0"
+        >
+          <Plus size={12} /> New
         </button>
         <button
           type="button"
@@ -640,17 +800,17 @@ function ExcelAppBody({
               "text/csv",
             )
           }
-          className="inline-flex items-center gap-1 rounded-md border border-(--color-border) px-2.5 py-1 text-[11px] font-semibold text-(--color-ink)"
+          className="inline-flex items-center gap-1 rounded-md border border-(--color-border) px-2 py-0.5 text-[11px] font-semibold text-(--color-ink) whitespace-nowrap shrink-0"
         >
           <Table2 size={12} /> Quick CSV
         </button>
-        <span className="text-[10px] text-(--color-muted) ml-auto hidden sm:inline">
-          Poora ribbon andar hai · .xlsx download bhi
+        <span className="text-[10px] text-(--color-muted) ml-auto hidden md:inline whitespace-nowrap">
+          Poora ribbon andar hai · sheet ko jagah dene ke liye Ctrl+F1
         </span>
       </div>
-      <div className="flex-1 min-h-0 overflow-hidden p-1.5">
+      <div className="flex-1 min-h-0 overflow-hidden p-0">
         <ExcelGrid
-          template={`desktop-${file?.id ?? "blank"}`}
+          template={`desktop-${book.id === "new" ? `new-${name}` : book.id}`}
           title={name}
           sheets={[{ name: "Sheet1", cells: initial }]}
           rows={60}
