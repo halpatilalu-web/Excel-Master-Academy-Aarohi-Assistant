@@ -328,6 +328,8 @@ export function ExcelGrid({
   const [merged, setMerged] = useState<string | null>(null);
   /** Which of Excel's nine tabs the ribbon is showing. */
   const [ribbonTab, setRibbonTab] = useState<RibbonTab>("home");
+  /** Ctrl+F1: fold the ribbon's group strip so the sheet gets the space. */
+  const [ribbonCollapsed, setRibbonCollapsed] = useState(false);
   /* ---- Insert tab objects: sparklines, charts, shapes ---- */
   const [sparks, setSparks] = useState<Sparkline[]>([]);
   const [charts, setCharts] = useState<ChartSpec[]>([]);
@@ -547,6 +549,14 @@ export function ExcelGrid({
     if (meta && event.key === "`") {
       event.preventDefault();
       setShowFormulas((value) => !value);
+      return;
+    }
+    // Ctrl+F1 folds the ribbon, exactly like Excel — the fastest way to give a
+    // small window back to the sheet.
+    if (meta && event.key === "F1") {
+      event.preventDefault();
+      setRibbonCollapsed((value) => !value);
+      setStatus("Ribbon folded — Ctrl+F1 se wapas kholo.");
       return;
     }
     if (meta && event.key.toLowerCase() === "p") {
@@ -2316,6 +2326,9 @@ export function ExcelGrid({
           onPrintSetup={(patch) => setPrintSetup((current) => ({ ...current, ...(patch as Partial<PrintSetup>) }))}
           onPrint={runPrint}
           message={status ?? "9 tabs: File, Home, Insert, Page Layout, Formulas, Data, Review, View, Help — jahan Excel mein hote hain, wahin."}
+          collapsed={ribbonCollapsed}
+          onToggleCollapsed={() => setRibbonCollapsed((value) => !value)}
+          dense={fill}
         />
 
         {/* Name box + formula bar — Excel's row above the sheet */}
@@ -2469,8 +2482,14 @@ export function ExcelGrid({
           )}
         </div>
 
-        {/* Quick access row: the four things students ask for most, always visible */}
-        <div className="px-2 sm:px-3 py-1.5 bg-(--color-surface-2) border-b border-(--color-border) flex items-center gap-1 overflow-x-auto no-print">
+        {/* Quick access row: the four things students ask for most, always visible.
+            Inside the desktop window it folds away — Excel keeps those commands
+            in the ribbon, and vertical space is what students actually need. */}
+        <div
+          className={`px-2 sm:px-3 py-1.5 bg-(--color-surface-2) border-b border-(--color-border) flex items-center gap-1 overflow-x-auto no-print ${
+            fill ? "hidden" : ""
+          }`}
+        >
           {[
             { id: "quick-validation", label: "Data Validation", icon: <ShieldCheck size={13} />, onClick: () => setDialog("validation") },
             { id: "quick-cf", label: "Conditional Formatting", icon: <PaintBucket size={13} />, onClick: () => setDialog("cf") },
@@ -2504,7 +2523,11 @@ export function ExcelGrid({
         </div>
 
         {/* Undo / redo / quick bold + number format — Excel's QAT, kept next to the bar */}
-        <div className="px-2 sm:px-3 py-1.5 bg-(--color-canvas) border-b border-(--color-border) flex flex-wrap items-center gap-1.5 no-print">
+        <div
+          className={`px-2 sm:px-3 py-1.5 bg-(--color-canvas) border-b border-(--color-border) flex flex-wrap items-center gap-1.5 no-print ${
+            fill ? "hidden" : ""
+          }`}
+        >
           <div className="flex items-center gap-1">
             <IconBtn title="Undo (Ctrl+Z)" onClick={undo} disabled={!history.length}>
               <Undo2 size={15} />
@@ -2552,7 +2575,7 @@ export function ExcelGrid({
         </div>
 
         {/* Sheet tabs + file actions */}
-        <div className="px-3 py-2 bg-(--color-surface) border-b border-(--color-border) flex flex-wrap items-center justify-between gap-2">
+        <div className={`bg-(--color-surface) border-b border-(--color-border) flex flex-wrap items-center justify-between ${fill ? "px-2 py-1 gap-1" : "px-3 py-2 gap-2"}`}>
           <div className="flex items-center gap-1.5 overflow-x-auto">
             {sheets.map((s) => (
               <button
@@ -2562,7 +2585,7 @@ export function ExcelGrid({
                   setActiveSheet(s.name);
                   setActive("A1");
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition ${
+                className={`${fill ? "px-2 py-1 text-[11px]" : "px-3 py-1.5 text-xs"} rounded-lg font-bold whitespace-nowrap border transition ${
                   s.name === activeSheet
                     ? "bg-(--color-accent) text-white border-transparent"
                     : "bg-(--color-canvas) border-(--color-border) text-(--color-muted) hover:bg-(--color-accent-soft)"
@@ -2703,7 +2726,7 @@ export function ExcelGrid({
             setStatus(`Pasted ${text.split("\n").length} row(s) starting at ${active}.`);
           }}
           className={`overflow-auto outline-none ${
-            zen || fill ? "flex-1 min-h-0" : split ? "max-h-[46vh] ring-1 ring-inset ring-(--color-accent)/30 rounded-b-none" : "max-h-[70vh]"
+            zen ? "flex-1 min-h-0" : fill ? "flex-1 min-h-[240px]" : split ? "max-h-[46vh] ring-1 ring-inset ring-(--color-accent)/30 rounded-b-none" : "max-h-[70vh]"
           }`}
         >
           <table className="border-collapse text-xs sm:text-sm min-w-full" style={{ fontSize: `${zoom}%` }}>

@@ -14,6 +14,7 @@
  */
 import { useState, type ReactNode } from "react";
 import {
+  ChevronDown,
   AlignCenter,
   AlignLeft,
   AlignRight,
@@ -116,6 +117,9 @@ export function Ribbon({
   printSetup,
   onPrintSetup,
   onPrint,
+  collapsed = false,
+  onToggleCollapsed,
+  dense = false,
 }: {
   run: (command: RibbonCommand) => void;
   /** Formatting of the active cell, so the buttons light up like Excel's. */
@@ -128,6 +132,11 @@ export function Ribbon({
   printSetup?: { orientation: "portrait" | "landscape"; paper: string; fitToPage: boolean; titleRows: string; margins: string; gridlines: boolean };
   onPrintSetup?: (patch: Record<string, unknown>) => void;
   onPrint?: () => void;
+  /** Excel's Ctrl+F1: the tab strip stays, the group strip folds away. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+  /** Tight paddings for the desktop window, where vertical space is scarce. */
+  dense?: boolean;
 }) {
   const [localTab, setLocalTab] = useState<RibbonTab>("home");
   const activeTab = tab ?? localTab;
@@ -571,10 +580,24 @@ export function Ribbon({
             <span className="hidden md:inline text-[10px] font-normal text-(--color-muted) ml-1">{item.hindi}</span>
           </button>
         ))}
-        <span className="ml-auto text-[10px] text-(--color-muted) hidden lg:inline pr-1">Excel ke 9 tabs — wahi groups, wahi jagah</span>
+        {onToggleCollapsed && (
+          <button
+            type="button"
+            aria-label={collapsed ? "Expand ribbon" : "Collapse ribbon"}
+            aria-expanded={!collapsed}
+            title={collapsed ? "Ribbon kholo (Ctrl+F1)" : "Ribbon band karo — poori sheet ke liye jagah (Ctrl+F1)"}
+            onClick={onToggleCollapsed}
+            className="ml-auto shrink-0 rounded-md px-1.5 py-1 text-(--color-muted) hover:bg-(--color-accent-soft) hover:text-(--color-ink)"
+          >
+            <ChevronDown size={14} className={collapsed ? "-rotate-90 transition" : "rotate-180 transition"} />
+          </button>
+        )}
+        {!dense && (
+          <span className="ml-auto text-[10px] text-(--color-muted) hidden lg:inline pr-1">Excel ke 9 tabs — wahi groups, wahi jagah</span>
+        )}
       </div>
 
-      {activeTab === "file" ? (
+      {collapsed && activeTab !== "file" ? null : activeTab === "file" ? (
         /* File ▸ backstage: a full panel, like Excel's */
         <div aria-label="File backstage" className="bg-(--color-surface-2) border-t border-(--color-border) p-2 sm:p-3">
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1.5">
@@ -616,7 +639,7 @@ export function Ribbon({
                     aria-label={item.label}
                     title={`${item.label}${item.hindi ? ` · ${item.hindi}` : ""} — ${item.hint}`}
                     onClick={() => run(item.command)}
-                    className={`flex ${item.wide ? "flex-row gap-1 px-2" : "flex-col"} items-center justify-center gap-0.5 min-w-8 px-1.5 py-1 rounded-md text-[10px] font-semibold transition ${
+                    className={`flex ${item.wide ? "flex-row gap-1 px-2" : "flex-col"} items-center justify-center gap-0.5 min-w-8 ${dense ? "px-1.5 py-0.5" : "px-1.5 py-1"} rounded-md text-[10px] font-semibold transition ${
                       item.active ? "bg-(--color-accent) text-white" : "text-(--color-ink) hover:bg-(--color-accent-soft)"
                     }`}
                   >
