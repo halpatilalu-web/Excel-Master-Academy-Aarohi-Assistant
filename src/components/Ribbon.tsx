@@ -261,19 +261,19 @@ export function Ribbon({
   const illustrations: RibbonGroup = {
     title: "Illustrations · चित्र",
     items: [
-      btn("chart", "Chart", "Build a chart from the selection (F11)", { type: "action", id: "chart" }, <TrendingUp size={15} />, false, true, "चार्ट"),
-      btn("image", "Picture", "Insert an image in the cell", { type: "action", id: "image" }, <span className="text-[12px]">🖼</span>, false, false, "तस्वीर"),
-      btn("shapes", "Shapes", "Insert a shape or arrow", { type: "action", id: "shapes" }, <span className="text-[12px]">◻</span>, false, false, "आकृति"),
-      btn("sparkline", "Sparkline", "One-cell mini chart of this row", { type: "action", id: "sparkline" }, <span className="text-[12px]">▁▄█</span>, false, false, "स्पार्क"),
+      btn("chart", "Chart", "Column / bar / line / pie chart from the selected range", { type: "action", id: "chart" }, <TrendingUp size={15} />, false, true, "चार्ट"),
+      btn("sparkline", "Sparkline", "One-cell mini chart of this row (line / column / win-loss)", { type: "action", id: "sparkline" }, <span className="text-[12px]">▁▄█</span>, false, true, "स्पार्क"),
+      btn("image", "Picture", "Link a picture into the cell (HYPERLINK)", { type: "action", id: "image" }, <span className="text-[12px]">🖼</span>, false, false, "तस्वीर"),
+      btn("shapes", "Shapes", "Arrow, tick, star, banner, circle, callout on the cell", { type: "action", id: "shapes" }, <span className="text-[12px]">◻</span>, false, false, "आकृति"),
     ],
   };
 
   const links: RibbonGroup = {
     title: "Links & Text · लिंक",
     items: [
-      btn("link", "Link", "Insert a hyperlink", { type: "action", id: "link" }, <span className="text-[12px]">🔗</span>, false, false, "लिंक"),
+      btn("link", "Link", "Insert a real HYPERLINK() — works in Excel too", { type: "action", id: "link" }, <span className="text-[12px]">🔗</span>, false, false, "लिंक"),
       btn("comment-insert", "Comment", "Add a note to this cell (Shift+F2)", { type: "action", id: "comment-insert" }, <MessageSquare size={15} />, false, false, "टिप्पणी"),
-      btn("symbol", "Symbol", "Insert a currency or symbol", { type: "action", id: "symbol" }, <span className="text-[12px]">₹</span>, false, false, "चिह्न"),
+      btn("symbol", "Symbol", "₹, $, %, ±, ×, ÷, ✓ and more into the cell", { type: "action", id: "symbol" }, <span className="text-[12px]">₹</span>, false, false, "चिह्न"),
       btn("insert-function", "Function", "Browse all formulas (Shift+F3)", { type: "action", id: "insert-function" }, <Calculator size={15} />, false, false, "फ़ंक्शन"),
     ],
   };

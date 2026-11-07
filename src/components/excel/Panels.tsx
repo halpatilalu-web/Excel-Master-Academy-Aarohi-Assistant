@@ -10,6 +10,8 @@
 import { useState } from "react";
 import { Check, Printer, X } from "lucide-react";
 import type { CellNote, DocProps, PrintSetup, SpellIssue } from "../../lib/excel/workbookTools";
+import type { ChartKind, ShapeArt, SparkKind } from "../../lib/excel/insert";
+import { CHART_KINDS, SHAPE_ART, SYMBOLS } from "../../lib/excel/insert";
 import { pageCss, suggestionFor } from "../../lib/excel/workbookTools";
 
 const field =
@@ -617,6 +619,258 @@ export function WhatsNewPanel({ onClose }: { onClose: () => void }) {
           <p className="text-[11px] text-(--color-muted) mt-0.5 leading-relaxed">{detail}</p>
         </div>
       ))}
+    </SidePanel>
+  );
+}
+
+/* ============================== Insert tab ============================== */
+
+/**
+ * One panel for the whole Insert tab, with a tab row of its own — the same
+ * grouping Excel puts in its Insert ▸ Chart / Link / Symbol / Shape dialogs.
+ */
+export function InsertPanel({
+  mode,
+  onMode,
+  spark,
+  onSpark,
+  onInsertSpark,
+  onDeleteSpark,
+  chart,
+  onChart,
+  onInsertChart,
+  onDeleteChart,
+  onLink,
+  onPicture,
+  onSymbol,
+  onShape,
+  onClose,
+}: {
+  mode: "chart" | "sparkline" | "link" | "picture" | "symbol" | "shape";
+  onMode: (mode: "chart" | "sparkline" | "link" | "picture" | "symbol" | "shape") => void;
+  spark: { source: string; kind: SparkKind };
+  onSpark: (patch: Partial<{ source: string; kind: SparkKind }>) => void;
+  onInsertSpark: () => void;
+  onDeleteSpark: () => void;
+  chart: { source: string; kind: ChartKind };
+  onChart: (patch: Partial<{ source: string; kind: ChartKind }>) => void;
+  onInsertChart: () => void;
+  onDeleteChart: () => void;
+  onLink: (url: string, text: string) => void;
+  onPicture: (url: string, alt: string) => void;
+  onSymbol: (symbol: string) => void;
+  onShape: (art: ShapeArt) => void;
+  onClose: () => void;
+}) {
+  const [url, setUrl] = useState("");
+  const [text, setText] = useState("");
+  const modes: { id: typeof mode; label: string }[] = [
+    { id: "chart", label: "Chart" },
+    { id: "sparkline", label: "Sparkline" },
+    { id: "link", label: "Link" },
+    { id: "picture", label: "Picture" },
+    { id: "symbol", label: "Symbol" },
+    { id: "shape", label: "Shapes" },
+  ];
+  return (
+    <SidePanel
+      title="Insert"
+      subtitle="Charts, sparklines, links, pictures, symbols and shapes — sab kuch cell ke andar hi rehta hai."
+      onClose={onClose}
+    >
+      <div role="tablist" aria-label="Insert options" className="flex flex-wrap gap-1">
+        {modes.map((entry) => (
+          <button
+            key={entry.id}
+            type="button"
+            role="tab"
+            aria-selected={mode === entry.id}
+            onClick={() => onMode(entry.id)}
+            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold border ${
+              mode === entry.id
+                ? "bg-(--color-accent) text-white border-(--color-accent)"
+                : "border-(--color-border) text-(--color-ink) hover:bg-(--color-accent-soft)"
+            }`}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "chart" && (
+        <div className="space-y-2.5">
+          <div>
+            <label className={label} htmlFor="chart-source">
+              Data range
+            </label>
+            <input
+              id="chart-source"
+              className={field}
+              value={chart.source}
+              onChange={(event) => onChart({ source: event.target.value.toUpperCase() })}
+              placeholder="A1:B10"
+            />
+          </div>
+          <div>
+            <span className={label}>Chart type</span>
+            <div className="flex flex-wrap gap-1.5">
+              {CHART_KINDS.map((entry) => (
+                <button
+                  key={entry.kind}
+                  type="button"
+                  aria-label={entry.label}
+                  onClick={() => onChart({ kind: entry.kind })}
+                  className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold ${
+                    chart.kind === entry.kind
+                      ? "bg-(--color-accent) text-white border-(--color-accent)"
+                      : "border-(--color-border) text-(--color-ink)"
+                  }`}
+                >
+                  {entry.label} <span className="font-normal opacity-70">{entry.hindi}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={onInsertChart} className="rounded-lg bg-(--color-accent) text-white px-3 py-1.5 text-xs font-bold">
+              Insert chart
+            </button>
+            <button type="button" onClick={onDeleteChart} className="rounded-lg border border-(--color-border) px-3 py-1.5 text-xs font-semibold text-(--color-ink)">
+              Remove last chart
+            </button>
+          </div>
+          <p className="text-[10px] text-(--color-muted) leading-relaxed">
+            Chart sheet ke numbers se banta hai aur range badalne par aap ke saath update hota hai. .xlsx download mein numbers waise hi rehte hain.
+          </p>
+        </div>
+      )}
+
+      {mode === "sparkline" && (
+        <div className="space-y-2.5">
+          <div>
+            <label className={label} htmlFor="spark-source">
+              Data range (ek row ya column)
+            </label>
+            <input
+              id="spark-source"
+              className={field}
+              value={spark.source}
+              onChange={(event) => onSpark({ source: event.target.value.toUpperCase() })}
+              placeholder="B2:G2"
+            />
+          </div>
+          <div>
+            <span className={label}>Type</span>
+            <div className="flex gap-1.5">
+              {(["column", "line", "winloss"] as SparkKind[]).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  aria-label={kind === "winloss" ? "Win/Loss" : kind}
+                  onClick={() => onSpark({ kind })}
+                  className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold capitalize ${
+                    spark.kind === kind ? "bg-(--color-accent) text-white border-(--color-accent)" : "border-(--color-border) text-(--color-ink)"
+                  }`}
+                >
+                  {kind === "winloss" ? "Win/Loss" : kind}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={onInsertSpark} className="rounded-lg bg-(--color-accent) text-white px-3 py-1.5 text-xs font-bold">
+              Insert sparkline
+            </button>
+            <button type="button" onClick={onDeleteSpark} className="rounded-lg border border-(--color-border) px-3 py-1.5 text-xs font-semibold text-(--color-ink)">
+              Clear from this cell
+            </button>
+          </div>
+          <p className="text-[10px] text-(--color-muted) leading-relaxed">
+            Sparkline active cell mein chhote blocks ke roop mein aata hai — Excel ke Line/Column/Win-Loss ki tarah. Data change karo, sparkline khud badal jaayega.
+          </p>
+        </div>
+      )}
+
+      {(mode === "link" || mode === "picture") && (
+        <div className="space-y-2.5">
+          <div>
+            <label className={label} htmlFor="link-url">
+              {mode === "link" ? "Address (https://…)" : "Picture address (https://… .png / .jpg)"}
+            </label>
+            <input
+              id="link-url"
+              className={field}
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
+              placeholder="https://example.com/page"
+            />
+          </div>
+          <div>
+            <label className={label} htmlFor="link-text">
+              {mode === "link" ? "Text to display" : "Alt text"}
+            </label>
+            <input id="link-text" className={field} value={text} onChange={(event) => setText(event.target.value)} placeholder={mode === "link" ? "Excel course" : "Logo"} />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (mode === "link") onLink(url, text);
+              else onPicture(url, text);
+              setUrl("");
+              setText("");
+            }}
+            className="rounded-lg bg-(--color-accent) text-white px-3 py-1.5 text-xs font-bold"
+          >
+            {mode === "link" ? "Insert link" : "Insert picture"}
+          </button>
+          <p className="text-[10px] text-(--color-muted) leading-relaxed">
+            Dono ek asli <span className="font-mono">HYPERLINK()</span> formula banate hain, isliye link Excel mein bhi chalta hai aur cell clickable rehti hai.
+          </p>
+        </div>
+      )}
+
+      {mode === "symbol" && (
+        <div className="space-y-2">
+          <p className="text-[11px] text-(--color-muted)">Active cell ke text ke saath symbol jodta hai (currency pehle, baaki baad mein).</p>
+          <div className="grid grid-cols-6 gap-1.5">
+            {SYMBOLS.map((entry) => (
+              <button
+                key={entry.name}
+                type="button"
+                aria-label={`Insert ${entry.name}`}
+                title={entry.name}
+                onClick={() => onSymbol(entry.symbol)}
+                className="rounded-lg border border-(--color-border) py-1.5 text-base text-(--color-ink) hover:border-(--color-accent) hover:bg-(--color-accent-soft)"
+              >
+                {entry.symbol}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {mode === "shape" && (
+        <div className="space-y-2">
+          <p className="text-[11px] text-(--color-muted)">Shape active cell par chipak jaata hai — cell move karo, shape saath aayega.</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {SHAPE_ART.map((entry) => (
+              <button
+                key={entry.art}
+                type="button"
+                aria-label={`Insert ${entry.label} shape`}
+                onClick={() => onShape(entry.art)}
+                className="rounded-lg border border-(--color-border) py-2 flex flex-col items-center gap-0.5 hover:border-(--color-accent) hover:bg-(--color-accent-soft)"
+              >
+                <span className="text-lg leading-none" style={{ color: entry.color }}>
+                  {entry.glyph}
+                </span>
+                <span className="text-[10px] font-semibold text-(--color-ink)">{entry.label}</span>
+                <span className="text-[9px] text-(--color-muted)">{entry.hindi}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </SidePanel>
   );
 }

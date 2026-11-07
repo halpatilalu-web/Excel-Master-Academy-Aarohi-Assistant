@@ -61,6 +61,24 @@ import { Ribbon, type RibbonCommand, type RibbonTab } from "./Ribbon";
 import { DataForm } from "./DataForm";
 import { fillSeries } from "../lib/excel/series";
 import {
+  chartSeriesFrom,
+  guessSparkSource,
+  hyperlinkFormula,
+  pictureFormula,
+  seriesFrom,
+  sparkFor,
+  withSymbol,
+  CHART_KINDS,
+  SHAPE_ART,
+  type ChartKind,
+  type ChartSpec,
+  type ShapeArt,
+  type ShapeSpec,
+  type SparkKind,
+  type Sparkline,
+} from "../lib/excel/insert";
+import { SheetChart } from "./excel/SheetChart";
+import {
   DEFAULT_PRINT,
   EMPTY_DOC_PROPS,
   areaLabel,
@@ -98,6 +116,7 @@ import {
   CompatPanel,
   ContactPanel,
   HelpPanel,
+  InsertPanel,
   NotesPanel,
   PrintPanel,
   PropsPanel,
@@ -297,6 +316,7 @@ export function ExcelGrid({
     | "contact"
     | "calc-opts"
     | "sort"
+    | "insert"
   >(null);
   /** Words the student chose to ignore in Spelling for this sheet. */
   const [ignoredWords, setIgnoredWords] = useState<string[]>([]);
@@ -308,6 +328,13 @@ export function ExcelGrid({
   const [merged, setMerged] = useState<string | null>(null);
   /** Which of Excel's nine tabs the ribbon is showing. */
   const [ribbonTab, setRibbonTab] = useState<RibbonTab>("home");
+  /* ---- Insert tab objects: sparklines, charts, shapes ---- */
+  const [sparks, setSparks] = useState<Sparkline[]>([]);
+  const [charts, setCharts] = useState<ChartSpec[]>([]);
+  const [shapes, setShapes] = useState<ShapeSpec[]>([]);
+  const [insertMode, setInsertMode] = useState<"chart" | "sparkline" | "link" | "picture" | "symbol" | "shape">("chart");
+  const [sparkDraft, setSparkDraft] = useState<{ source: string; kind: SparkKind }>({ source: "", kind: "column" });
+  const [chartDraft, setChartDraft] = useState<{ source: string; kind: ChartKind }>({ source: "", kind: "column" });
   const formulaInput = useRef<HTMLInputElement | null>(null);
   const cellInput = useRef<HTMLInputElement | null>(null);
 
@@ -1495,6 +1522,100 @@ export function ExcelGrid({
     [],
   );
 
+  /* --------------------------- Insert tab objects -------------------------- */
+
+  /** Add (or replace) the sparkline drawn in the active cell. */
+  const insertSpark = useCallback(() => {
+    if (!sheet) return;
+    const source = sparkDraft.source || guessSparkSource(sheet.cells, active);
+    if (!source) {
+      setStatus("Sparkline ke liye pehle numbers wali range likho — B2:G2 jaisi ek row ya column.");
+      return;
+    }
+    if (!seriesFrom(sheet.cells, source).length) {
+      setStatus(`${source} mein koi number nahi mila — sparkline ke liye numbers chahiye.`);
+      return;
+    }
+    setSparks((current) => [
+      ...current.filter((spark) => spark.address !== active),
+      { address: active, source, kind: sparkDraft.kind },
+    ]);
+    setStatus(`Sparkline ${active} mein lag gaya — ${source} ke ${sparkDraft.kind} values.`);
+  }, [active, sheet, sparkDraft]);
+
+  const clearSpark = useCallback(() => {
+    setSparks((current) => current.filter((spark) => spark.address !== active));
+    setStatus(`Sparkline ${active} se hata diya.`);
+  }, [active]);
+
+  const insertChart = useCallback(() => {
+    if (!sheet) return;
+    const source = chartDraft.source || rangeText.replace(":", ":");
+    if (!source || !rangeBounds(source)) {
+      setStatus("Chart ke liye range likho (jaise A1:B10) — numbers wali cells chuno.");
+      return;
+    }
+    if (!chartSeriesFrom(sheet.cells, source).values.length) {
+      setStatus(`${source} mein koi number nahi mila — chart numbers se banta hai.`);
+      return;
+    }
+    setCharts((current) => [
+      ...current,
+      { id: `chart-${current.length + 1}`, kind: chartDraft.kind, source, title: `${title} — chart ${current.length + 1}` },
+    ]);
+    setStatus(`${CHART_KINDS.find((entry) => entry.kind === chartDraft.kind)?.label ?? "Column"} chart bana from ${source}.`);
+  }, [chartDraft, rangeText, sheet, title]);
+
+  const removeChart = useCallback(() => {
+    setCharts((current) => current.slice(0, -1));
+    setStatus("Last chart hata diya.");
+  }, []);
+
+  const insertLink = useCallback(
+    (url: string, text: string) => {
+      if (!url.trim()) {
+        setStatus("Link ke liye address likho — https://…");
+        return;
+      }
+      commit(active, hyperlinkFormula(url, text));
+      setStatus(`${active} mein link lag gaya.`);
+    },
+    [active, commit],
+  );
+
+  const insertPicture = useCallback(
+    (url: string, alt: string) => {
+      if (!url.trim()) {
+        setStatus("Picture ke liye image ka address (https://…png) likho.");
+        return;
+      }
+      commit(active, pictureFormula(url, alt));
+      setStatus(`${active} mein picture link lag gaya — Excel mein bhi khulega.`);
+    },
+    [active, commit],
+  );
+
+  const insertSymbol = useCallback(
+    (symbol: string) => {
+      commit(active, withSymbol(rawActive, symbol));
+      setStatus(`${symbol} ${active} mein daala.`);
+    },
+    [active, commit, rawActive],
+  );
+
+  const insertShape = useCallback(
+    (art: ShapeArt) => {
+      const entry = SHAPE_ART.find((shape) => shape.art === art);
+      if (!entry) return;
+      setShapes((current) => [
+        ...current,
+        { id: `shape-${current.length + 1}`, art, label: entry.label, color: entry.color, address: active },
+      ]);
+      setStatus(`${entry.label} shape ${active} par lag gaya — cell ke saath chipka rahega.`);
+    },
+    [active],
+  );
+
   /** Protect / unprotect the sheet: a real block on editing, not decoration. */
   const toggleProtect = useCallback(() => {
     // Keep the updater pure — a setStatus() inside it re-renders forever.
@@ -1842,6 +1963,40 @@ export function ExcelGrid({
           break;
         case "check-compat":
           setPanel("compat");
+          break;
+
+        /* ---- Insert tab ---- */
+        case "chart":
+          setInsertMode("chart");
+          setChartDraft((current) => ({
+            ...current,
+            source: current.source || (rangeText.includes(":") ? rangeText : guessSparkSource(sheet?.cells ?? {}, active)),
+          }));
+          setPanel("insert");
+          break;
+        case "sparkline":
+          setInsertMode("sparkline");
+          setSparkDraft((current) => ({
+            ...current,
+            source: current.source || guessSparkSource(sheet?.cells ?? {}, active),
+          }));
+          setPanel("insert");
+          break;
+        case "link":
+          setInsertMode("link");
+          setPanel("insert");
+          break;
+        case "image":
+          setInsertMode("picture");
+          setPanel("insert");
+          break;
+        case "symbol":
+          setInsertMode("symbol");
+          setPanel("insert");
+          break;
+        case "shapes":
+          setInsertMode("shape");
+          setPanel("insert");
           break;
 
         /* ---- View extras ---- */
@@ -2636,6 +2791,11 @@ export function ExcelGrid({
                     const noteHere = notes.find((note) => note.address === address);
                     // Show Formulas (Ctrl+`) puts the formula text in the cell.
                     const shown = showFormulas && raw.startsWith("=") ? raw : text;
+                    // Insert ▸ Sparkline: a one-cell chart of another range.
+                    const spark = sparks.find((item) => item.address === address);
+                    const sparkGlyphs = spark ? sparkFor(sheet?.cells ?? {}, spark) : "";
+                    // Insert ▸ Shapes anchor to a cell and follow it around.
+                    const shapeHere = shapes.filter((item) => item.address === address);
                     const cellStyle: React.CSSProperties = {};
                     if (format?.fill) cellStyle.backgroundColor = format.fill;
                     if (format?.color) cellStyle.color = format.color;
@@ -2750,6 +2910,26 @@ export function ExcelGrid({
                             <span className={`${format?.wrap ? "whitespace-pre-wrap" : "truncate"} ${showFormulas && raw.startsWith("=") ? "font-mono text-[10px] text-(--color-accent-dark)" : ""}`} style={textStyle}>
                               {shown}
                             </span>
+                            {spark && sparkGlyphs && (
+                              <span
+                                aria-label={`Sparkline in ${address} from ${spark.source}`}
+                                title={`${spark.kind} sparkline · ${spark.source}`}
+                                className="shrink-0 font-mono text-[10px] leading-none tracking-tighter text-(--color-accent-dark)"
+                              >
+                                {sparkGlyphs}
+                              </span>
+                            )}
+                            {shapeHere.map((shape) => (
+                              <span
+                                key={shape.id}
+                                aria-label={`${shape.label} shape on ${address}`}
+                                title={shape.label}
+                                className="shrink-0 text-[11px] leading-none"
+                                style={{ color: shape.color }}
+                              >
+                                {SHAPE_ART.find((entry) => entry.art === shape.art)?.glyph}
+                              </span>
+                            ))}
                             {noteHere && (
                               <span
                                 aria-label={`Note on ${address}`}
@@ -2884,6 +3064,35 @@ export function ExcelGrid({
           </div>
         </div>
       </div>
+
+      {/* Insert ▸ Chart: every chart reads its range live, so edits flow in. */}
+      {charts.length > 0 && sheet && (
+        <div className="grid sm:grid-cols-2 gap-3 no-print">
+          {charts.map((chart) => (
+            <Card key={chart.id} className="!p-3 space-y-1">
+              <SheetChart
+                kind={chart.kind}
+                title={chart.title}
+                series={chartSeriesFrom(sheet.cells, chart.source)}
+              />
+              <div className="flex items-center justify-between gap-2 text-[10px] text-(--color-muted)">
+                <span className="font-mono">{chart.source}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${chart.title}`}
+                  onClick={() => {
+                    setCharts((current) => current.filter((item) => item.id !== chart.id));
+                    setStatus(`${chart.title} hata diya.`);
+                  }}
+                  className="rounded-lg border border-(--color-border) px-2 py-0.5 font-semibold text-(--color-ink)"
+                >
+                  Remove
+                </button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {split && (
         <div className="rounded-xl border border-(--color-accent)/40 bg-(--color-accent-soft)/50 px-3.5 py-2 text-[11px] flex flex-wrap items-center gap-2 no-print">
@@ -3201,6 +3410,25 @@ export function ExcelGrid({
 
       {panel === "props" && <PropsPanel props={docProps} onSave={setDocProps} onClose={() => setPanel(null)} />}
       {panel === "prints" && <PrintPanel setup={printSetup} onSetup={(patch) => setPrintSetup((current) => ({ ...current, ...patch }))} onPrint={runPrint} onClose={() => setPanel(null)} />}
+      {panel === "insert" && (
+        <InsertPanel
+          mode={insertMode}
+          onMode={setInsertMode}
+          spark={sparkDraft}
+          onSpark={(patch) => setSparkDraft((current) => ({ ...current, ...patch }))}
+          onInsertSpark={insertSpark}
+          onDeleteSpark={clearSpark}
+          chart={chartDraft}
+          onChart={(patch) => setChartDraft((current) => ({ ...current, ...patch }))}
+          onInsertChart={insertChart}
+          onDeleteChart={removeChart}
+          onLink={insertLink}
+          onPicture={insertPicture}
+          onSymbol={insertSymbol}
+          onShape={insertShape}
+          onClose={() => setPanel(null)}
+        />
+      )}
       {panel === "help" && <HelpPanel onClose={() => setPanel(null)} />}
       {panel === "shortcuts" && <ShortcutsPanel onClose={() => setPanel(null)} />}
       {panel === "about" && <AboutPanel formulaCount={knownFunctions().length} onClose={() => setPanel(null)} />}

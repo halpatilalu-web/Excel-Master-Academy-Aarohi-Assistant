@@ -603,3 +603,100 @@ describe("Review, Page Layout and Formulas tabs", () => {
     });
   });
 });
+
+describe("Insert tab objects", () => {
+  const cells = {
+    A1: "Month",
+    B1: "Sales",
+    A2: "Jan",
+    B2: "100",
+    A3: "Feb",
+    B3: "150",
+    A4: "Mar",
+    B4: "120",
+  };
+  const mount = (template: string) =>
+    render(<ExcelGrid template={template} title="Insert" sheets={[{ name: "S", cells }]} rows={10} cols={6} />);
+  const tab = (name: string) => fireEvent.click(within(screen.getByLabelText("Ribbon tabs")).getByRole("button", { name }));
+  const cmd = (name: string) => fireEvent.click(within(screen.getByLabelText("Ribbon groups")).getByRole("button", { name }));
+  const cell = (address: string) => screen.getByRole("grid").querySelector(`[data-address="${address}"]`) as HTMLElement;
+
+  it("inserts a chart from a range and draws it", async () => {
+    mount("t-chart");
+    tab("Insert");
+    cmd("Chart");
+    const panel = await screen.findByRole("dialog", { name: "Insert" });
+    fireEvent.change(within(panel).getByLabelText(/Data range/i), { target: { value: "A1:B4" } });
+    fireEvent.click(within(panel).getByRole("button", { name: "Line" }));
+    fireEvent.click(within(panel).getByRole("button", { name: /Insert chart/i }));
+    // The chart appears as a real SVG with one point per data row.
+    const chart = await screen.findByRole("img", { name: /Line chart/i });
+    expect(chart.querySelectorAll("circle")).toHaveLength(3);
+    expect(within(chart.closest("figure") as HTMLElement).getByText(/Sales/)).toBeTruthy();
+  });
+
+  it("draws a sparkline inside the active cell", async () => {
+    mount("t-spark");
+    fireEvent.mouseDown(cell("C2"));
+    tab("Insert");
+    cmd("Sparkline");
+    const panel = await screen.findByRole("dialog", { name: "Insert" });
+    fireEvent.change(within(panel).getByLabelText(/Data range/i), { target: { value: "B2:B4" } });
+    fireEvent.click(within(panel).getByRole("button", { name: /Insert sparkline/i }));
+    const marker = await screen.findByLabelText(/Sparkline in C2 from B2:B4/);
+    expect(marker.textContent).toHaveLength(3);
+  });
+
+  it("guesses the sparkline range from the numbers to the left", async () => {
+    render(
+      <ExcelGrid
+        template="t-spark-guess"
+        title="Insert"
+        sheets={[{ name: "S", cells: { A1: "One", B1: "Two", C1: "Sum", A2: "10", B2: "20" } }]}
+        rows={10}
+        cols={6}
+      />,
+    );
+    fireEvent.mouseDown(cell("C2"));
+    tab("Insert");
+    cmd("Sparkline");
+    const panel = await screen.findByRole("dialog", { name: "Insert" });
+    // Two numbers to the left of C2 → Excel guesses A2:B2.
+    expect((within(panel).getByLabelText(/Data range/i) as HTMLInputElement).value).toBe("A2:B2");
+  });
+
+  it("inserts a real HYPERLINK formula for a link", async () => {
+    mount("t-link");
+    fireEvent.mouseDown(cell("D6"));
+    tab("Insert");
+    cmd("Link");
+    const panel = await screen.findByRole("dialog", { name: "Insert" });
+    fireEvent.change(within(panel).getByLabelText(/^Address/i), { target: { value: "https://excel.dev" } });
+    fireEvent.change(within(panel).getByLabelText(/Text to display/i), { target: { value: "Course" } });
+    fireEvent.click(within(panel).getByRole("button", { name: /Insert link/i }));
+    expect(cell("D6").textContent).toContain("Course");
+    // Click the cell and the formula bar shows the formula that was written.
+    fireEvent.mouseDown(cell("D6"));
+    expect((screen.getByLabelText(/Formula bar/i) as HTMLInputElement).value).toBe('=HYPERLINK("https://excel.dev","Course")');
+  });
+
+  it("adds a rupee symbol to the active cell", async () => {
+    mount("t-symbol");
+    fireEvent.mouseDown(cell("D5"));
+    tab("Insert");
+    cmd("Symbol");
+    const panel = await screen.findByRole("dialog", { name: "Insert" });
+    fireEvent.click(within(panel).getByRole("button", { name: /Insert Rupee$/i }));
+    expect(cell("D5").textContent).toContain("₹");
+  });
+
+  it("anchors a shape to the active cell", async () => {
+    mount("t-shape");
+    fireEvent.mouseDown(cell("E4"));
+    tab("Insert");
+    cmd("Shapes");
+    const panel = await screen.findByRole("dialog", { name: "Insert" });
+    fireEvent.click(within(panel).getByRole("button", { name: /Insert Star shape/i }));
+    expect(await screen.findByLabelText("Star shape on E4")).toBeTruthy();
+  });
+});
