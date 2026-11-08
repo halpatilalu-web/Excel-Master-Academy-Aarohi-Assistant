@@ -19,11 +19,14 @@
   --color-tone-info: #1d4ed8;
   --color-tone-info-bg: #dbeafe;
 
-  --color-canvas: #f7fbf8;
-  --color-surface: #ffffff;
+  /* Neumorphism needs the surface and the canvas to sit close together —
+     that is what lets one soft shadow read as "raised" and its inverse as
+     "pressed". The grid keeps its crisp borders on top of these. */
+  --color-canvas: #e8eef5;
+  --color-surface: #f1f5fa;
   --color-ink: #162033;
-  --color-muted: #5b677d;
-  --color-border: #dde3ea;
+  --color-muted: #55617a;
+  --color-border: #d3dce7;
 
   --color-accent: #1b7f45;
   --color-accent-dark: #135e33;
@@ -93,12 +96,37 @@ body {
   --color-tone-danger-bg: #3a1414;
   --color-tone-info: #93c5fd;
   --color-tone-info-bg: #12233f;
+
+  /* Dark neumorphism: the shadow is darker than the surface, the highlight is
+     a whisper of white. Anything stronger looks like a blurry sticker. */
+  --color-paper: #0f1727;
+  --neu-light: rgba(255, 255, 255, 0.055);
+  --neu-dark: rgba(0, 0, 0, 0.62);
+  --neu-raised: 6px 6px 13px var(--neu-dark), -6px -6px 13px var(--neu-light);
+  --neu-raised-sm: 3px 3px 7px var(--neu-dark), -3px -3px 7px var(--neu-light);
+  --neu-raised-lg: 10px 10px 24px var(--neu-dark), -10px -10px 24px var(--neu-light);
+  --neu-pressed: inset 4px 4px 9px var(--neu-dark), inset -4px -4px 9px var(--neu-light);
+  --neu-pressed-sm: inset 2px 2px 4px var(--neu-dark), inset -2px -2px 4px var(--neu-light);
+  --neu-ring: rgba(52, 211, 153, 0.4);
 }
 
 /* Light theme also needs the "secondary surface" token the tools read. */
 :root {
-  --color-surface-2: #eef4ef;
-  --color-border-strong: #c7d2dd;
+  --color-surface-2: #e4ebf3;
+  --color-border-strong: #c2cddb;
+  /* Paper stays paper: the spreadsheet, notes and certificates must not look
+     like a soft rubber panel — numbers need crisp white. */
+  --color-paper: #ffffff;
+
+  /* Neumorphic depth: one light source (top-left), one shadow (bottom-right). */
+  --neu-light: rgba(255, 255, 255, 0.95);
+  --neu-dark: rgba(163, 177, 198, 0.55);
+  --neu-raised: 6px 6px 12px var(--neu-dark), -6px -6px 12px var(--neu-light);
+  --neu-raised-sm: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light);
+  --neu-raised-lg: 10px 10px 22px var(--neu-dark), -10px -10px 22px var(--neu-light);
+  --neu-pressed: inset 4px 4px 8px var(--neu-dark), inset -4px -4px 8px var(--neu-light);
+  --neu-pressed-sm: inset 2px 2px 4px var(--neu-dark), inset -2px -2px 4px var(--neu-light);
+  --neu-ring: rgba(27, 127, 69, 0.35);
 }
 
 /* Inputs must never inherit a dark text colour on a dark field (or the reverse):
@@ -111,4 +139,98 @@ input::placeholder, textarea::placeholder { color: var(--color-muted); opacity: 
 
 @media print {
   .no-print { display: none !important; }
+}
+
+/* ============================== neumorphism ==============================
+   Soft UI: every surface is the page colour, lifted by a light top-left
+   highlight and a soft bottom-right shadow. Pressed controls invert the pair.
+   All of it is token-driven, so light and dark get the same shapes with the
+   shadows that suit each theme. */
+
+.neu-raised { box-shadow: var(--neu-raised); }
+.neu-raised-sm { box-shadow: var(--neu-raised-sm); }
+.neu-raised-lg { box-shadow: var(--neu-raised-lg); }
+.neu-pressed { box-shadow: var(--neu-pressed); }
+.neu-pressed-sm { box-shadow: var(--neu-pressed-sm); }
+
+/* A card: same colour as the page, lifted out of it. */
+.neu-card {
+  background: var(--color-surface);
+  border-radius: 1.25rem;
+  box-shadow: var(--neu-raised);
+}
+.neu-card-sm {
+  background: var(--color-surface);
+  border-radius: 0.9rem;
+  box-shadow: var(--neu-raised-sm);
+}
+
+/* A raised control that presses in when tapped (buttons, tabs, chips). */
+.neu-btn {
+  background: var(--color-surface);
+  border-radius: 0.85rem;
+  box-shadow: var(--neu-raised-sm);
+  transition: box-shadow 140ms ease, transform 140ms ease, background-color 140ms ease;
+}
+.neu-btn:hover { box-shadow: var(--neu-raised); }
+.neu-btn:active,
+.neu-btn[aria-pressed="true"],
+.neu-btn[data-active="true"] {
+  box-shadow: var(--neu-pressed-sm);
+  transform: translateY(1px);
+}
+.neu-btn:disabled { box-shadow: none; opacity: 0.55; }
+
+/* An accent-filled button still gets a soft lift, tinted with the accent. */
+.neu-btn-accent {
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: 0.85rem;
+  box-shadow: var(--neu-raised-sm), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: box-shadow 140ms ease, transform 140ms ease, filter 140ms ease;
+}
+.neu-btn-accent:hover { filter: brightness(1.05); box-shadow: var(--neu-raised), inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+.neu-btn-accent:active { box-shadow: var(--neu-pressed-sm); transform: translateY(1px); }
+
+/* Inputs are pressed into the surface, not drawn on top of it. */
+.neu-field {
+  background: var(--color-surface);
+  border: 0;
+  border-radius: 0.75rem;
+  box-shadow: var(--neu-pressed-sm);
+  transition: box-shadow 140ms ease;
+}
+.neu-field:focus,
+.neu-field:focus-visible {
+  outline: none;
+  box-shadow: var(--neu-pressed-sm), 0 0 0 2px var(--neu-ring);
+}
+
+/* Navigation: the selected item sits *inside* the rail. */
+.neu-nav-active {
+  background: var(--color-surface);
+  box-shadow: var(--neu-pressed-sm);
+}
+
+/* Paper surfaces stay flat and white — spreadsheet cells, print previews,
+   certificates. Neumorphism must never soften a number a student has to read. */
+.neu-paper {
+  background: var(--color-paper);
+  box-shadow: var(--neu-raised-sm);
+  border-radius: 1rem;
+}
+
+/* Phones: shadows get tighter so the page does not look puffy on a small
+   screen, and the bottom bar floats above the content like Android's. */
+@media (max-width: 767px) {
+  :root {
+    --neu-raised: 4px 4px 9px var(--neu-dark), -4px -4px 9px var(--neu-light);
+    --neu-raised-sm: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
+    --neu-raised-lg: 6px 6px 16px var(--neu-dark), -6px -6px 16px var(--neu-light);
+  }
+}
+
+/* Android-style bottom navigation clears the home indicator. */
+.neu-bottom-bar {
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
 }

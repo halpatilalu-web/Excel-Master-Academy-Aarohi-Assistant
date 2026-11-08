@@ -86,6 +86,36 @@ const WALLPAPERS = [
   { id: "sunrise", label: "Sunrise", css: "linear-gradient(135deg,#4c1d95 0%,#9d174d 50%,#f59e0b 100%)" },
 ];
 
+/**
+ * The window's own pixel size, live. Chrome fires `resize` when the user drags
+ * the window smaller or zooms; phones fire it when the address bar hides. Every
+ * window is then clamped to what actually fits, so no app ever opens bigger
+ * than the screen it is on (the "size automatically adjust" requirement).
+ */
+function useViewport() {
+  const read = () => ({
+    w: typeof window === "undefined" ? 1280 : window.innerWidth,
+    h: typeof window === "undefined" ? 800 : window.innerHeight,
+  });
+  const [size, setSize] = useState(read);
+  useEffect(() => {
+    let frame = 0;
+    const onResize = () => {
+      // rAF-debounce: a drag-resize fires hundreds of events per second.
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => setSize(read()));
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+  return size;
+}
+
 export function Desktop({ onExit }: { onExit: () => void }) {
   const fileStore = useDesktopFiles();
   const { items: files, remove } = fileStore;
@@ -96,6 +126,7 @@ export function Desktop({ onExit }: { onExit: () => void }) {
   const [status, setStatus] = useState("Welcome to Excel Master Academy Desktop — double-click an icon to open an app.");
   const [query, setQuery] = useState("");
   const zRef = useRef(10);
+  const viewport = useViewport();
 
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 30_000);
@@ -117,13 +148,15 @@ export function Desktop({ onExit }: { onExit: () => void }) {
         const wide = id === "excel" || id === "explorer";
         // Fit the viewport: phones get a near-full-screen window, desktops a
         // comfortable 980/860 px cascade.
-        const availableW = typeof window === "undefined" ? 1000 : window.innerWidth;
-        const availableH = typeof window === "undefined" ? 700 : window.innerHeight;
+        const availableW = viewport.w;
+        const availableH = viewport.h;
         // Excel carries the ribbon, the formula bar, the sheet tabs and the
         // status bar, so a 560-620 px cascade window leaves almost no rows to
         // type in. It opens maximised, exactly like double-clicking a workbook
         // on a real PC; the student can still un-maximise it from the title bar.
-        const startMax = id === "excel";
+        // Anything narrower than a tablet gets the whole screen: a cascade
+        // window on a 400 px phone is unusable, so the app fills it instead.
+        const startMax = id === "excel" || availableW < 720;
         return [
           ...current,
           {
@@ -141,7 +174,7 @@ export function Desktop({ onExit }: { onExit: () => void }) {
         ];
       });
     },
-    [],
+    [viewport.h, viewport.w],
   );
 
   const closeApp = (id: AppId) => setWindows((current) => current.filter((item) => item.id !== id));
@@ -242,15 +275,23 @@ export function Desktop({ onExit }: { onExit: () => void }) {
         {windows.map((win) => {
           const meta = DESKTOP_APPS.find((item) => item.id === win.id);
           if (!meta) return null;
+          // Clamp to the *live* viewport rather than the size the window was
+          // created with: shrinking the browser or rotating a phone must never
+          // leave a window hanging off the screen.
+          const phone = viewport.w < 720;
+          const width = Math.min(win.max || phone ? viewport.w : win.w, viewport.w);
+          const height = Math.min(win.max || phone ? viewport.h - 44 : win.h, viewport.h - 44);
+          const left = Math.max(0, Math.min(win.max || phone ? 0 : win.x, viewport.w - width));
+          const top = Math.max(0, Math.min(win.max || phone ? 0 : win.y, viewport.h - 44 - height));
           return (
             <div
               key={win.id}
               onMouseDown={() => focusApp(win.id)}
               style={{
-                left: win.max ? 0 : win.x,
-                top: win.max ? 0 : win.y,
-                width: win.max ? "100%" : win.w,
-                height: win.max ? "calc(100% - 44px)" : win.h,
+                left,
+                top,
+                width,
+                height,
                 zIndex: win.z + (win.z === topZ ? 5 : 0),
                 display: win.min ? "none" : undefined,
               }}

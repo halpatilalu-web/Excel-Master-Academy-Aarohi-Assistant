@@ -472,7 +472,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
                   {poster.blocks.map((blk, i) => (
                     <div
                       key={blk.head}
-                      className="relative rounded-2xl border border-(--color-border) bg-(--color-canvas) p-4 flex flex-col justify-between"
+                      className="relative neu-card p-4 flex flex-col justify-between"
                     >
                       <div>
                         <div className="flex items-center justify-between gap-2">

@@ -198,7 +198,7 @@ function Lesson({
           {rich.steps.map((s, idx) => (
             <div
               key={s.label}
-              className="rounded-xl border border-(--color-border) bg-(--color-canvas) p-3"
+              className="neu-card-sm p-3"
             >
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-(--color-accent) text-white text-xs font-extrabold grid place-items-center shrink-0">
@@ -358,7 +358,7 @@ function Lesson({
           value={personalNote}
           onChange={(e) => savePersonalNote(e.target.value)}
           placeholder="Apne khud ke revision points, office examples ya yaad rakhne layak formulas yahan likho… (auto-saved!)"
-          className="w-full rounded-xl border border-(--color-border) bg-(--color-canvas) px-3.5 py-2.5 text-sm focus:outline-none focus:border-(--color-accent)"
+          className="w-full neu-card-sm px-3.5 py-2.5 text-sm focus:outline-none focus:border-(--color-accent)"
         />
       </Card>
 
@@ -528,7 +528,7 @@ export function Chapters({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter chapters (XLOOKUP, VBA, Clean)…"
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-(--color-border) bg-(--color-surface) text-sm outline-none focus:ring-2 focus:ring-(--color-accent)"
+            className="w-full pl-9 pr-3 py-2 neu-card-sm text-sm outline-none focus:ring-2 focus:ring-(--color-accent)"
           />
         </div>
       </div>
@@ -587,7 +587,7 @@ export function Chapters({
                       <button
                         key={chapter.n}
                         onClick={() => setOpen(chapter.n)}
-                        className="text-left bg-(--color-surface) border border-(--color-border) rounded-2xl p-3.5 hover:shadow-md hover:border-(--color-accent) transition"
+                        className="text-left bg-(--color-surface) border border-(--color-border) rounded-2xl p-3.5 hover:shadow-md hover:shadow-(--neu-raised) transition"
                       >
                         <div className="flex items-center justify-between">
                           <span

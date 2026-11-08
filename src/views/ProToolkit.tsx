@@ -707,7 +707,7 @@ export function ProToolkit({
                 className={`text-left p-4 rounded-2xl border transition ${
                   selectedPreset.id === p.id
                     ? "border-emerald-600 bg-(--color-accent-soft)/70 shadow-sm ring-2 ring-emerald-500/20"
-                    : "border-(--color-border) bg-(--color-surface) hover:border-(--color-accent)"
+                    : "border-(--color-border) bg-(--color-surface) hover:shadow-(--neu-raised)"
                 }`}
               >
                 <div className="flex items-center justify-between gap-2 mb-1">

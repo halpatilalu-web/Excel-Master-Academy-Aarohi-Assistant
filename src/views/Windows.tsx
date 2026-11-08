@@ -21,7 +21,7 @@ export function Windows({ onExit }: { onExit: () => void }) {
 /** Small promo card other views can drop in to point at the desktop. */
 export function DesktopPromo({ onOpen }: { onOpen: () => void }) {
   return (
-    <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+    <div className="neu-card-sm p-4">
       <div className="flex items-start gap-3">
         <span className="shrink-0 grid place-items-center h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-700 to-blue-700 text-white">
           <Monitor size={18} />

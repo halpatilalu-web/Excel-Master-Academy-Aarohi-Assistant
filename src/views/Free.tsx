@@ -60,7 +60,7 @@ export function Free({ onOpenDesktop }: { onOpenDesktop?: () => void } = {}) {
               { v: counts.limit, l: "Formula route" },
               { v: counts.only, l: "Needs Excel file" },
             ].map((item) => (
-              <div key={item.l} className="rounded-xl border border-(--color-border) bg-(--color-canvas) px-3 py-2">
+              <div key={item.l} className="neu-card-sm px-3 py-2">
                 <div className="font-display text-xl font-extrabold text-(--color-ink)">{item.v}</div>
                 <div className="text-[10px] text-(--color-muted) leading-tight">{item.l}</div>
               </div>

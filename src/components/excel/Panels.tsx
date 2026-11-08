@@ -37,7 +37,7 @@ export function SidePanel({
         role="dialog"
         aria-label={title}
         aria-modal="true"
-        className="w-full sm:max-w-md h-full flex flex-col bg-(--color-surface) border-l border-(--color-border) shadow-2xl"
+        className="w-full sm:max-w-md h-full flex flex-col bg-(--color-canvas) shadow-2xl sm:m-2 sm:h-[calc(100%-1rem)] sm:rounded-2xl"
       >
         <div className="flex items-start justify-between gap-2 px-3.5 py-3 border-b border-(--color-border)">
           <div>

@@ -3,6 +3,8 @@ import { BookOpen, CheckCircle2, Download, ExternalLink, FileSpreadsheet, HelpCi
 import { Bilingual } from "../lib/lang";
 import { Button, Card, Pill } from "./ui";
 import { ExcelGrid, type GridCheck } from "./ExcelGrid";
+import { TaskBrief } from "./excel/TaskBrief";
+import { taskFor } from "../data/practiceTasks";
 import { useWorkbooks, type WorkbookDoc } from "../lib/excel/useWorkbook";
 import { buildXlsx, type ExportSheet } from "../lib/excel/xlsx";
 
@@ -36,7 +38,11 @@ export type PracticeSheetId =
   | "sheet-sumifs"
   | "sheet-lookup"
   | "sheet-dashboard"
-  | "sheet-gst";
+  | "sheet-gst"
+  | "sheet-attendance"
+  | "sheet-inventory"
+  | "sheet-datewise"
+  | "sheet-budget";
 
 interface PracticeTask {
   id: PracticeSheetId;
@@ -224,6 +230,122 @@ export const PRACTICE_SHEETS: PracticeTask[] = [
       { cell: "F5", expected: "113988", formulaSample: "=F2+F3+F4", label: "Grand Total" },
     ],
   },
+  {
+    id: "sheet-attendance",
+    emoji: "🗓",
+    titleEn: "8. Attendance Register (COUNTIF & Percentage)",
+    titleHi: "8. Attendance Register (COUNTIF se Present aur Percentage)",
+    goalEn:
+      "Count how many days each student was present with =COUNTIF(B2:F2,\"P\"), then the percentage with =G2/5, and flag shortage with =IF(H2<75%,\"Shortage\",\"OK\").",
+    goalHi:
+      "Har student ke present days =COUNTIF(B2:F2,\"P\") se gino, percentage =G2/5 se nikalo, aur shortage =IF(H2<75%,\"Shortage\",\"OK\") se dikhao!",
+    hintFormula: '=COUNTIF(B2:F2,"P")   |   =G2/5   |   =IF(H2<75%,"Shortage","OK")',
+    cols: ["A", "B", "C", "D", "E", "F", "G", "H", "I"],
+    initialGrid: {
+      A1: "Student", B1: "Mon", C1: "Tue", D1: "Wed", E1: "Thu", F1: "Fri",
+      G1: "Present", H1: "Percent", I1: "Status",
+      A2: "Aarav", B2: "P", C2: "P", D2: "A", E2: "P", F2: "P",
+      A3: "Diya", B3: "P", C3: "A", D3: "A", E3: "A", F3: "P",
+      A4: "Kabir", B4: "P", C4: "P", D4: "P", E4: "P", F4: "P",
+    },
+    checks: [
+      { cell: "G2", expected: "4", formulaSample: '=COUNTIF(B2:F2,"P")', label: "Aarav present days" },
+      { cell: "H2", expected: "0.8", formulaSample: "=G2/5", label: "Aarav percentage (0.8 = 80%)" },
+      { cell: "I2", expected: "OK", formulaSample: '=IF(H2<75%,"Shortage","OK")', label: "Aarav status" },
+      { cell: "G3", expected: "2", formulaSample: '=COUNTIF(B3:F3,"P")', label: "Diya present days" },
+      { cell: "I3", expected: "Shortage", formulaSample: '=IF(H3<75%,"Shortage","OK")', label: "Diya status" },
+      { cell: "G4", expected: "5", formulaSample: '=COUNTIF(B4:F4,"P")', label: "Kabir present days" },
+      { cell: "H4", expected: "1", formulaSample: "=G4/5", label: "Kabir percentage (1 = 100%)" },
+    ],
+  },
+  {
+    id: "sheet-inventory",
+    emoji: "📦",
+    titleEn: "9. Inventory Reorder Alert (MIN, IF & Conditional Formatting)",
+    titleHi: "9. Inventory Reorder Alert (MIN aur IF se stock check)",
+    goalEn:
+      "Value the stock with =D2*E2, flag reorder with =IF(D2<=C2,\"Reorder\",\"OK\"), and find the lowest price with =MIN(E2:E5).",
+    goalHi:
+      "Stock value =D2*E2 se nikalo, reorder =IF(D2<=C2,\"Reorder\",\"OK\") se lagao, aur sabse kam rate =MIN(E2:E5) se dhoondo!",
+    hintFormula: '=D2*E2   |   =IF(D2<=C2,"Reorder","OK")   |   =MIN(E2:E5)',
+    cols: ["A", "B", "C", "D", "E", "F", "G"],
+    initialGrid: {
+      A1: "Item", B1: "Qty In", C1: "Reorder Level", D1: "In Stock", E1: "Rate", F1: "Stock Value", G1: "Action",
+      A2: "Pen Box", B2: "100", C2: "40", D2: "25", E2: "120",
+      A3: "Notebook", B3: "200", C3: "60", D3: "90", E3: "65",
+      A4: "Marker", B4: "150", C4: "50", D4: "120", E4: "40",
+      A5: "Stapler", B5: "80", C5: "30", D5: "18", E5: "210",
+    },
+    checks: [
+      { cell: "F2", expected: "3000", formulaSample: "=D2*E2", label: "Pen Box stock value" },
+      { cell: "G2", expected: "Reorder", formulaSample: '=IF(D2<=C2,"Reorder","OK")', label: "Pen Box action" },
+      { cell: "F3", expected: "5850", formulaSample: "=D3*E3", label: "Notebook stock value" },
+      { cell: "G3", expected: "OK", formulaSample: '=IF(D3<=C3,"Reorder","OK")', label: "Notebook action" },
+      { cell: "G4", expected: "OK", formulaSample: '=IF(D4<=C4,"Reorder","OK")', label: "Marker action" },
+      { cell: "G5", expected: "Reorder", formulaSample: '=IF(D5<=C5,"Reorder","OK")', label: "Stapler action" },
+      { cell: "F7", expected: "40", formulaSample: "=MIN(E2:E5)", label: "Lowest rate" },
+    ],
+  },
+  {
+    id: "sheet-datewise",
+    emoji: "📅",
+    titleEn: "10. Date & Month Report (TEXT, MONTH & EOMONTH)",
+    titleHi: "10. Date Report (TEXT se month, EOMONTH se month-end)",
+    goalEn:
+      "Pull the month name with =TEXT(A2,\"mmm\"), the year with =YEAR(A2), the month number with =MONTH(A2) and the month-end date with =EOMONTH(A2,0).",
+    goalHi:
+      "Month ka naam =TEXT(A2,\"mmm\") se, saal =YEAR(A2), month number =MONTH(A2), aur month-end date =EOMONTH(A2,0) se nikalo!",
+    hintFormula: '=TEXT(A2,"mmm")   |   =YEAR(A2)   |   =MONTH(A2)   |   =EOMONTH(A2,0)',
+    cols: ["A", "B", "C", "D", "E", "F"],
+    initialGrid: {
+      A1: "Sale Date", B1: "Month", C1: "Year", D1: "Month No", E1: "Month End", F1: "Amount",
+      A2: "2026-01-15", F2: "12500",
+      A3: "2026-02-03", F3: "9800",
+      A4: "2026-02-27", F4: "15600",
+      A5: "2026-03-09", F5: "7400",
+    },
+    checks: [
+      { cell: "B2", expected: "Jan", formulaSample: '=TEXT(A2,"mmm")', label: "Month name" },
+      { cell: "C2", expected: "2026", formulaSample: "=YEAR(A2)", label: "Year" },
+      { cell: "D2", expected: "1", formulaSample: "=MONTH(A2)", label: "Month number" },
+      { cell: "E2", expected: "46053", formulaSample: "=EOMONTH(A2,0)", label: "Month end (serial; Ctrl+Shift+3 for a date)" },
+      { cell: "B3", expected: "Feb", formulaSample: '=TEXT(A3,"mmm")', label: "Month name 2" },
+      { cell: "D4", expected: "2", formulaSample: "=MONTH(A4)", label: "Month number 2" },
+    ],
+  },
+  {
+    id: "sheet-budget",
+    emoji: "💰",
+    titleEn: "11. Monthly Budget vs Actual (SUMIF & Variance)",
+    titleHi: "11. Budget vs Actual (SUMIF se actual, IF se over-budget)",
+    goalEn:
+      "Fill Actual with =SUMIF($A$8:$A$13,A2,$B$8:$B$13), Variance with =Actual-Budget, and Flag with =IF(E2>0,\"Over\",\"Under\").",
+    goalHi:
+      "Actual =SUMIF($A$8:$A$13,A2,$B$8:$B$13) se, Variance =Actual-Budget se, aur Flag =IF(E2>0,\"Over\",\"Under\") se nikalo!",
+    hintFormula: '=SUMIF($A$8:$A$13,A2,$B$8:$B$13)   |   =C2-B2   |   =IF(E2>0,"Over","Under")',
+    cols: ["A", "B", "C", "D", "E"],
+    initialGrid: {
+      A1: "Head", B1: "Budget", C1: "Actual", D1: "Variance", E1: "Flag",
+      A2: "Rent", B2: "12000",
+      A3: "Salary", B3: "45000",
+      A4: "Electricity", B4: "3000",
+      A5: "Stationery", B5: "2500",
+      A7: "Date", A8: "Rent", B8: "12000",
+      A9: "Salary", B9: "47000",
+      A10: "Electricity", B10: "2800",
+      A11: "Rent", B11: "0",
+      A12: "Stationery", B12: "3100",
+      A13: "Salary", B13: "0",
+    },
+    checks: [
+      { cell: "C2", expected: "12000", formulaSample: "=SUMIF($A$8:$A$13,A2,$B$8:$B$13)", label: "Rent actual" },
+      { cell: "C3", expected: "47000", formulaSample: "=SUMIF($A$8:$A$13,A3,$B$8:$B$13)", label: "Salary actual" },
+      { cell: "C4", expected: "2800", formulaSample: "=SUMIF($A$8:$A$13,A4,$B$8:$B$13)", label: "Electricity actual" },
+      { cell: "D3", expected: "2000", formulaSample: "=C3-B3", label: "Salary variance" },
+      { cell: "E3", expected: "Over", formulaSample: '=IF(D3>0,"Over","Under")', label: "Salary flag" },
+      { cell: "E4", expected: "Under", formulaSample: '=IF(D4>0,"Over","Under")', label: "Electricity flag" },
+    ],
+  },
 ];
 
 const NOTES: Record<PracticeSheetId, { en: string; hi: string }> = {
@@ -255,6 +377,22 @@ const NOTES: Record<PracticeSheetId, { en: string; hi: string }> = {
     en: "Always ROUND the tax to 2 decimals — otherwise CGST+SGST can be one paisa different from IGST and your invoice gets rejected.",
     hi: "Tax ko hamesha 2 decimal tak ROUND karo — warna CGST+SGST aur IGST mein ek paisa ka farak aata hai aur invoice reject ho jaata hai.",
   },
+  "sheet-attendance": {
+    en: "COUNTIF counts cells that match one criterion — it is the fastest attendance register in Excel. The count is a number, so percentage is simply count ÷ working days.",
+    hi: "COUNTIF ek hi condition wale cells ginta hai — attendance register ka sabse tez tarika. Ginti ek number hai, isliye percentage = ginti ÷ kaam ke din.",
+  },
+  "sheet-inventory": {
+    en: "Stock value is quantity × rate, not purchase value; a reorder flag compares closing stock to the reorder level, never to the ordered quantity.",
+    hi: "Stock value = quantity × rate hoti hai, purchase value nahi; reorder flag closing stock ko reorder level se compare karta hai, order ki quantity se nahi.",
+  },
+  "sheet-datewise": {
+    en: "Excel stores a date as a serial number: TEXT/MONTH/YEAR just format that number, and EOMONTH(A2,0) returns the last day of the same month.",
+    hi: "Excel date ko ek serial number ki tarah rakhta hai: TEXT/MONTH/YEAR usi number ko format karte hain, aur EOMONTH(A2,0) usi mahine ka aakhri din deta hai.",
+  },
+  "sheet-budget": {
+    en: "SUMIF with an absolute range ($A$8:$A$13) and a relative criterion (A2) is the pattern behind every budget sheet: fill down, and each row picks its own head.",
+    hi: "Absolute range ($A$8:$A$13) aur relative criterion (A2) wala SUMIF har budget sheet ka pattern hai: neeche fill karo, har row apna head khud chun leti hai.",
+  },
 };
 
 export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeSheetId }) {
@@ -266,6 +404,9 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
   );
   const [showHint, setShowHint] = useState(true);
   const [showNotes, setShowNotes] = useState(false);
+  /** Cell the task table asked the grid to jump to. */
+  const [jumpTo, setJumpTo] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const sheet = PRACTICE_SHEETS.find((s) => s.id === sheetId) ?? PRACTICE_SHEETS[0];
   const toolbarRef = useRef<HTMLDivElement | null>(null);
 
@@ -352,45 +493,45 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
         </a>
       </div>
 
-      <Card className="!p-3 sm:!p-4 space-y-2 sm:space-y-3">
-        <button
-          type="button"
-          onClick={() => setBriefOpen((value) => !value)}
-          className="flex w-full items-start justify-between gap-2 text-left"
-          aria-expanded={briefOpen}
-        >
-          <span>
-            <span className="block font-display font-extrabold text-base sm:text-lg">
-              {sheet.emoji} {sheet.titleEn}
-            </span>
-            <span className="block text-xs text-(--color-muted)">{sheet.titleHi}</span>
-          </span>
-          <span className="text-[11px] font-semibold text-(--color-accent-dark) whitespace-nowrap shrink-0">
-            {briefOpen ? "Hide brief" : "Show brief"}
-          </span>
-        </button>
-        {briefOpen && (
-          <Bilingual en={sheet.goalEn} hi={sheet.goalHi} />
-        )}
-        {briefOpen && showHint && (
-          <div className="rounded-xl bg-amber-500/10 border border-amber-400/40 px-3.5 py-2 text-xs font-mono">
-            💡 Hint: <b>{sheet.hintFormula}</b>
-          </div>
-        )}
-        {briefOpen && showNotes && (
-          <div className="rounded-xl border border-(--color-border) bg-(--color-canvas) px-3.5 py-2 text-xs">
-            <div>{notes.en}</div>
-            <div className="text-(--color-muted) mt-1">{notes.hi}</div>
-          </div>
-        )}
-        <div className={`flex flex-wrap gap-1.5 text-[11px] ${briefOpen ? "" : "hidden"}`}>
+      {/* The work order: numbered steps, exact cells, the mistake to avoid. */}
+      <TaskBrief
+        task={taskFor(sheet.id)}
+        startOpen={briefOpen}
+        onApplyStep={(at) => {
+          // Tapping "E2" in the table jumps the grid to that cell, so the
+          // student never has to hunt for the address.
+          const first = at.split(":")[0].replace(/[^A-Z0-9$]/gi, "");
+          if (/^\$?[A-Z]{1,3}\$?\d+$/i.test(first)) {
+            setJumpTo(first.replace(/\$/g, ""));
+            setStatus(`Task step: ${first} par jao aur likho.`);
+          } else {
+            setStatus(`${at} — yeh summary block ka hissa hai, sheet mein usi jagah likho.`);
+          }
+        }}
+      />
+
+      {briefOpen && (
+        <div className="flex flex-wrap gap-1.5 text-[11px]">
           {sheet.checks.map((check) => (
             <Pill key={check.cell} tone="info">
               {check.cell} · {check.label}
             </Pill>
           ))}
         </div>
-      </Card>
+      )}
+
+      {showNotes && (
+        <div className="rounded-xl neu-pressed-sm px-3.5 py-2 text-xs">
+          <div>{notes.en}</div>
+          <div className="text-(--color-muted) mt-1">{notes.hi}</div>
+        </div>
+      )}
+
+      {status && (
+        <p role="status" className="text-[11px] font-semibold text-(--color-accent-dark)">
+          {status}
+        </p>
+      )}
 
       <ExcelGrid
         key={sheet.id}
@@ -400,6 +541,7 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
         rows={Math.max(26, Object.keys(sheet.initialGrid).length + 12)}
         cols={Math.max(8, sheet.cols.length + 2)}
         validation={validationRules}
+        jumpTo={jumpTo}
         brief={{
           title: `${sheet.emoji} ${sheet.titleEn}`,
           hint: sheet.titleHi,

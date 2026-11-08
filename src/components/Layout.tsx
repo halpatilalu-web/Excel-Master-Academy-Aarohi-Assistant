@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { Coffee, Download, LogOut, Menu, Moon, Search, Sun, X, type LucideIcon } from "lucide-react";
 import { Avatar } from "./Avatar";
+import { BottomNav, PHONE_PRIMARY, type BottomNavItem } from "./BottomNav";
 import { LangSwitcher } from "../lib/lang";
 import { exportJSON } from "../lib/store";
 
@@ -88,10 +89,11 @@ export function Layout<K extends string>({
                   onNavigate(item.key);
                   onPick();
                 }}
+                aria-current={isActive ? "page" : undefined}
                 className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition cursor-pointer ${
                   isActive
-                    ? "bg-(--color-accent-soft) text-(--color-accent-dark) font-semibold"
-                    : "text-(--color-muted) hover:bg-(--color-accent-soft)/60 hover:text-(--color-ink)"
+                    ? "neu-nav-active text-(--color-accent-dark) font-bold"
+                    : "text-(--color-muted) hover:text-(--color-ink) hover:shadow-(--neu-raised-sm) hover:bg-(--color-surface)/60"
                 }`}
               >
                 <Icon size={16} className={isActive ? "text-(--color-accent)" : "opacity-80"} />
@@ -114,7 +116,7 @@ export function Layout<K extends string>({
       <button
         type="button"
         onClick={() => void exportBackup()}
-        className="w-full flex items-center gap-2 text-xs font-medium text-(--color-muted) hover:text-(--color-accent-dark) rounded-xl px-3 py-2 hover:bg-(--color-accent-soft) transition cursor-pointer"
+        className="w-full flex items-center gap-2 text-xs font-medium text-(--color-muted) hover:text-(--color-accent-dark) rounded-xl px-3 py-2 hover:shadow-(--neu-raised-sm) transition cursor-pointer"
       >
         <Download size={14} /> Export Backup (JSON)
       </button>
@@ -123,7 +125,7 @@ export function Layout<K extends string>({
         <button
           type="button"
           onClick={onSignOut}
-          className="w-full flex items-center gap-2 text-xs font-medium text-(--color-muted) hover:text-(--color-danger) rounded-xl px-3 py-2 hover:bg-(--color-accent-soft) transition cursor-pointer"
+          className="w-full flex items-center gap-2 text-xs font-medium text-(--color-muted) hover:text-(--color-danger) rounded-xl px-3 py-2 hover:shadow-(--neu-raised-sm) transition cursor-pointer"
         >
           <LogOut size={14} /> Sign out
         </button>
@@ -140,10 +142,25 @@ export function Layout<K extends string>({
 
   const activeItem = nav.find((n) => n.key === active);
 
+  /**
+   * Phones get five thumb-reachable destinations (Android bottom bar) plus
+   * "More" for everything else. The list is derived from `nav`, so a new
+   * section never has to be registered twice.
+   */
+  const phoneItems: BottomNavItem<K>[] = PHONE_PRIMARY.map((entry) => {
+    const found = nav.find((item) => String(item.key) === entry.key);
+    return {
+      key: (found?.key ?? (entry.key as K)) as K,
+      label: found?.label ?? entry.short,
+      short: entry.short,
+      icon: found?.icon ?? nav[0].icon,
+    };
+  }).filter((item) => nav.some((navItem) => navItem.key === item.key));
+
   return (
     <div className="min-h-screen flex bg-(--color-canvas)">
       {/* Desktop Sticky Sidebar */}
-      <aside className="hidden md:flex md:flex-col md:sticky md:top-0 md:h-screen w-60 shrink-0 border-r border-(--color-border) bg-(--color-surface) px-4 py-5 overflow-y-auto">
+      <aside className="hidden md:flex md:flex-col md:sticky md:top-0 md:h-screen w-60 shrink-0 bg-(--color-canvas) px-4 py-5 overflow-y-auto">
         <button
           type="button"
           onClick={() => onNavigate(nav[0].key)}
@@ -163,14 +180,14 @@ export function Layout<K extends string>({
             animate={{ x: 0 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
-            className="absolute left-0 top-0 h-full w-72 bg-(--color-surface) p-5 shadow-2xl flex flex-col overflow-y-auto"
+            className="absolute left-0 top-0 h-full w-72 bg-(--color-canvas) p-5 shadow-2xl flex flex-col overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-5">
               <Brand name={brand} compact />
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
-                className="p-2 rounded-lg hover:bg-(--color-accent-soft)"
+                className="neu-btn p-2 text-(--color-ink)"
                 aria-label="Close menu"
               >
                 <X size={18} />
@@ -184,12 +201,12 @@ export function Layout<K extends string>({
 
       {/* Main Content Area with Clean Sticky Top Header */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-30 border-b border-(--color-border) bg-(--color-surface)/90 backdrop-blur-md px-4 sm:px-6 lg:px-10 h-14 flex items-center justify-between gap-3">
+        <header className="sticky top-0 z-30 bg-(--color-canvas)/85 backdrop-blur-md px-4 sm:px-6 lg:px-10 h-14 flex items-center justify-between gap-3 md:mt-2">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="md:hidden p-2 -ml-2 rounded-lg hover:bg-(--color-accent-soft)"
+              className="md:hidden neu-btn p-2 -ml-2 text-(--color-ink)"
               aria-label="Open menu"
             >
               <Menu size={20} />
@@ -216,11 +233,11 @@ export function Layout<K extends string>({
                 type="button"
                 aria-label="Search (Ctrl+K)"
                 onClick={onOpenSearch}
-                className="inline-flex items-center gap-2 rounded-xl border border-(--color-border) bg-(--color-canvas) hover:border-(--color-accent) px-3 py-1.5 text-xs text-(--color-muted) transition cursor-pointer"
+                className="neu-btn inline-flex items-center gap-2 px-3 py-1.5 text-xs text-(--color-muted) transition cursor-pointer"
               >
                 <Search size={14} />
                 <span className="hidden sm:inline">Search formulas, chapters…</span>
-                <kbd className="hidden lg:inline font-mono text-[10px] px-1.5 py-0.5 rounded bg-(--color-surface) border border-(--color-border)">
+                <kbd className="hidden lg:inline font-mono text-[10px] px-1.5 py-0.5 rounded bg-(--color-surface) shadow-(--neu-raised-sm)">
                   Ctrl K
                 </kbd>
               </button>
@@ -234,7 +251,7 @@ export function Layout<K extends string>({
                 aria-label="Take a break"
                 title="Take a study break"
                 onClick={onOpenBreak}
-                className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-(--color-border) bg-(--color-canvas) hover:bg-(--color-accent-soft) px-2.5 py-1.5 text-xs font-medium text-(--color-muted) hover:text-(--color-ink) transition cursor-pointer"
+                className="neu-btn hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-(--color-muted) hover:text-(--color-ink) transition cursor-pointer"
               >
                 <Coffee size={14} />
                 <span className="hidden lg:inline">Break</span>
@@ -247,7 +264,7 @@ export function Layout<K extends string>({
                 aria-label="Dark mode"
                 title={dark ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 onClick={onToggleDark}
-                className="p-2 rounded-xl border border-(--color-border) bg-(--color-canvas) hover:bg-(--color-accent-soft) text-(--color-muted) hover:text-(--color-ink) transition cursor-pointer"
+                className="neu-btn p-2 text-(--color-muted) hover:text-(--color-ink) transition cursor-pointer"
               >
                 {dark ? <Sun size={15} /> : <Moon size={15} />}
               </button>
@@ -255,10 +272,12 @@ export function Layout<K extends string>({
           </div>
         </header>
 
-        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
+        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-5 sm:py-8 pb-24 md:pb-8">
           <div className="max-w-6xl mx-auto">{children}</div>
         </main>
       </div>
+
+      <BottomNav items={phoneItems} active={active} onNavigate={onNavigate} onMore={() => setMobileOpen(true)} />
     </div>
   );
 }
@@ -266,7 +285,7 @@ export function Layout<K extends string>({
 function Brand({ name, compact = false }: { name: string; compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="w-8 h-8 rounded-lg bg-(--color-accent) flex items-center justify-center text-white font-display font-extrabold text-sm shadow-xs">
+      <span className="w-9 h-9 rounded-xl neu-btn-accent grid place-items-center font-display font-extrabold text-sm">
         X
       </span>
       <div className="leading-tight">

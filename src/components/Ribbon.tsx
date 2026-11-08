@@ -570,10 +570,10 @@ export function Ribbon({
             aria-pressed={activeTab === item.id}
             aria-label={item.label}
             title={`${item.label} · ${item.hindi}`}
-            className={`px-2.5 py-1 text-[11px] sm:text-xs font-semibold rounded-t-lg border-b-2 transition whitespace-nowrap ${
+            className={`px-2.5 py-1 text-[11px] sm:text-xs font-semibold rounded-lg transition whitespace-nowrap ${
               activeTab === item.id
-                ? "border-(--color-accent) text-(--color-accent-dark) bg-(--color-accent-soft)"
-                : "border-transparent text-(--color-muted) hover:text-(--color-ink)"
+                ? "neu-pressed-sm text-(--color-accent-dark)"
+                : "text-(--color-muted) hover:text-(--color-ink) hover:shadow-(--neu-raised-sm)"
             }`}
           >
             {item.label}
@@ -639,8 +639,10 @@ export function Ribbon({
                     aria-label={item.label}
                     title={`${item.label}${item.hindi ? ` · ${item.hindi}` : ""} — ${item.hint}`}
                     onClick={() => run(item.command)}
-                    className={`flex ${item.wide ? "flex-row gap-1 px-2" : "flex-col"} items-center justify-center gap-0.5 min-w-8 ${dense ? "px-1.5 py-0.5" : "px-1.5 py-1"} rounded-md text-[10px] font-semibold transition ${
-                      item.active ? "bg-(--color-accent) text-white" : "text-(--color-ink) hover:bg-(--color-accent-soft)"
+                    className={`flex ${item.wide ? "flex-row gap-1 px-2" : "flex-col"} items-center justify-center gap-0.5 min-w-8 ${dense ? "px-1.5 py-0.5" : "px-1.5 py-1"} rounded-lg text-[10px] font-semibold transition ${
+                      item.active
+                        ? "bg-(--color-accent) text-white shadow-(--neu-raised-sm)"
+                        : "text-(--color-ink) hover:shadow-(--neu-raised-sm) hover:bg-(--color-surface)"
                     }`}
                   >
                     {item.icon}
