@@ -8,7 +8,7 @@ import {
   type XErr,
 } from "../core";
 import { arrayBins } from "./arrays";
-import { bindStatFunctions } from "./math";
+import { bindStatFunctions, incompleteBeta } from "./math";
 import { bool, num, numbersFromArgs, type FnImpl } from "../helpers";
 import { matchesCriteria, parseCriteria } from "../core";
 
@@ -793,6 +793,12 @@ function lgamma(x: number): number {
   return -tmp + Math.log((2.5066282746310005 * ser) / x);
 }
 
+/** P(T > |t|) for Student's t with `df` degrees of freedom. */
+function tUpperTail(t: number, df: number): number {
+  // ½·I_{df/(df+t²)}(df/2, ½) — the closed form of the t survival function.
+  return 0.5 * incompleteBeta(df / (df + t * t), df / 2, 0.5);
+}
+
 function tDist(args: Parameters<FnImpl>[0], ctx: Parameters<FnImpl>[1], twoTailed: boolean): number | XErr {
   const x = num(args, ctx, 0);
   if (isErr(x)) return x;
@@ -801,8 +807,9 @@ function tDist(args: Parameters<FnImpl>[0], ctx: Parameters<FnImpl>[1], twoTaile
   const cum = twoTailed ? undefined : bool(args, ctx, 2);
   if (isErr(cum)) return cum;
   if (df < 1) return NUM;
-  const tail = 0.5 * lowerGammaRegularized(df / 2, df / (df + x * x));
+  const tail = tUpperTail(x, df);
   if (twoTailed) return 2 * tail;
+  // `tail` is the area above |x|, so the CDF is 1 − tail only on the right half.
   if (cum) return x >= 0 ? 1 - tail : tail;
   // Probability density
   return (
@@ -817,7 +824,7 @@ function tDistRt(args: Parameters<FnImpl>[0], ctx: Parameters<FnImpl>[1]): numbe
   const df = num(args, ctx, 1);
   if (isErr(df)) return df;
   if (df < 1 || x < 0) return NUM;
-  return 0.5 * lowerGammaRegularized(df / 2, df / (df + x * x));
+  return tUpperTail(x, df);
 }
 
 function tInv(args: Parameters<FnImpl>[0], ctx: Parameters<FnImpl>[1], twoTailed: boolean): number | XErr {
@@ -827,12 +834,18 @@ function tInv(args: Parameters<FnImpl>[0], ctx: Parameters<FnImpl>[1], twoTailed
   if (isErr(df)) return df;
   if (df < 1 || p <= 0 || p >= 1) return NUM;
   // Bisection on the CDF (fast enough for teaching use).
+  //
+  // T.INV(p, df) is the LEFT-tailed inverse: the x where P(T ≤ x) = p, so it is
+  // negative for p < 0.5 (T.INV(0.95,10) ≈ 1.8125, and its mirror T.INV(0.05,10)
+  // ≈ −1.8125). T.INV.2T(p, df) is the x where the TWO-tailed area is p, which
+  // is the same as the upper 1−p/2 quantile (T.INV.2T(0.05,10) ≈ 2.2281).
   let lo = -1e3;
   let hi = 1e3;
   const target = twoTailed ? 1 - p / 2 : p;
   for (let i = 0; i < 200; i++) {
     const mid = (lo + hi) / 2;
-    const cdf = tDist([{ t: "num", v: mid }, { t: "num", v: df }, { t: "bool", v: true }], ctx, false);
+    const t = tUpperTail(mid, df);
+    const cdf = mid >= 0 ? 1 - t : t;
     const value = isErr(cdf) ? 0.5 : (cdf as number);
     if (value < target) lo = mid;
     else hi = mid;

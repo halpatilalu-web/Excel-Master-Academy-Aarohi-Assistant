@@ -9,7 +9,10 @@ import { Button, Card, Pill } from "../components/ui";
 const ALLOWED_EXTENSIONS = ["csv", "xlsx", "xls"];
 const MAX_FILE_BYTES = 5_000_000;
 
-export function Lab({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeSheetId } = {}) {
+export function Lab({
+  initialSheet = "sheet-marks",
+  initialFormula,
+}: { initialSheet?: PracticeSheetId; initialFormula?: string } = {}) {
   const [tab, setTab] = useState<"live" | "datasets">("live");
   const { items, loading, error: loadError, add } = useSubmissions();
   const [busy, setBusy] = useState<string | null>(null);
@@ -128,7 +131,7 @@ export function Lab({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeS
       </div>
 
       {tab === "live" ? (
-        <LiveSpreadsheet initialSheet={initialSheet} />
+        <LiveSpreadsheet initialSheet={initialSheet} initialFormula={initialFormula} />
       ) : (
         <div className="space-y-4">
           {loading && items.length === 0 && (

@@ -208,8 +208,11 @@ export const lookupFns: Record<string, FnImpl> = {
     if (isErr(rows)) return rows;
     const cols = num(args, ctx, 2);
     if (isErr(cols)) return cols;
-    const pad = args[3] && args[3].t !== "missing" ? ctx.evalNode(args[3]) : NA;
-    if (isErr(pad)) return pad;
+    // No pad argument means "pad with #N/A" — that is Excel's documented default,
+    // so an error here is only fatal when the *caller* passed one.
+    const padGiven = Boolean(args[3] && args[3].t !== "missing");
+    const pad = padGiven ? ctx.evalNode(args[3]) : NA;
+    if (padGiven && isErr(pad)) return pad;
     if (rows < 1 || cols < 1) return VALUE;
     const sourceRows = grid.length;
     const sourceCols = grid[0]?.length ?? 0;
@@ -291,13 +294,38 @@ export const lookupFns: Record<string, FnImpl> = {
     const width = grid[0]?.length ?? 1;
     const r = Math.trunc(rowArg);
     const c = Math.trunc(colArg);
-    if (r > height || c > width) return REF;
+    // A single row/column may be indexed along its length (see the 1-D note below),
+    // so the bounds check has to know which axis the caller is walking.
+    const rowLimit = height === 1 && c === 0 ? width : height;
+    const colLimit = width === 1 && r === 0 ? height : width;
+    if (r > rowLimit || c > colLimit) return REF;
     if (r === 0 && c === 0) return grid;
+    /**
+     * A one-dimensional array (a spilled row or column) is indexed with a single
+     * number: INDEX(TEXTSPLIT("a-b-c","-"),3) is "c", INDEX(SEQUENCE(5),3) is 3.
+     * Excel treats that one argument as the position along the array.
+     */
+    if (height === 1 && c === 0) {
+      if (r < 0 || r > width) return REF;
+      const cell = grid[0][r - 1];
+      return cell === undefined ? REF : cell;
+    }
+    if (width === 1 && r === 0 && c !== 0) {
+      if (c < 0 || c > height) return REF;
+      const cell = grid[c - 1]?.[0];
+      return cell === undefined ? REF : cell;
+    }
     if (r === 0) {
       const col = (c > 0 ? c - 1 : width + c);
       return grid.map((row) => [row[col] ?? REF]);
     }
     if (c === 0) {
+      // A single-column array (a spilled list) is indexed by row alone.
+      if (width === 1) {
+        if (r < 0 || r > height) return REF;
+        const cell = grid[r - 1]?.[0];
+        return cell === undefined ? REF : cell;
+      }
       const row = grid[r > 0 ? r - 1 : height + r] ?? [];
       return height === 1 ? row.map((cell) => [cell]) : row.map((cell) => [cell]);
     }
@@ -562,8 +590,9 @@ export const lookupFns: Record<string, FnImpl> = {
     const cells = flat(ctx.evalNode(args[0] ?? { t: "missing" }));
     const wrap = num(args, ctx, 1);
     if (isErr(wrap)) return wrap;
-    const pad = args[2] && args[2].t !== "missing" ? ctx.evalNode(args[2]) : NA;
-    if (isErr(pad)) return pad;
+    const padGiven = Boolean(args[2] && args[2].t !== "missing");
+    const pad = padGiven ? ctx.evalNode(args[2]) : NA;
+    if (padGiven && isErr(pad)) return pad;
     const height = Math.trunc(wrap);
     if (height < 1) return VALUE;
     const colCount = Math.ceil(cells.length / height);
@@ -575,8 +604,9 @@ export const lookupFns: Record<string, FnImpl> = {
     const cells = flat(ctx.evalNode(args[0] ?? { t: "missing" }));
     const wrap = num(args, ctx, 1);
     if (isErr(wrap)) return wrap;
-    const pad = args[2] && args[2].t !== "missing" ? ctx.evalNode(args[2]) : NA;
-    if (isErr(pad)) return pad;
+    const padGiven = Boolean(args[2] && args[2].t !== "missing");
+    const pad = padGiven ? ctx.evalNode(args[2]) : NA;
+    if (padGiven && isErr(pad)) return pad;
     const width = Math.trunc(wrap);
     if (width < 1) return VALUE;
     const rowCount = Math.ceil(cells.length / width);

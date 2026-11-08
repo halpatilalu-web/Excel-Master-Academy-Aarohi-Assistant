@@ -4,6 +4,7 @@ import {
   dateToSerial,
   isErr,
   parseDateText,
+  parseTimeText,
   serialToDate,
   toSerial,
   type Scalar,
@@ -233,8 +234,10 @@ export const dateFns: Record<string, FnImpl> = {
   TIMEVALUE: (args, ctx) => {
     const s = str(args, ctx, 0);
     if (isErr(s)) return s;
-    const parsed = parseDateText(s);
-    return parsed === null ? { err: "#VALUE!" } : parsed - Math.floor(parsed);
+    // Uses the time reader, so "9:30 AM" → 0.3958333 like Excel, and a date
+    // with no time returns 0 rather than a negative fraction.
+    const parsed = parseTimeText(s);
+    return parsed === null ? { err: "#VALUE!" } : parsed;
   },
   TODAY: () => {
     const now = new Date();

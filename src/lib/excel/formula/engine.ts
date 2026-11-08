@@ -187,19 +187,42 @@ export class Workbook {
     };
   }
 
-  evaluate(node: Node, sheet: string, row: number, col: number, vars?: Map<string, Val>): Val {
-    const host = this.host(sheet);
-    const ctx: Ctx = {
-      host,
-      sheet,
-      row,
-      col,
-      vars: vars ?? new Map(),
-      depth: 0,
-      evalNode: (n) => this.evaluate(n, sheet, row, col, ctx.vars),
-      evalInVars: (n, v) => this.evaluate(n, sheet, row, col, v),
-    };
+  evaluate(
+    node: Node,
+    sheet: string,
+    row: number,
+    col: number,
+    vars?: Map<string, Val>,
+    inherited?: Partial<Ctx>,
+  ): Val {
+    const ctx = this.makeCtx(sheet, row, col, vars ?? new Map(), inherited);
     return this.evalNode(node, ctx);
+  }
+
+  /**
+   * Build an evaluation context whose `evalNode`/`evalInVars` closures point at
+   * THAT context. The previous version spread an old context, so nested nodes
+   * kept evaluating against stale variables — which is why a LAMBDA body like
+   * `a+b` lost its parameters while a bare `a` worked.
+   */
+  private makeCtx(
+    sheet: string,
+    row: number,
+    col: number,
+    vars: Map<string, Val>,
+    inherited?: Partial<Ctx>,
+  ): Ctx {
+    const ctx = { host: this.host(sheet), sheet, row, col, depth: 0, ...inherited } as Ctx;
+    // The scope/position arguments win over anything inherited — otherwise the
+    // parent's variable map would overwrite the child's.
+    ctx.vars = vars;
+    ctx.sheet = sheet;
+    ctx.row = row;
+    ctx.col = col;
+    ctx.evalNode = (n) => this.evalNode(n, ctx);
+    ctx.evalInVars = (n, nextVars, extra) =>
+      this.evalNode(n, this.makeCtx(sheet, row, col, nextVars, { ...ctx, ...extra }));
+    return ctx;
   }
 
   private evalNode(node: Node, ctx: Ctx): Val {
@@ -223,6 +246,14 @@ export class Workbook {
         return this.rangeValue(node, ctx);
       case "name": {
         if (ctx.vars.has(node.v)) return ctx.vars.get(node.v) as Val;
+        /**
+         * LAMBDA parameters keep the case they were written in (`LAMBDA(a,b,…)`),
+         * while the parser upper-cases every reference in the body (`A`, `B`), so
+         * fall back to a case-insensitive lookup before calling it an unknown name.
+         */
+        for (const [key, value] of ctx.vars) {
+          if (key.toLowerCase() === node.v.toLowerCase()) return value as Val;
+        }
         const defined = ctx.host.definedName(node.v, ctx.sheet);
         if (!defined) return { err: "#NAME?", hint: `Unknown name "${node.v}"` };
         return ctx.evalNode(defined);

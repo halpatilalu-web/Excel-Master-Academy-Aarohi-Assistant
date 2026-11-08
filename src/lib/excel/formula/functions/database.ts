@@ -46,7 +46,7 @@ function dbMatches(
   }
   if (fieldIndex < 0 || fieldIndex >= header.length) return VALUE;
 
-  const crit = needsCriteria(criteria);
+  const crit = needsCriteria(criteria, header);
   if (typeof crit !== "function") return crit;
 
   const rows = db.slice(1).filter((row) => crit(row));

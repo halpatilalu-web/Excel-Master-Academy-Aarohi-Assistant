@@ -202,9 +202,17 @@ export const logicalFns: Record<string, FnImpl> = {
   },
   ISOMITTED: (args, ctx) => {
     const node = args[0];
-    void ctx;
     if (!node) return true;
-    return node.t === "missing" || (node.t === "name" && node.v === "");
+    if (node.t === "missing") return true;
+    // Inside a LAMBDA, a parameter that the caller skipped is "omitted".
+    if (node.t === "name") {
+      // The parser upper-cases names, so a parameter can only be matched
+      // case-insensitively (LAMBDA's `y` arrives here as `Y`).
+      const wanted = node.v.toLowerCase();
+      const index = (ctx.lambdaParams ?? []).findIndex((param) => param.toLowerCase() === wanted);
+      if (index >= 0) return Boolean(ctx.lambdaOmitted?.has(index));
+    }
+    return false;
   },
   MAP: (args, ctx) => {
     if (args.length < 2) return VALUE;
@@ -293,13 +301,26 @@ export function callLambda(lambda: XLambda, callArgs: Val[], ctx: Parameters<FnI
   const params = lambda.lambda.params;
   if (callArgs.length > params.length) return VALUE;
   const vars: Map<string, Val> = new Map(lambda.closure ?? []);
+  /**
+   * An omitted argument is not a blank value: ISOMITTED() must be able to tell
+   * `LAMBDA(x,y,…)(1)` from `LAMBDA(x,y,…)(1,0)`. Excel sets omitted parameters
+   * to a special "missing" value, which is what the sentinel below stands for.
+   */
+  const omitted = new Set<number>();
+  lambda.lambda.omitted = omitted;
   params.forEach((p, i) => {
     const value = callArgs[i];
+    if (value === undefined) omitted.add(i);
     vars.set(p.name, value === undefined ? null : value);
   });
-  const child: typeof ctx = { ...ctx, vars, depth: ctx.depth + 1 };
   const body = lambda.lambda.body as Node;
-  return child.evalInVars(body, vars);
+  // The body runs in the caller's scope, plus this frame's parameters — which is
+  // what ISOMITTED() inspects — and one level deeper for the recursion guard.
+  return ctx.evalInVars(body, vars, {
+    depth: ctx.depth + 1,
+    lambdaParams: params.map((p) => p.name.toLowerCase()),
+    lambdaOmitted: omitted,
+  });
 }
 
 register({});

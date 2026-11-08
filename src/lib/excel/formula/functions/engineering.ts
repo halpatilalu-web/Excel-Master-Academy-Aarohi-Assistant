@@ -14,6 +14,30 @@ function toInt28(v: number): number {
   return v < 0 ? v + 1024 : v;
 }
 
+/**
+ * Excel's DEC2HEX/DEC2BIN/DEC2OCT take a *decimal* argument, not an integer, and
+ * truncate toward zero the way Excel does: DEC2HEX(255) = "FF", DEC2HEX(-1) =
+ * "FFFFFFFFFF" (Excel pads negative values to the full 10 characters).
+ */
+function decPlaces(args: Parameters<FnImpl>[0], ctx: Parameters<FnImpl>[1], i: number): number | null | XErr {
+  if (!args[i] || args[i].t === "missing") return null;
+  const places = num(args, ctx, i);
+  if (isErr(places)) return places;
+  return Math.trunc(places);
+}
+
+/**
+ * Two's-complement digits for a negative value. Excel writes a negative result
+ * with the full 10 digits for binary, 10 octal digits and 10 hex digits.
+ */
+function signedDigits(value: number, radix: number, width: number): string {
+  const bits = radix === 2 ? 10 : radix === 8 ? 30 : 40;
+  const modulus = 2 ** bits;
+  const wrapped = ((value % modulus) + modulus) % modulus;
+  const digits = wrapped.toString(radix).toUpperCase();
+  return digits.padStart(width, "0");
+}
+
 function bits(v: number): string {
   const n = toInt28(Math.trunc(v));
   return (n & 0x3ff).toString(2).padStart(10, "0");
@@ -23,6 +47,49 @@ function fromBits(b: string): number | XErr {
   if (b.length > 10 || !/^[01]+$/.test(b)) return NUM;
   const n = parseInt(b, 2);
   return b.length === 10 && b[0] === "1" ? n - 1024 : n;
+}
+
+
+/** "3+4i" / "-2.5-1j" / "5" / a number → real + imaginary parts. */
+function complexParts(value: unknown): { re: number; im: number; suffix: string } | null {
+  if (typeof value === "number") return { re: value, im: 0, suffix: "i" };
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (text === "") return null;
+  const suffix = /[jJ]$/.test(text) ? "j" : "i";
+  const body = /[ij]$/i.test(text) ? text.slice(0, -1) : text;
+  const m = /^([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)?([+-]\d*\.?\d+(?:[eE][+-]?\d+)?(?:[eE][+-]?\d+)?)?$/.exec(body);
+  if (!m) return null;
+  const reText = m[1];
+  const imText = m[2];
+  if (reText === undefined && imText === undefined) return null;
+  let re = 0;
+  let im = 0;
+  if (imText === undefined) {
+    if (reText === undefined || reText === "" || reText === "+" || reText === "-") return null;
+    // No imaginary part written: a bare number, or an imaginary-only "3i".
+    if (/[ij]$/i.test(text) && reText !== undefined) {
+      im = Number(reText);
+      re = 0;
+    } else {
+      re = Number(reText);
+    }
+  } else {
+    re = reText === undefined || reText === "" ? 0 : Number(reText);
+    im = imText === "+" ? 1 : imText === "-" ? -1 : Number(imText);
+  }
+  if (!Number.isFinite(re) || !Number.isFinite(im)) return null;
+  return { re, im, suffix };
+}
+
+/** Excel's display form: "4+2i", "4-2i", "4", "2i". */
+function complexText(re: number, im: number, suffix: string): string {
+  const round = (n: number) => Math.round(n * 1e10) / 1e10;
+  const r = round(re);
+  const i = round(im);
+  if (i === 0) return String(r);
+  if (r === 0) return `${i === 1 ? "" : i === -1 ? "-" : i}${suffix}`;
+  return `${r}${i >= 0 ? "+" : "-"}${Math.abs(i) === 1 ? "" : Math.abs(i)}${suffix}`;
 }
 
 export const engineeringFns: Record<string, FnImpl> = {
@@ -79,26 +146,32 @@ export const engineeringFns: Record<string, FnImpl> = {
   DEC2BIN: (args, ctx) => {
     const n = num(args, ctx, 0);
     if (isErr(n)) return n;
-    if (n < -512 || n > 511) return NUM;
-    const out = bits(n);
-    return out;
+    const value = Math.trunc(n);
+    if (value < -512 || value > 511) return NUM;
+    const places = decPlaces(args, ctx, 1);
+    if (places !== null && isErr(places)) return places;
+    const digits = value < 0 ? signedDigits(value, 2, 10) : value.toString(2);
+    return places === null || places <= digits.length ? digits : digits.padStart(places, "0");
   },
   DEC2HEX: (args, ctx) => {
     const n = num(args, ctx, 0);
     if (isErr(n)) return n;
-    if (n < -549755813888 || n > 549755813887) return NUM;
-    const places = args[1] && args[1].t !== "missing" ? num(args, ctx, 1) : null;
-    if (isErr(places)) return places;
-    const v = n < 0 ? n + 2 ** 40 : n;
-    const hex = Math.trunc(v).toString(16).toUpperCase();
-    return places === null ? hex : hex.padStart(Math.trunc(places), "0").slice(-Math.max(10, Math.trunc(places)));
+    const value = Math.trunc(n);
+    if (value < -549755813888 || value > 549755813887) return NUM;
+    const places = decPlaces(args, ctx, 1);
+    if (places !== null && isErr(places)) return places;
+    const digits = value < 0 ? signedDigits(value, 16, 10) : value.toString(16).toUpperCase();
+    return places === null || places <= digits.length ? digits : digits.padStart(places, "0");
   },
   DEC2OCT: (args, ctx) => {
     const n = num(args, ctx, 0);
     if (isErr(n)) return n;
-    if (n < -536870912 || n > 536870911) return NUM;
-    const v = n < 0 ? n + 2 ** 30 : n;
-    return Math.trunc(v).toString(8);
+    const value = Math.trunc(n);
+    if (value < -536870912 || value > 536870911) return NUM;
+    const places = decPlaces(args, ctx, 1);
+    if (places !== null && isErr(places)) return places;
+    const digits = value < 0 ? signedDigits(value, 8, 10) : value.toString(8);
+    return places === null || places <= digits.length ? digits : digits.padStart(places, "0");
   },
   DELTA: (args, ctx) => {
     const a = num(args, ctx, 0);
@@ -184,7 +257,25 @@ export const engineeringFns: Record<string, FnImpl> = {
     if (isErr(x)) return x;
     return 1 - erfSeries(x);
   },
-  IMSUM: () => VALUE,
+  IMSUM: (args, ctx) => {
+    // IMSUM adds any number of complex numbers: "3+4i" + "1-2i" = "4+2i".
+    let re = 0;
+    let im = 0;
+    let suffix = "i";
+    let seen = 0;
+    for (let i = 0; i < args.length; i++) {
+      if (!args[i] || args[i].t === "missing") continue;
+      const v = ctx.evalNode(args[i]);
+      const parts = complexParts(v);
+      if (parts === null) return VALUE;
+      re += parts.re;
+      im += parts.im;
+      suffix = parts.suffix;
+      seen += 1;
+    }
+    if (!seen) return VALUE;
+    return complexText(re, im, suffix);
+  },
   COMPLEX: (args, ctx) => {
     const re = num(args, ctx, 0);
     if (isErr(re)) return re;

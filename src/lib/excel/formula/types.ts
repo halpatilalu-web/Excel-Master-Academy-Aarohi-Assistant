@@ -43,10 +43,19 @@ export interface Ctx {
   col: number;
   /** Variables bound by LET / LAMBDA. */
   vars: Map<string, Val>;
+  /** Parameter names of the LAMBDA currently executing (for ISOMITTED). */
+  lambdaParams?: string[];
+  /** Which of those parameters the caller left out. */
+  lambdaOmitted?: Set<number>;
   /** Recursion guard for user-defined LAMBDAs. */
   depth: number;
   /** Set while expanding a spilled dynamic array, to break self-reference. */
   spillGuard?: Set<string>;
   evalNode(node: Node): Val;
-  evalInVars(node: Node, vars: Map<string, Val>): Val;
+  /**
+   * Evaluate with a different variable scope. `extra` carries the rest of the
+   * context that must survive the swap — a LAMBDA's parameter list (for
+   * ISOMITTED) and the recursion depth.
+   */
+  evalInVars(node: Node, vars: Map<string, Val>, extra?: Partial<Ctx>): Val;
 }

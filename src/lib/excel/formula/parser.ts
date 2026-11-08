@@ -437,6 +437,8 @@ class Parser {
         continue;
       }
       // LAMBDA(x, x*2)(21) — calling a value that evaluates to a LAMBDA.
+      // (Note: `LAMBDA(a,b,…)` also needs B accepted as a parameter name — see
+      // the name-token rules above; "A"/"B" are ordinary names in Excel LAMBDAs.)
       if (tok?.kind === "lparen") {
         this.pos++;
         const args: Node[] = [];
