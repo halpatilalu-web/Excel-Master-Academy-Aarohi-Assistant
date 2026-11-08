@@ -22,7 +22,7 @@ function ChartCard({ c }: { c: ChartInfo }) {
       </div>
       <div className="rounded-xl bg-(--color-canvas) p-2 relative">
         <DemoChart key={run} kind={c.kind} />
-        <button aria-label="Replay animation" onClick={() => setRun((r) => r + 1)} className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-(--color-surface) border border-(--color-border) hover:bg-(--color-accent-soft)"><RotateCcw size={14} /></button>
+        <button aria-label="Replay animation" onClick={() => setRun((r) => r + 1)} className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-(--color-surface) neu-btn hover:bg-(--color-accent-soft)"><RotateCcw size={14} /></button>
       </div>
       <p className="text-sm"><b>Kab use karein:</b> {c.when}</p>
       <ol className="text-sm list-decimal pl-5 space-y-1 text-(--color-muted)">{c.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
@@ -68,7 +68,7 @@ function Template({ t }: { t: DashTemplate }) {
         </div>
         <div className="grid md:grid-cols-2 gap-4">
           {[t.chart1, t.chart2].map((c) => (
-            <div key={c.title} className="rounded-xl border border-(--color-border) p-3">
+            <div key={c.title} className="rounded-xl neu-btn p-3">
               <p className="text-sm font-semibold mb-1">{c.title}</p>
               <DemoChart kind={c.kind} labels={c.labels} series={c.series} />
             </div>

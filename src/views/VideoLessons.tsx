@@ -454,7 +454,7 @@ export function VideoLessons({
           className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
             tab === "videos"
               ? "bg-(--color-accent) text-white shadow-sm"
-              : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+              : "bg-(--color-surface) neu-btn text-(--color-muted)"
           }`}
         >
           <Video size={16} /> Animated Video Lessons ({VIDEO_LESSONS.length})
@@ -469,7 +469,7 @@ export function VideoLessons({
           className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
             tab === "gallery"
               ? "bg-(--color-accent) text-white shadow-sm"
-              : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+              : "bg-(--color-surface) neu-btn text-(--color-muted)"
           }`}
         >
           <ImageIcon size={16} /> AI-Generated Excel Visuals ({AI_GALLERY.length})
@@ -480,7 +480,7 @@ export function VideoLessons({
         <div className="grid lg:grid-cols-3 gap-5">
           {/* Cinema Player Column */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="rounded-2xl overflow-hidden border border-(--color-border) bg-slate-950 text-white shadow-xl">
+            <div className="rounded-2xl overflow-hidden neu-btn bg-slate-950 text-white shadow-xl">
               {/* Simulated Excel Window Title Bar */}
               <div className="px-4 py-2.5 bg-emerald-900/90 border-b border-emerald-700/60 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
@@ -550,7 +550,7 @@ export function VideoLessons({
                                   key={ci}
                                   className={`px-3 py-2.5 border-r border-slate-800 last:border-r-0 font-mono transition-all ${
                                     hi
-                                      ? "bg-emerald-500/20 text-emerald-200 font-bold ring-1 ring-inset ring-emerald-400/60"
+                                      ? "bg-(--color-accent)/20 text-white font-bold ring-1 ring-inset ring-(--color-accent-soft)"
                                       : "text-slate-200"
                                   }`}
                                 >
@@ -593,7 +593,7 @@ export function VideoLessons({
                         idx === sceneIdx
                           ? "bg-emerald-400"
                           : idx < sceneIdx
-                            ? "bg-emerald-700"
+                            ? "bg-(--color-accent)"
                             : "bg-slate-700"
                       }`}
                       title={s.stepTitle}
@@ -617,7 +617,7 @@ export function VideoLessons({
                       type="button"
                       aria-label={playing ? "Pause video" : "Play video"}
                       onClick={() => setPlaying((p) => !p)}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs inline-flex items-center gap-1.5"
+                      className="px-3.5 py-2 rounded-xl bg-(--color-accent) hover:bg-(--color-accent-dark) text-white font-extrabold text-xs inline-flex items-center gap-1.5"
                     >
                       {playing ? <Pause size={15} /> : <Play size={15} />}
                       {playing ? "Pause" : "Play"}
@@ -716,7 +716,7 @@ export function VideoLessons({
                   <img
                     src={item.thumbnail}
                     alt={item.titleEn}
-                    className="w-20 h-14 rounded-xl object-cover shrink-0 border border-(--color-border)"
+                    className="w-20 h-14 rounded-xl object-cover shrink-0 neu-btn"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1 text-[11px] font-bold text-(--color-accent-dark)">
@@ -777,7 +777,7 @@ export function VideoLessons({
               animate={{ scale: 1 }}
               exit={{ scale: 0.94 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-w-3xl w-full bg-(--color-surface) rounded-2xl overflow-hidden shadow-2xl border border-(--color-border)"
+              className="max-w-3xl w-full bg-(--color-surface) rounded-2xl overflow-hidden shadow-2xl neu-btn"
             >
               <img src={zoomedImg.src} alt={zoomedImg.titleEn} className="w-full max-h-[65vh] object-cover" />
               <div className="p-5 flex items-start justify-between gap-4">
@@ -789,7 +789,7 @@ export function VideoLessons({
                   type="button"
                   aria-label="Close preview"
                   onClick={() => setZoomedImg(null)}
-                  className="p-2 rounded-xl border border-(--color-border) hover:bg-(--color-accent-soft)"
+                  className="p-2 rounded-xl neu-btn hover:bg-(--color-accent-soft)"
                 >
                   <X size={18} />
                 </button>

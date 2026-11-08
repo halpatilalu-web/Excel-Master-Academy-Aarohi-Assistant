@@ -138,10 +138,10 @@ export function FloatingAssistant({
             exit={{ opacity: 0, y: 20, scale: 0.96 }}
             transition={{ duration: 0.2 }}
             aria-label="Aarohi Live AI Assistant"
-            className="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] sm:w-96 h-[510px] max-h-[82vh] rounded-3xl border border-(--color-border) bg-(--color-surface) shadow-2xl flex flex-col overflow-hidden"
+            className="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] sm:w-96 h-[510px] max-h-[82vh] rounded-3xl neu-field bg-(--color-surface) shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="px-4 py-3 bg-gradient-to-r from-emerald-700 to-teal-700 text-white flex items-center justify-between gap-2">
+            <div className="px-4 py-3 bg-gradient-to-r from-(--color-accent) to-(--color-accent-dark) text-white flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 <img
                   src="/aarohi-avatar-desk.jpg"
@@ -209,7 +209,7 @@ export function FloatingAssistant({
                       src="/aarohi-avatar-desk.jpg"
                       alt=""
                       aria-hidden="true"
-                      className="w-7 h-7 rounded-full object-cover border border-(--color-border) shrink-0 mt-0.5"
+                      className="w-7 h-7 rounded-full object-cover neu-btn shrink-0 mt-0.5"
                     />
                   )}
                   <div
@@ -236,7 +236,7 @@ export function FloatingAssistant({
                   key={s}
                   type="button"
                   onClick={() => void ask(s)}
-                  className="shrink-0 text-[11px] rounded-full border border-(--color-border) px-2.5 py-1 hover:bg-(--color-accent-soft)"
+                  className="shrink-0 text-[11px] rounded-full neu-btn px-2.5 py-1 hover:bg-(--color-accent-soft)"
                 >
                   {s}
                 </button>
@@ -252,7 +252,7 @@ export function FloatingAssistant({
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder={listening ? "Listening… speak now" : "Ask any Excel doubt (HI/EN)…"}
-                className="flex-1 rounded-xl border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-(--color-accent)"
+                className="flex-1 rounded-xl neu-field bg-(--color-surface) px-3 py-2 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-(--color-accent)"
               />
               {canListen && (
                 <button

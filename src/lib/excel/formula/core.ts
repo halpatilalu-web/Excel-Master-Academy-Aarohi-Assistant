@@ -34,6 +34,8 @@ export interface XLambda {
   readonly lambda: {
     params: { name: string; optional?: boolean }[];
     body: unknown; // AST — kept opaque here to avoid a cycle with the parser
+    /** Parameter indexes the current call left out — read by ISOMITTED(). */
+    omitted?: Set<number>;
   };
   /** Captured outer variables, so LAMBDA closes over LET bindings. */
   readonly closure?: Map<string, Scalar | Scalar[][]>;
@@ -322,11 +324,35 @@ export function parseDateText(text: string): number | null {
     const year = +monthName[3] < 100 ? 2000 + +monthName[3] : +monthName[3];
     return dateToSerial(new Date(Date.UTC(year, month - 1, +monthName[2])));
   }
-  const timeOnly = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(t);
+  const timeOnly = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*([AaPp][Mm]))?$/.exec(t);
   if (timeOnly) {
-    return (+timeOnly[1] * 3600 + +timeOnly[2] * 60 + +(timeOnly[3] ?? 0)) / 86400;
+    let hours = +timeOnly[1];
+    const meridiem = timeOnly[4]?.toLowerCase();
+    // Excel accepts "9:30 AM", "9:30 pm" and "21:30"; the suffix decides
+    // whether 12 means midnight or noon.
+    if (meridiem) {
+      if (hours > 12) return null;
+      if (hours === 12) hours = 0;
+      if (meridiem === "pm") hours += 12;
+    }
+    if (hours > 23 || +timeOnly[2] > 59 || +(timeOnly[3] ?? 0) > 59) return null;
+    return (hours * 3600 + +timeOnly[2] * 60 + +(timeOnly[3] ?? 0)) / 86400;
   }
   return null;
+}
+
+/**
+ * Excel's TIMEVALUE() reads the time part of any date/time text, including the
+ * AM/PM forms users actually type. Kept separate so DATEVALUE and the grid's
+ * import path can stay strict about whole dates.
+ */
+export function parseTimeText(text: string): number | null {
+  const t = text.trim();
+  if (!t) return null;
+  const parsed = parseDateText(t);
+  if (parsed === null) return null;
+  // A time-only string is already a fraction of a day (0 ≤ x < 1).
+  return parsed < 1 ? parsed : parsed - Math.floor(parsed);
 }
 
 export function isDateSerial(n: number): boolean {

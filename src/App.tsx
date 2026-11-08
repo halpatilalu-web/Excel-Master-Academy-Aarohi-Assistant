@@ -22,6 +22,7 @@ import { AuthGate } from "./components/AuthGate";
 import { BreakMode } from "./components/BreakMode";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { FloatingAssistant } from "./components/FloatingAssistant";
+import { FocusPlayer } from "./components/FocusPlayer";
 import { Layout, type NavItem } from "./components/Layout";
 import type { PracticeSheetId } from "./components/LiveSpreadsheet";
 import { SearchBox, type Hit } from "./components/SearchBox";
@@ -363,6 +364,9 @@ export default function App() {
               onExpandFull={() => navigate("aarohi")}
             />
           )}
+
+          {/* Focus Mode music. It never autoplays — the student presses play. */}
+          {view !== "exam" && <FocusPlayer />}
 
           <BreakMode open={onBreak} onDone={() => setOnBreak(false)} />
           <SearchBox open={searchOpen} onClose={() => setSearchOpen(false)} onPick={pickSearchResult} />

@@ -9,7 +9,10 @@ import { Button, Card, Pill } from "../components/ui";
 const ALLOWED_EXTENSIONS = ["csv", "xlsx", "xls"];
 const MAX_FILE_BYTES = 5_000_000;
 
-export function Lab({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeSheetId } = {}) {
+export function Lab({
+  initialSheet = "sheet-marks",
+  initialFormula,
+}: { initialSheet?: PracticeSheetId; initialFormula?: string } = {}) {
   const [tab, setTab] = useState<"live" | "datasets">("live");
   const { items, loading, error: loadError, add } = useSubmissions();
   const [busy, setBusy] = useState<string | null>(null);
@@ -128,7 +131,7 @@ export function Lab({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeS
       </div>
 
       {tab === "live" ? (
-        <LiveSpreadsheet initialSheet={initialSheet} />
+        <LiveSpreadsheet initialSheet={initialSheet} initialFormula={initialFormula} />
       ) : (
         <div className="space-y-4">
           {loading && items.length === 0 && (
@@ -169,7 +172,7 @@ export function Lab({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeS
 
                   <Bilingual compact en={lab.taskEn} hi={lab.task} className="text-sm" />
 
-                  <div className="text-xs font-mono text-(--color-muted) bg-(--color-canvas) px-3 py-1.5 rounded-lg border border-(--color-border)">
+                  <div className="text-xs font-mono text-(--color-muted) bg-(--color-canvas) px-3 py-1.5 rounded-lg neu-btn">
                     Columns: {lab.header.join(" | ")}
                   </div>
 
@@ -205,7 +208,7 @@ export function Lab({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeS
                   )}
 
                   {last && (
-                    <div className="text-xs rounded-xl bg-(--color-canvas) p-3 flex gap-2 border border-(--color-border)">
+                    <div className="text-xs rounded-xl bg-(--color-canvas) p-3 flex gap-2 neu-btn">
                       <FileCheck2 size={16} className="shrink-0 text-(--color-good)" />
                       <div>
                         <b>{last.fileName}</b> · {Math.max(1, Math.round(last.size / 1024))} KB

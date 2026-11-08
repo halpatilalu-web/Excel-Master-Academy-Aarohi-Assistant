@@ -81,7 +81,7 @@ export function WordApp({
             key={style.id}
             type="button"
             onClick={() => applyStyle(style.wrap)}
-            className="px-2 py-1 rounded-md text-[11px] font-semibold border border-(--color-border) bg-(--color-surface) text-(--color-ink) hover:bg-(--color-accent-soft)"
+            className="px-2 py-1 rounded-md text-[11px] font-semibold neu-field bg-(--color-surface) text-(--color-ink) hover:bg-(--color-accent-soft)"
             title={`${style.label} — selection par lagao`}
           >
             {style.id === "b" ? <Bold size={13} /> : style.id === "i" ? <Italic size={13} /> : style.id === "u" ? <Underline size={13} /> : style.id === "bullet" ? <List size={13} /> : style.label}
@@ -92,7 +92,7 @@ export function WordApp({
           value={name}
           onChange={(event) => setName(event.target.value)}
           aria-label="Document name"
-          className="rounded-md border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px] w-52"
+          className="rounded-md neu-field bg-(--color-surface) px-2 py-1 text-[11px] w-52"
         />
         <Button
           onClick={() => {
@@ -220,7 +220,7 @@ export function PowerPointApp({
           value={name}
           onChange={(event) => setName(event.target.value)}
           aria-label="Presentation name"
-          className="rounded-md border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px] w-52"
+          className="rounded-md neu-field bg-(--color-surface) px-2 py-1 text-[11px] w-52"
         />
         <Button onClick={() => { onSave(name, JSON.stringify(slides)); onStatus(`PowerPoint: “${name}” saved.`); }} className="!px-2.5 !py-1 !text-[11px]">
           <Save size={12} /> Save
@@ -438,7 +438,7 @@ export function PaintApp({
           value={name}
           onChange={(event) => setName(event.target.value)}
           aria-label="Image name"
-          className="rounded-md border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px] w-40"
+          className="rounded-md neu-field bg-(--color-surface) px-2 py-1 text-[11px] w-40"
         />
         <Button onClick={save} className="!px-2.5 !py-1 !text-[11px]">
           <Save size={12} /> Save PNG
@@ -506,7 +506,7 @@ export function ExplorerApp({
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search files"
           aria-label="Search files"
-          className="ml-2 rounded-md border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px] w-44"
+          className="ml-2 rounded-md neu-field bg-(--color-surface) px-2 py-1 text-[11px] w-44"
         />
         {folders.map((name) => (
           <button

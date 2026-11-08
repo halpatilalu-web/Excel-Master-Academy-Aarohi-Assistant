@@ -164,3 +164,36 @@ describe("guided practice inside the free workbook", () => {
     expect(within(brief).getByText(/Yahan galti hoti hai/i)).toBeTruthy();
   });
 });
+
+describe("premium soft-UI shell", () => {
+  it("renders the Focus Mode launcher and never autoplays audio", async () => {
+    // jsdom has no HTMLAudioElement playback; a stub proves the shell does not
+    // even construct one on mount — the strict "no autoplay" rule.
+    const created: string[] = [];
+    class SilentAudio {
+      src = "";
+      loop = false;
+      volume = 1;
+      preload = "";
+      paused = true;
+      play = () => Promise.resolve();
+      pause = () => {};
+      addEventListener = () => {};
+      removeEventListener = () => {};
+      constructor() {
+        created.push("audio");
+      }
+    }
+    vi.stubGlobal("Audio", SilentAudio as unknown as typeof Audio);
+    stubBrowserApis();
+    await mountApp();
+    expect(await screen.findByRole("button", { name: /play focus music/i })).toBeTruthy();
+    expect(created).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: /open focus mode music/i }));
+    expect(screen.getByRole("dialog", { name: /focus mode/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Hindi Lofi/i })).toBeTruthy();
+    const panel = screen.getByRole("dialog", { name: /focus mode/i });
+    expect(within(panel).getByRole("button", { name: /English Study/i })).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+});

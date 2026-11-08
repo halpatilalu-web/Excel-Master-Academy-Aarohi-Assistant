@@ -32,7 +32,7 @@ export function SearchBox({ open, onClose, onPick }: { open: boolean; onClose: (
     <AnimatePresence>
       {open && (
         <motion.div className="fixed inset-0 z-[60] bg-black/40 flex items-start justify-center p-4 pt-20" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-          <motion.div initial={{ y: -20, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: -20 }} onClick={(e) => e.stopPropagation()} className="w-full max-w-xl bg-(--color-surface) border border-(--color-border) rounded-2xl shadow-2xl overflow-hidden">
+          <motion.div initial={{ y: -20, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: -20 }} onClick={(e) => e.stopPropagation()} className="w-full max-w-xl bg-(--color-surface) neu-btn rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex items-center gap-2 px-4 border-b border-(--color-border)">
               <Search size={18} className="text-(--color-muted)" />
               <input

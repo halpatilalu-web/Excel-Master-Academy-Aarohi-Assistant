@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, CheckCircle2, Download, ExternalLink, FileSpreadsheet, HelpCircle, RotateCcw, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  CheckCircle2,
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
+  HelpCircle,
+  RotateCcw,
+  Sparkles,
+  Table2,
+} from "lucide-react";
 import { Bilingual } from "../lib/lang";
 import { Button, Card, Pill } from "./ui";
 import { ExcelGrid, type GridCheck } from "./ExcelGrid";
 import { TaskBrief } from "./excel/TaskBrief";
+import { FormulaPracticeLab } from "./FormulaPracticeLab";
+import { FORMULA_DRILLS } from "../data/formulaPractice";
 import { taskFor } from "../data/practiceTasks";
 import { useWorkbooks, type WorkbookDoc } from "../lib/excel/useWorkbook";
 import { buildXlsx, type ExportSheet } from "../lib/excel/xlsx";
@@ -395,8 +407,23 @@ const NOTES: Record<PracticeSheetId, { en: string; hi: string }> = {
   },
 };
 
-export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeSheetId }) {
+export function LiveSpreadsheet({
+  initialSheet = "sheet-marks",
+  initialFormula,
+}: {
+  initialSheet?: PracticeSheetId;
+  /** Open the Lab with this formula's drill selected (e.g. from the catalog). */
+  initialFormula?: string;
+}) {
   const [sheetId, setSheetId] = useState<PracticeSheetId>(initialSheet);
+  /**
+   * Two modes inside the Lab: the eleven scenario sheets (marksheet, GST, stock…)
+   * and a drill for every function in the catalogue. The formula drills are only
+   * mounted when chosen, so the scenario sheet still opens instantly.
+   */
+  const [mode, setMode] = useState<"sheets" | "formulas">(
+    () => (initialFormula && FORMULA_DRILLS.some((drill) => drill.name === initialFormula) ? "formulas" : "sheets"),
+  );
   // The goal/hint panel is collapsed on phones so the sheet is visible straight
   // away — on a desktop there is room, so it starts open.
   const [briefOpen, setBriefOpen] = useState(
@@ -455,6 +482,35 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
 
   return (
     <div className="space-y-4">
+      {/* Mode switch: scenario sheets vs. a drill for every function. */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setMode("sheets")}
+          aria-pressed={mode === "sheets"}
+          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition ${
+            mode === "sheets" ? "bg-(--color-accent) text-white shadow-(--neu-raised-sm)" : "neu-btn text-(--color-muted)"
+          }`}
+        >
+          <Table2 size={14} /> Scenario sheets ({PRACTICE_SHEETS.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("formulas")}
+          aria-pressed={mode === "formulas"}
+          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition ${
+            mode === "formulas" ? "bg-(--color-accent) text-white shadow-(--neu-raised-sm)" : "neu-btn text-(--color-muted)"
+          }`}
+        >
+          <Sparkles size={14} /> Har formula ki practice ({FORMULA_DRILLS.length})
+        </button>
+      </div>
+
+      {mode === "formulas" && (
+        <FormulaPracticeLab initialFormula={initialFormula} />
+      )}
+
+      <div className={mode === "formulas" ? "hidden" : "space-y-4"}>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {PRACTICE_SHEETS.map((s) => (
           <button
@@ -487,7 +543,7 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
         </Button>
         <a
           href="#/workbook"
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold bg-(--color-surface) border border-(--color-border) hover:bg-(--color-accent-soft)"
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold bg-(--color-surface) neu-btn hover:bg-(--color-accent-soft)"
         >
           <ExternalLink size={15} /> Open full workbook
         </a>
@@ -563,6 +619,7 @@ export function LiveSpreadsheet({ initialSheet = "sheet-marks" }: { initialSheet
         <span className="inline-flex items-center gap-1">
           <Sparkles size={13} /> Show solution fills the model formulas.
         </span>
+      </div>
       </div>
     </div>
   );

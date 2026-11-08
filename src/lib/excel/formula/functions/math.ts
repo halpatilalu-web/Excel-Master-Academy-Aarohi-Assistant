@@ -122,6 +122,52 @@ function beta(a: number, b: number): number {
   return Math.exp(logGamma(a) + logGamma(b) - logGamma(a + b));
 }
 
+/**
+ * Regularised incomplete beta I_x(a,b) — the CDF of the beta distribution and,
+ * via a change of variable, of the Student-t distribution. Continued fraction
+ * (Numerical Recipes `betacf`), which is what makes T.DIST accurate in the tails;
+ * naive Simpson integration loses precision exactly where a t-test needs it.
+ */
+export function incompleteBeta(x: number, a: number, b: number): number {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const front = Math.exp(logGamma(a + b) - logGamma(a) - logGamma(b) + a * Math.log(x) + b * Math.log(1 - x));
+  if (x < (a + 1) / (a + b + 2)) return (front * betaCf(x, a, b)) / a;
+  return 1 - (front * betaCf(1 - x, b, a)) / b;
+}
+
+function betaCf(x: number, a: number, b: number): number {
+  const tiny = 1e-300;
+  let qab = a + b;
+  let qap = a + 1;
+  let qam = a - 1;
+  let c = 1;
+  let d = 1 - (qab * x) / qap;
+  if (Math.abs(d) < tiny) d = tiny;
+  d = 1 / d;
+  let h = d;
+  for (let m = 1; m <= 300; m++) {
+    const m2 = 2 * m;
+    let aa = (m * (b - m) * x) / ((qam + m2) * (a + m2));
+    d = 1 + aa * d;
+    if (Math.abs(d) < tiny) d = tiny;
+    c = 1 + aa / c;
+    if (Math.abs(c) < tiny) c = tiny;
+    d = 1 / d;
+    h *= d * c;
+    aa = (-(a + m) * (qab + m) * x) / ((a + m2) * (qap + m2));
+    d = 1 + aa * d;
+    if (Math.abs(d) < tiny) d = tiny;
+    c = 1 + aa / c;
+    if (Math.abs(c) < tiny) c = tiny;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < 1e-12) break;
+  }
+  return h;
+}
+
 export const mathFns: Record<string, FnImpl> = {
   ABS: unaryNum((x) => Math.abs(x)),
   ACOS: unaryNum((x) => (x < -1 || x > 1 ? NUM : Math.acos(x))),
@@ -509,18 +555,11 @@ export const mathFns: Record<string, FnImpl> = {
     const b = num(args, ctx, 2);
     if (isErr(b)) return b;
     if (x < 0 || x > 1 || a <= 0 || b <= 0) return NUM;
-    // Regularised incomplete beta by numerical integration (Simpson).
-    const steps = 2000;
-    const h = x / steps;
-    let sum = 0;
-    const dens = (t: number) => t ** (a - 1) * (1 - t) ** (b - 1);
-    for (let i = 0; i <= steps; i++) {
-      const t = i * h;
-      const w = i === 0 || i === steps ? 1 : i % 2 ? 4 : 2;
-      sum += w * dens(t);
-    }
-    const integral = (h / 3) * sum;
-    return integral / beta(a, b);
+    // Cumulative flag defaults to TRUE, exactly like Excel's BETA.DIST.
+    const cum = args[3] && args[3].t !== "missing" ? bool(args, ctx, 3, true) : true;
+    if (isErr(cum)) return cum;
+    if (!cum) return (x ** (a - 1) * (1 - x) ** (b - 1)) / beta(a, b);
+    return incompleteBeta(x, a, b);
   }),
   GAMMA: unaryNum((x) => safeNum(gamma(x))),
   GAMMALN: unaryNum((x) => (x <= 0 ? NUM : logGamma(x))),

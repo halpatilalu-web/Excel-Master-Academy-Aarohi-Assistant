@@ -155,7 +155,7 @@ export function Dashboard({
   return (
     <div className="space-y-7">
       {/* ==================== 1. HERO: one promise, one primary action ==================== */}
-      <section className="relative overflow-hidden rounded-3xl border border-(--color-border) bg-(--color-surface) p-6 sm:p-8">
+      <section className="relative overflow-hidden rounded-3xl neu-field bg-(--color-surface) p-6 sm:p-8">
         <div className="grid lg:grid-cols-12 gap-8 items-center">
           {/* Left Column: Clean Value Prop & Focused CTAs */}
           <div className="lg:col-span-7 space-y-5">
@@ -212,7 +212,7 @@ export function Dashboard({
                 { v: `${SHORTCUTS.length}`, l: "Shortcuts" },
                 { v: `${LABS.length}`, l: "Projects" },
               ].map((m) => (
-                <div key={m.l} className="rounded-xl bg-(--color-canvas) border border-(--color-border) px-3 py-2">
+                <div key={m.l} className="rounded-xl bg-(--color-canvas) neu-btn px-3 py-2">
                   <div className="font-display text-base sm:text-lg font-extrabold text-(--color-ink) leading-tight">
                     {m.v}
                   </div>
@@ -268,18 +268,18 @@ export function Dashboard({
 
               {/* Mini KPI Row */}
               <div className="grid grid-cols-3 gap-2 pt-3 border-t border-(--color-border) text-center">
-                <div className="rounded-xl bg-(--color-surface) border border-(--color-border) px-2 py-2">
+                <div className="rounded-xl bg-(--color-surface) neu-btn px-2 py-2">
                   <div className="font-display font-extrabold text-sm">{subs.length}</div>
                   <div className="text-[10px] text-(--color-muted)">Labs Saved</div>
                 </div>
-                <div className="rounded-xl bg-(--color-surface) border border-(--color-border) px-2 py-2">
+                <div className="rounded-xl bg-(--color-surface) neu-btn px-2 py-2">
                   <div className="font-display font-extrabold text-sm">{exams.length ? `${best}%` : "—"}</div>
                   <div className="text-[10px] text-(--color-muted)">Best Exam</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => go("certificate")}
-                  className="rounded-xl bg-(--color-surface) border border-(--color-border) hover:shadow-(--neu-raised) px-2 py-2 transition cursor-pointer"
+                  className="rounded-xl bg-(--color-surface) neu-btn hover:shadow-(--neu-raised) px-2 py-2 transition cursor-pointer"
                 >
                   <div className="font-display font-extrabold text-sm text-(--color-accent-dark)">
                     {certReady ? "Ready ✓" : `${pct}%`}
@@ -433,7 +433,7 @@ export function Dashboard({
                       {m.skills.slice(0, 2).map((sk) => (
                         <span
                           key={sk}
-                          className="text-[10px] px-1.5 py-0.5 rounded bg-(--color-canvas) border border-(--color-border) text-(--color-muted) font-medium"
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-(--color-canvas) neu-btn text-(--color-muted) font-medium"
                         >
                           {sk}
                         </span>
@@ -499,7 +499,7 @@ export function Dashboard({
                     <div className="w-10 h-10 rounded-xl bg-(--color-accent-soft) text-(--color-accent-dark) flex items-center justify-center">
                       <Icon size={20} />
                     </div>
-                    <span className="text-[11px] font-semibold text-(--color-muted) bg-(--color-canvas) border border-(--color-border) px-2.5 py-0.5 rounded-full">
+                    <span className="text-[11px] font-semibold text-(--color-muted) bg-(--color-canvas) neu-btn px-2.5 py-0.5 rounded-full">
                       {item.badge}
                     </span>
                   </div>
@@ -558,8 +558,8 @@ export function Dashboard({
                 All {SHORTCUTS.length} Keys →
               </button>
             </div>
-            <div className="flex items-center gap-3 rounded-xl bg-(--color-canvas) border border-(--color-border) p-3.5">
-              <kbd className="font-mono text-xs sm:text-sm bg-(--color-surface) border border-(--color-border) rounded-lg px-3 py-1.5 font-bold shadow-2xs shrink-0">
+            <div className="flex items-center gap-3 rounded-xl bg-(--color-canvas) neu-btn p-3.5">
+              <kbd className="font-mono text-xs sm:text-sm bg-(--color-surface) neu-btn rounded-lg px-3 py-1.5 font-bold shadow-2xs shrink-0">
                 {tip.win}
               </kbd>
               <span className="text-sm font-medium text-(--color-ink)">{tip.desc}</span>

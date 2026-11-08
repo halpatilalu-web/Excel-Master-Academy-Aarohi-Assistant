@@ -216,7 +216,7 @@ function Lesson({
           ))}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-(--color-border)">
+        <div className="overflow-x-auto rounded-xl neu-btn">
           <table className="w-full text-xs sm:text-sm">
             <thead className="bg-(--color-accent-soft) text-(--color-accent-dark)">
               <tr>
@@ -562,7 +562,7 @@ export function Chapters({
                         {mod.skills.map((sk) => (
                           <span
                             key={sk}
-                            className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-(--color-canvas) border border-(--color-border)"
+                            className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-(--color-canvas) neu-btn"
                           >
                             {sk}
                           </span>
@@ -587,7 +587,7 @@ export function Chapters({
                       <button
                         key={chapter.n}
                         onClick={() => setOpen(chapter.n)}
-                        className="text-left bg-(--color-surface) border border-(--color-border) rounded-2xl p-3.5 hover:shadow-md hover:shadow-(--neu-raised) transition"
+                        className="text-left bg-(--color-surface) neu-btn rounded-2xl p-3.5 hover:shadow-md hover:shadow-(--neu-raised) transition"
                       >
                         <div className="flex items-center justify-between">
                           <span
@@ -638,7 +638,7 @@ export function Chapters({
                     <button
                       key={chapter.n}
                       onClick={() => setOpen(chapter.n)}
-                      className="text-left bg-(--color-surface) border border-(--color-border) rounded-2xl p-4 hover:shadow-md transition"
+                      className="neu-sheen text-left neu-card-sm rounded-2xl p-4 transition"
                     >
                       <div className="flex items-center justify-between">
                         <span

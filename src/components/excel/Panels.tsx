@@ -15,7 +15,7 @@ import { CHART_KINDS, SHAPE_ART, SYMBOLS } from "../../lib/excel/insert";
 import { pageCss, suggestionFor } from "../../lib/excel/workbookTools";
 
 const field =
-  "w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-2.5 py-1.5 text-xs text-(--color-ink) outline-none focus:ring-2 focus:ring-(--color-accent)";
+  "w-full rounded-lg neu-field bg-(--color-surface) px-2.5 py-1.5 text-xs text-(--color-ink) outline-none focus:ring-2 focus:ring-(--color-accent)";
 const label = "block text-[11px] font-semibold text-(--color-muted) mb-0.5";
 
 export function SidePanel({
@@ -108,7 +108,7 @@ export function NotesPanel({
           placeholder="Yahan likho — jaise “is cell ka formula check karna hai”."
         />
       </div>
-      <div className="rounded-xl border border-(--color-border) divide-y divide-(--color-border)">
+      <div className="rounded-xl neu-pressed-sm divide-y divide-(--color-border)">
         <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-(--color-muted)">{notes.length} note(s) on this sheet</div>
         {notes.length === 0 && <p className="px-2.5 py-2 text-[11px] text-(--color-muted)">Koi note nahi. Naya note upar se likho.</p>}
         {notes.map((note) => (
@@ -145,7 +145,7 @@ export function SpellPanel({
       subtitle="Cell ka text check hota hai — GSTR, XLOOKUP jaise course words ko galti nahi maana jata (Review ▸ Spelling, F7)."
       onClose={onClose}
       footer={
-        <button type="button" onClick={onIgnore} className="rounded-lg border border-(--color-border) px-3 py-1.5 text-xs font-semibold text-(--color-ink)">
+        <button type="button" onClick={onIgnore} className="rounded-lg neu-btn px-3 py-1.5 text-xs font-semibold text-(--color-ink)">
           Ignore all
         </button>
       }
@@ -154,7 +154,7 @@ export function SpellPanel({
         <p className="text-xs text-(--color-good) font-semibold">✓ Koi spelling mistake nahi mili — poora sheet saaf hai.</p>
       ) : (
         issues.map((issue) => (
-          <div key={`${issue.address}-${issue.word}`} className="rounded-xl border border-(--color-border) p-2.5">
+          <div key={`${issue.address}-${issue.word}`} className="rounded-xl neu-btn p-2.5">
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={() => onGoTo(issue.address)} className="text-[11px] font-bold font-mono text-(--color-accent-dark)">
                 {issue.address}
@@ -170,7 +170,7 @@ export function SpellPanel({
               >
                 Change to “{suggestionFor(issue.word)}”
               </button>
-              <button type="button" onClick={() => onGoTo(issue.address)} className="rounded-lg border border-(--color-border) px-2 py-1 text-[10px] font-semibold text-(--color-ink)">
+              <button type="button" onClick={() => onGoTo(issue.address)} className="rounded-lg neu-btn px-2 py-1 text-[10px] font-semibold text-(--color-ink)">
                 Go to cell
               </button>
             </div>
@@ -354,7 +354,7 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
   return (
     <SidePanel title="Help — हर tab kya karta hai" subtitle="Excel ke 9 tabs, aur is app mein unke andar kya chalta hai." onClose={onClose}>
       {TAB_HELP.map((item) => (
-        <div key={item.tab} className="rounded-xl border border-(--color-border) p-2.5">
+        <div key={item.tab} className="rounded-xl neu-btn p-2.5">
           <div className="text-[11px] font-bold text-(--color-ink)">
             {item.tab} <span className="font-normal text-(--color-accent-dark)">{item.hindi}</span>
           </div>
@@ -392,7 +392,7 @@ export function ShortcutsPanel({ onClose }: { onClose: () => void }) {
   return (
     <SidePanel title="Keyboard shortcuts" subtitle="Yeh sab live hain — grid par focus karke try karo." onClose={onClose}>
       {SHORTCUTS.map(([keys, what]) => (
-        <div key={keys} className="flex items-start justify-between gap-2 rounded-lg border border-(--color-border) px-2.5 py-1.5">
+        <div key={keys} className="flex items-start justify-between gap-2 rounded-lg neu-btn px-2.5 py-1.5">
           <code className="text-[11px] font-bold text-(--color-accent-dark) whitespace-nowrap">{keys}</code>
           <span className="text-[11px] text-(--color-muted) text-right">{what}</span>
         </div>
@@ -450,7 +450,7 @@ export function CompatPanel({ onClose }: { onClose: () => void }) {
         ["Notes / comments", "Stay in this app — Excel comments are a different format."],
         ["Charts", "Not embedded in the .xlsx; build them in Excel or use this app's chart view."],
       ].map(([item, detail]) => (
-        <div key={item} className="rounded-xl border border-(--color-border) p-2.5">
+        <div key={item} className="rounded-xl neu-btn p-2.5">
           <div className="text-[11px] font-bold text-(--color-ink)">{item}</div>
           <p className="text-[11px] text-(--color-muted) mt-0.5">{detail}</p>
         </div>
@@ -477,7 +477,7 @@ export function ReferencesPanel({
       <input aria-label="Search formulas" className={field} value={token} onChange={(event) => onToken(event.target.value)} placeholder="SUM, B2, XLOOKUP…" />
       {token.trim() === "" && <p className="text-[11px] text-(--color-muted)">Kuch type karo — sirf woh formulas dikhenge jismein yeh text hai.</p>}
       {hits.map((hit) => (
-        <button key={hit.address} type="button" onClick={() => onGoTo(hit.address)} className="block w-full text-left rounded-lg border border-(--color-border) px-2.5 py-1.5 hover:bg-(--color-accent-soft)">
+        <button key={hit.address} type="button" onClick={() => onGoTo(hit.address)} className="block w-full text-left rounded-lg neu-btn px-2.5 py-1.5 hover:bg-(--color-accent-soft)">
           <span className="text-[11px] font-bold font-mono text-(--color-accent-dark)">{hit.address}</span>
           <span className="block text-[10px] text-(--color-muted) font-mono truncate">{hit.preview}</span>
         </button>
@@ -571,7 +571,7 @@ export function ThesaurusPanel({ onClose }: { onClose: () => void }) {
         ["profit", "मुनाफ़ा, लाभ"],
         ["loss", "घाटा, हानि"],
       ].map(([word, hindi]) => (
-        <div key={word} className="flex items-center justify-between rounded-lg border border-(--color-border) px-2.5 py-1.5 text-[11px]">
+        <div key={word} className="flex items-center justify-between rounded-lg neu-btn px-2.5 py-1.5 text-[11px]">
           <span className="font-bold text-(--color-ink)">{word}</span>
           <span className="text-(--color-muted)">{hindi}</span>
         </div>
@@ -615,7 +615,7 @@ export function WhatsNewPanel({ onClose }: { onClose: () => void }) {
   return (
     <SidePanel title="What's new" subtitle="Recently added Excel features." onClose={onClose}>
       {NEW_FEATURES.map(([title, detail]) => (
-        <div key={title} className="rounded-xl border border-(--color-border) p-2.5">
+        <div key={title} className="rounded-xl neu-btn p-2.5">
           <div className="text-[11px] font-bold text-(--color-ink)">{title}</div>
           <p className="text-[11px] text-(--color-muted) mt-0.5 leading-relaxed">{detail}</p>
         </div>
@@ -736,7 +736,7 @@ export function InsertPanel({
             <button type="button" onClick={onInsertChart} className="rounded-lg bg-(--color-accent) text-white px-3 py-1.5 text-xs font-bold">
               Insert chart
             </button>
-            <button type="button" onClick={onDeleteChart} className="rounded-lg border border-(--color-border) px-3 py-1.5 text-xs font-semibold text-(--color-ink)">
+            <button type="button" onClick={onDeleteChart} className="rounded-lg neu-btn px-3 py-1.5 text-xs font-semibold text-(--color-ink)">
               Remove last chart
             </button>
           </div>
@@ -782,7 +782,7 @@ export function InsertPanel({
             <button type="button" onClick={onInsertSpark} className="rounded-lg bg-(--color-accent) text-white px-3 py-1.5 text-xs font-bold">
               Insert sparkline
             </button>
-            <button type="button" onClick={onDeleteSpark} className="rounded-lg border border-(--color-border) px-3 py-1.5 text-xs font-semibold text-(--color-ink)">
+            <button type="button" onClick={onDeleteSpark} className="rounded-lg neu-btn px-3 py-1.5 text-xs font-semibold text-(--color-ink)">
               Clear from this cell
             </button>
           </div>
@@ -841,7 +841,7 @@ export function InsertPanel({
                 aria-label={`Insert ${entry.name}`}
                 title={entry.name}
                 onClick={() => onSymbol(entry.symbol)}
-                className="rounded-lg border border-(--color-border) py-1.5 text-base text-(--color-ink) hover:border-(--color-accent) hover:bg-(--color-accent-soft)"
+                className="rounded-lg neu-btn py-1.5 text-base text-(--color-ink) hover:border-(--color-accent) hover:bg-(--color-accent-soft)"
               >
                 {entry.symbol}
               </button>
@@ -860,7 +860,7 @@ export function InsertPanel({
                 type="button"
                 aria-label={`Insert ${entry.label} shape`}
                 onClick={() => onShape(entry.art)}
-                className="rounded-lg border border-(--color-border) py-2 flex flex-col items-center gap-0.5 hover:border-(--color-accent) hover:bg-(--color-accent-soft)"
+                className="rounded-lg neu-btn py-2 flex flex-col items-center gap-0.5 hover:border-(--color-accent) hover:bg-(--color-accent-soft)"
               >
                 <span className="text-lg leading-none" style={{ color: entry.color }}>
                   {entry.glyph}

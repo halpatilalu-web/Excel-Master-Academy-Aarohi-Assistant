@@ -6,7 +6,7 @@
   /* Fonts resolve to faces that are actually downloaded (index.html) and that
      render on every OS — no missing "Cabinet Grotesk"/"Satoshi" fallback to an
      invisible or mismatched face. */
-  --font-display: "Inter Tight", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "Poppins", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-body: "Inter", "Segoe UI", system-ui, -apple-system, "Noto Sans", sans-serif;
 
   /* Semantic tones. Components never hard-code #1b7f45; they read these. */
@@ -19,25 +19,25 @@
   --color-tone-info: #1d4ed8;
   --color-tone-info-bg: #dbeafe;
 
-  /* Neumorphism needs the surface and the canvas to sit close together —
-     that is what lets one soft shadow read as "raised" and its inverse as
-     "pressed". The grid keeps its crisp borders on top of these. */
-  --color-canvas: #e8eef5;
-  --color-surface: #f1f5fa;
-  --color-ink: #162033;
-  --color-muted: #55617a;
-  --color-border: #d3dce7;
+  /* Soft-UI "lavender" palette. Canvas and surface are the *same* family so the
+     dual shadow (white top-left, purple-grey bottom-right) can sculpt the shape
+     instead of a border doing it. */
+  --color-canvas: #ebe6f7;
+  --color-surface: #f1edfb;
+  --color-ink: #2c1d54;
+  --color-muted: #6b5f8c;
+  --color-border: #ded6f2;
 
-  --color-accent: #1b7f45;
-  --color-accent-dark: #135e33;
-  --color-accent-soft: #e6f6ec;
+  --color-accent: #6d28d9;
+  --color-accent-dark: #4c1d95;
+  --color-accent-soft: #ece3ff;
 
   /* Darkened so they pass AA as *text* on a white card (they are used both as
      text and as fills). */
   --color-good: #15803d;
   --color-warn: #b45309;
-  --color-danger: #dc2626;
-  --color-info: #2563eb;
+  --color-danger: #c0243a;
+  --color-info: #4338ca;
 }
 
 html,
@@ -80,9 +80,9 @@ body {
   --color-muted: #9fb0c6;
   --color-border: #2a3a52;
   --color-border-strong: #3a4d68;
-  --color-accent: #34d399;
-  --color-accent-dark: #6ee7b7;
-  --color-accent-soft: #10301f;
+  --color-accent: #a78bfa;
+  --color-accent-dark: #c4b5fd;
+  --color-accent-soft: #241a44;
   --color-good: #4ade80;
   --color-warn: #fbbf24;
   --color-danger: #f87171;
@@ -107,26 +107,30 @@ body {
   --neu-raised-lg: 10px 10px 24px var(--neu-dark), -10px -10px 24px var(--neu-light);
   --neu-pressed: inset 4px 4px 9px var(--neu-dark), inset -4px -4px 9px var(--neu-light);
   --neu-pressed-sm: inset 2px 2px 4px var(--neu-dark), inset -2px -2px 4px var(--neu-light);
-  --neu-ring: rgba(52, 211, 153, 0.4);
+  --neu-ring: rgba(167, 139, 250, 0.45);
+  --neu-ease: 0.3s ease-in-out;
 }
 
 /* Light theme also needs the "secondary surface" token the tools read. */
 :root {
-  --color-surface-2: #e4ebf3;
-  --color-border-strong: #c2cddb;
+  --color-surface-2: #e6dff7;
+  --color-border-strong: #cdc2ea;
   /* Paper stays paper: the spreadsheet, notes and certificates must not look
      like a soft rubber panel — numbers need crisp white. */
   --color-paper: #ffffff;
 
-  /* Neumorphic depth: one light source (top-left), one shadow (bottom-right). */
-  --neu-light: rgba(255, 255, 255, 0.95);
-  --neu-dark: rgba(163, 177, 198, 0.55);
-  --neu-raised: 6px 6px 12px var(--neu-dark), -6px -6px 12px var(--neu-light);
-  --neu-raised-sm: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light);
-  --neu-raised-lg: 10px 10px 22px var(--neu-dark), -10px -10px 22px var(--neu-light);
-  --neu-pressed: inset 4px 4px 8px var(--neu-dark), inset -4px -4px 8px var(--neu-light);
-  --neu-pressed-sm: inset 2px 2px 4px var(--neu-dark), inset -2px -2px 4px var(--neu-light);
-  --neu-ring: rgba(27, 127, 69, 0.35);
+  /* Neumorphic depth: one light source (top-left), one shadow (bottom-right).
+     The shadow is a greyish purple so it reads as *this* surface's own shade. */
+  --neu-light: #ffffff;
+  --neu-dark: rgba(124, 103, 171, 0.34);
+  --neu-raised: 7px 7px 16px var(--neu-dark), -7px -7px 16px var(--neu-light);
+  --neu-raised-sm: 4px 4px 9px var(--neu-dark), -4px -4px 9px var(--neu-light);
+  --neu-raised-lg: 14px 14px 32px var(--neu-dark), -14px -14px 32px var(--neu-light);
+  --neu-pressed: inset 5px 5px 11px var(--neu-dark), inset -5px -5px 11px var(--neu-light);
+  --neu-pressed-sm: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
+  --neu-ring: rgba(109, 40, 217, 0.34);
+  /* One transition timing for the whole soft-UI layer. */
+  --neu-ease: 0.3s ease-in-out;
 }
 
 /* Inputs must never inherit a dark text colour on a dark field (or the reverse):
@@ -141,96 +145,178 @@ input::placeholder, textarea::placeholder { color: var(--color-muted); opacity: 
   .no-print { display: none !important; }
 }
 
-/* ============================== neumorphism ==============================
-   Soft UI: every surface is the page colour, lifted by a light top-left
-   highlight and a soft bottom-right shadow. Pressed controls invert the pair.
-   All of it is token-driven, so light and dark get the same shapes with the
-   shadows that suit each theme. */
+/* Utilities must still win over these classes (a `rounded-full` pill with a
+   neumorphic shadow, a hover background swap, and so on), so every class rule
+   lives in Tailwind's components layer. Token overlays and keyframes stay
+   unlayered: nothing else should be able to knock out the shadow scale. */
+@layer components {
+  /* ============================== neumorphism ==============================
+     Soft UI: every surface is the page colour, sculpted by a white highlight on
+     the top-left and a grey-violet shadow on the bottom-right. Pressed controls
+     invert that pair. All of it is token-driven, so light and dark get the same
+     shapes with shadows that suit each theme — and every control shares one
+     0.3s ease-in-out transition, so nothing snaps. */
 
-.neu-raised { box-shadow: var(--neu-raised); }
-.neu-raised-sm { box-shadow: var(--neu-raised-sm); }
-.neu-raised-lg { box-shadow: var(--neu-raised-lg); }
-.neu-pressed { box-shadow: var(--neu-pressed); }
-.neu-pressed-sm { box-shadow: var(--neu-pressed-sm); }
+  .neu-raised { box-shadow: var(--neu-raised); }
+  .neu-raised-sm { box-shadow: var(--neu-raised-sm); }
+  .neu-raised-lg { box-shadow: var(--neu-raised-lg); }
+  .neu-pressed { box-shadow: var(--neu-pressed); }
+  .neu-pressed-sm { box-shadow: var(--neu-pressed-sm); }
 
-/* A card: same colour as the page, lifted out of it. */
-.neu-card {
-  background: var(--color-surface);
-  border-radius: 1.25rem;
-  box-shadow: var(--neu-raised);
-}
-.neu-card-sm {
-  background: var(--color-surface);
-  border-radius: 0.9rem;
-  box-shadow: var(--neu-raised-sm);
-}
+  /* A card: same colour as the page, lifted out of it. */
+  .neu-card {
+    background: var(--color-surface);
+    border-radius: 1.5rem;
+    box-shadow: var(--neu-raised);
+    transition: box-shadow var(--neu-ease), transform var(--neu-ease), background-color var(--neu-ease);
+  }
+  .neu-card:hover { box-shadow: var(--neu-raised-lg); }
+  .neu-card-sm {
+    background: var(--color-surface);
+    border-radius: 1rem;
+    box-shadow: var(--neu-raised-sm);
+    transition: box-shadow var(--neu-ease), transform var(--neu-ease);
+  }
 
-/* A raised control that presses in when tapped (buttons, tabs, chips). */
-.neu-btn {
-  background: var(--color-surface);
-  border-radius: 0.85rem;
-  box-shadow: var(--neu-raised-sm);
-  transition: box-shadow 140ms ease, transform 140ms ease, background-color 140ms ease;
-}
-.neu-btn:hover { box-shadow: var(--neu-raised); }
-.neu-btn:active,
-.neu-btn[aria-pressed="true"],
-.neu-btn[data-active="true"] {
-  box-shadow: var(--neu-pressed-sm);
-  transform: translateY(1px);
-}
-.neu-btn:disabled { box-shadow: none; opacity: 0.55; }
+  /* A raised control that presses in when tapped (buttons, tabs, chips). */
+  .neu-btn {
+    background: var(--color-surface);
+    border-radius: 0.9rem;
+    box-shadow: var(--neu-raised-sm);
+    transition: box-shadow var(--neu-ease), transform var(--neu-ease), background-color var(--neu-ease), color var(--neu-ease);
+  }
+  .neu-btn:hover { box-shadow: var(--neu-raised); }
+  .neu-btn:active,
+  .neu-btn[aria-pressed="true"],
+  .neu-btn[data-active="true"] {
+    box-shadow: var(--neu-pressed-sm);
+    transform: translateY(1px);
+  }
+  .neu-btn:disabled { box-shadow: none; opacity: 0.55; }
+  .neu-btn:focus-visible { outline: none; box-shadow: var(--neu-raised-sm), 0 0 0 2px var(--neu-ring); }
 
-/* An accent-filled button still gets a soft lift, tinted with the accent. */
-.neu-btn-accent {
-  background: var(--color-accent);
-  color: #fff;
-  border-radius: 0.85rem;
-  box-shadow: var(--neu-raised-sm), inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  transition: box-shadow 140ms ease, transform 140ms ease, filter 140ms ease;
-}
-.neu-btn-accent:hover { filter: brightness(1.05); box-shadow: var(--neu-raised), inset 0 1px 0 rgba(255, 255, 255, 0.3); }
-.neu-btn-accent:active { box-shadow: var(--neu-pressed-sm); transform: translateY(1px); }
+  /* An accent-filled button still gets a soft lift, tinted with the accent. */
+  .neu-btn-accent {
+    background: linear-gradient(145deg, color-mix(in oklab, var(--color-accent) 88%, white), var(--color-accent));
+    color: #fff;
+    border-radius: 0.9rem;
+    box-shadow: var(--neu-raised-sm), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transition: box-shadow var(--neu-ease), transform var(--neu-ease), filter var(--neu-ease);
+  }
+  .neu-btn-accent:hover { filter: brightness(1.06); box-shadow: var(--neu-raised), inset 0 1px 0 rgba(255, 255, 255, 0.34); }
+  .neu-btn-accent:active { box-shadow: var(--neu-pressed-sm); transform: translateY(1px); }
 
-/* Inputs are pressed into the surface, not drawn on top of it. */
-.neu-field {
-  background: var(--color-surface);
-  border: 0;
-  border-radius: 0.75rem;
-  box-shadow: var(--neu-pressed-sm);
-  transition: box-shadow 140ms ease;
-}
-.neu-field:focus,
-.neu-field:focus-visible {
-  outline: none;
-  box-shadow: var(--neu-pressed-sm), 0 0 0 2px var(--neu-ring);
-}
+  /* Inputs are pressed into the surface, not drawn on top of it. */
+  .neu-field {
+    background: var(--color-surface);
+    border: 0;
+    border-radius: 0.8rem;
+    box-shadow: var(--neu-pressed-sm);
+    transition: box-shadow var(--neu-ease), background-color var(--neu-ease);
+  }
+  .neu-field:focus,
+  .neu-field:focus-visible {
+    outline: none;
+    box-shadow: var(--neu-pressed-sm), 0 0 0 2px var(--neu-ring);
+  }
 
-/* Navigation: the selected item sits *inside* the rail. */
-.neu-nav-active {
-  background: var(--color-surface);
-  box-shadow: var(--neu-pressed-sm);
-}
+  /* Navigation: the selected item sits *inside* the rail. */
+  .neu-nav-active {
+    background: var(--color-surface);
+    box-shadow: var(--neu-pressed-sm);
+  }
 
-/* Paper surfaces stay flat and white — spreadsheet cells, print previews,
-   certificates. Neumorphism must never soften a number a student has to read. */
-.neu-paper {
-  background: var(--color-paper);
-  box-shadow: var(--neu-raised-sm);
-  border-radius: 1rem;
-}
+  /* Paper surfaces stay flat and white — spreadsheet cells, print previews,
+     certificates. Neumorphism must never soften a number a student has to read. */
+  .neu-paper {
+    background: var(--color-paper);
+    box-shadow: var(--neu-raised-sm);
+    border-radius: 1rem;
+  }
 
-/* Phones: shadows get tighter so the page does not look puffy on a small
-   screen, and the bottom bar floats above the content like Android's. */
-@media (max-width: 767px) {
-  :root {
-    --neu-raised: 4px 4px 9px var(--neu-dark), -4px -4px 9px var(--neu-light);
-    --neu-raised-sm: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
-    --neu-raised-lg: 6px 6px 16px var(--neu-dark), -6px -6px 16px var(--neu-light);
+  /* Glassmorphism for the sticky navbar: frosted lavender, hairline highlight on
+     top, one soft shadow under it. Backdrop-filter alone would look flat, the
+     inset highlight is what sells the glass. */
+  .glass-bar {
+    background: color-mix(in oklab, var(--color-canvas) 62%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    backdrop-filter: blur(18px) saturate(1.5);
+    box-shadow: 0 10px 24px -18px var(--neu-dark), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    transition: background-color var(--neu-ease), box-shadow var(--neu-ease);
+  }
+
+  /* Sheen that sweeps across a raised surface on hover — the "premium" tell. */
+  .neu-sheen { position: relative; overflow: hidden; }
+  .neu-sheen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.4) 48%, transparent 62%);
+    transform: translateX(-120%);
+    transition: transform 0.7s ease-in-out;
+    pointer-events: none;
+  }
+  .neu-sheen:hover::after { transform: translateX(120%); }
+
+  /* Android-style bottom navigation clears the home indicator. */
+  .neu-bottom-bar {
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
   }
 }
 
-/* Android-style bottom navigation clears the home indicator. */
-.neu-bottom-bar {
-  padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+/* Phones: shadows get tighter so the page does not look puffy on a small
+   screen, and padding scales with the type. */
+@media (max-width: 767px) {
+  :root {
+    --neu-raised: 5px 5px 12px var(--neu-dark), -5px -5px 12px var(--neu-light);
+    --neu-raised-sm: 3px 3px 7px var(--neu-dark), -3px -3px 7px var(--neu-light);
+    --neu-raised-lg: 8px 8px 20px var(--neu-dark), -8px -8px 20px var(--neu-light);
+  }
+}
+@media (min-width: 1280px) {
+  :root {
+    --neu-raised: 8px 8px 20px var(--neu-dark), -8px -8px 20px var(--neu-light);
+    --neu-raised-lg: 18px 18px 40px var(--neu-dark), -18px -18px 40px var(--neu-light);
+  }
+}
+
+/* ============================== focus mode ==============================
+   The floating music player. Three things happen here that CSS alone can do:
+   the playing button breathes, the equaliser bars dance, and the whole phone
+   dock lifts clear of the bottom navigation. */
+
+@keyframes focusPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(109, 40, 217, 0.35), var(--neu-raised-sm); }
+  50% { box-shadow: 0 0 0 12px rgba(109, 40, 217, 0), var(--neu-raised); }
+}
+@keyframes focusHalo {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.14); opacity: 0; }
+}
+@keyframes eqBar {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+@keyframes focusSpin {
+  to { transform: rotate(360deg); }
+}
+
+.focus-pulse { animation: focusPulse 2.8s ease-in-out infinite; }
+.focus-halo {
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 2px solid var(--color-accent);
+  animation: focusHalo 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+.eq-bar { transform-origin: bottom; animation: eqBar 0.9s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-pulse { animation: none; }
+  .focus-halo { display: none; }
+  .eq-bar { animation: none; transform: scaleY(0.7); }
+  .neu-sheen::after { display: none; }
+  .neu-card, .neu-card-sm, .neu-btn, .neu-field { transition: none; }
 }
