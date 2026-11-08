@@ -845,7 +845,7 @@ export function Studio3D({
                     </button>
                   ))}
                 </div>
-                <div className="overflow-x-auto rounded-xl border border-(--color-border)">
+                <div className="overflow-x-auto rounded-xl neu-btn">
                   <table className="w-full text-xs">
                     <thead className="bg-(--color-accent-soft)">
                       <tr>
@@ -899,7 +899,7 @@ export function Studio3D({
                     </button>
                   ))}
                 </div>
-                <div className="rounded-xl bg-(--color-canvas) p-3 text-xs space-y-1 font-mono border border-(--color-border)">
+                <div className="rounded-xl bg-(--color-canvas) p-3 text-xs space-y-1 font-mono neu-btn">
                   <div>Jan!{selectedCell} = {SHEET_DATA.Jan[selectedCell]}</div>
                   <div>Feb!{selectedCell} = {SHEET_DATA.Feb[selectedCell]}</div>
                   <div>Mar!{selectedCell} = {SHEET_DATA.Mar[selectedCell]}</div>
@@ -1000,7 +1000,7 @@ export function Studio3D({
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {["Jan", "Feb", "Mar", "Apr", "May", "Jun"].map((m, idx) => (
-                    <label key={m} className="block bg-(--color-canvas) p-2 rounded-xl border border-(--color-border)">
+                    <label key={m} className="block bg-(--color-canvas) p-2 rounded-xl neu-btn">
                       <span className="font-semibold">
                         {m}: {monthVals[idx]}
                       </span>
@@ -1030,7 +1030,7 @@ export function Studio3D({
                 <div className="rounded-xl bg-amber-500/10 border border-amber-400/30 p-2.5">
                   <b>🟡 Applied Steps:</b> Trim → Split by Delimiter → Unpivot Months → Merge Master
                 </div>
-                <div className="rounded-xl bg-emerald-500/10 border border-emerald-400/30 p-2.5">
+                <div className="rounded-xl bg-(--color-accent)/10 border border-(--color-accent)/30 p-2.5">
                   <b>🟢 Clean Output:</b> Structured Excel Table — click <code>Alt+F5</code> next month!
                 </div>
               </div>
@@ -1043,7 +1043,7 @@ export function Studio3D({
                 </p>
                 <pre className="rounded-xl bg-slate-900 text-slate-100 p-3 text-[11px] font-mono overflow-x-auto leading-relaxed">
                   {`Sub AutoGradeRows()\n  For i = 2 To 7\n`}
-                  <span className="bg-emerald-500/30 text-emerald-200 px-1 rounded">
+                  <span className="bg-(--color-accent)/30 text-(--color-accent-soft) px-1 rounded">
                     {`    ' Checking Row ${vbaRow + 2}: Marks = ${VBA_STUDENTS[vbaRow].marks}\n`}
                   </span>
                   {`    If Cells(i, 2).Value >= 40 Then\n      Cells(i, 3).Value = "PASS"\n    Else\n      Cells(i, 3).Value = "FAIL"\n    End If\n  Next i\nEnd Sub`}

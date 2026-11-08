@@ -751,7 +751,7 @@ function ExcelAppBody({
               setBook(fresh);
               onStatus("Naya workbook khula — File ▸ Open se .xlsx ya .csv import karo.");
             }}
-            className="flex items-center gap-2.5 rounded-xl border border-(--color-border) px-3 py-3 text-left hover:border-(--color-accent)"
+            className="flex items-center gap-2.5 rounded-xl neu-btn px-3 py-3 text-left hover:border-(--color-accent)"
           >
             <span className="grid place-items-center h-10 w-10 rounded-lg bg-(--color-surface-2) text-(--color-ink) shrink-0">
               <FolderOpen size={17} />
@@ -778,7 +778,7 @@ function ExcelAppBody({
                     onOpenFile(item);
                     onStatus(`Opening ${item.name}…`);
                   }}
-                  className="w-full flex items-center gap-2 rounded-lg border border-(--color-border) px-2.5 py-2 text-left hover:border-(--color-accent) hover:bg-(--color-accent-soft)/40"
+                  className="w-full flex items-center gap-2 rounded-lg neu-btn px-2.5 py-2 text-left hover:border-(--color-accent) hover:bg-(--color-accent-soft)/40"
                 >
                   <FileSpreadsheet size={14} className="text-emerald-600 shrink-0" />
                   <span className="min-w-0">
@@ -809,7 +809,7 @@ function ExcelAppBody({
           value={name}
           onChange={(event) => setName(event.target.value)}
           aria-label="Workbook name"
-          className="rounded-md border border-(--color-border) bg-(--color-surface) px-2 py-0.5 text-[11px] text-(--color-ink) w-40 shrink-0"
+          className="rounded-md neu-field bg-(--color-surface) px-2 py-0.5 text-[11px] text-(--color-ink) w-40 shrink-0"
         />
         <button
           type="button"
@@ -826,7 +826,7 @@ function ExcelAppBody({
             setLiveCells({});
             onStatus("Naya workbook — naam likho aur Save dabao.");
           }}
-          className="inline-flex items-center gap-1 rounded-md border border-(--color-border) px-2 py-0.5 text-[11px] font-semibold text-(--color-ink) whitespace-nowrap shrink-0"
+          className="inline-flex items-center gap-1 rounded-md neu-btn px-2 py-0.5 text-[11px] font-semibold text-(--color-ink) whitespace-nowrap shrink-0"
         >
           <Plus size={12} /> New
         </button>
@@ -841,7 +841,7 @@ function ExcelAppBody({
               "text/csv",
             )
           }
-          className="inline-flex items-center gap-1 rounded-md border border-(--color-border) px-2 py-0.5 text-[11px] font-semibold text-(--color-ink) whitespace-nowrap shrink-0"
+          className="inline-flex items-center gap-1 rounded-md neu-btn px-2 py-0.5 text-[11px] font-semibold text-(--color-ink) whitespace-nowrap shrink-0"
         >
           <Table2 size={12} /> Quick CSV
         </button>
@@ -875,7 +875,7 @@ function NotepadApp({ initial, onSave }: { initial: string; onSave: (name: strin
           value={name}
           onChange={(event) => setName(event.target.value)}
           aria-label="Note name"
-          className="rounded-md border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px] w-44"
+          className="rounded-md neu-field bg-(--color-surface) px-2 py-1 text-[11px] w-44"
         />
         <button
           type="button"
@@ -887,7 +887,7 @@ function NotepadApp({ initial, onSave }: { initial: string; onSave: (name: strin
         <button
           type="button"
           onClick={() => downloadText(name, text)}
-          className="inline-flex items-center gap-1 rounded-md border border-(--color-border) px-2.5 py-1 text-[11px] font-semibold text-(--color-ink)"
+          className="inline-flex items-center gap-1 rounded-md neu-btn px-2.5 py-1 text-[11px] font-semibold text-(--color-ink)"
         >
           <Download size={12} /> Download
         </button>
@@ -923,7 +923,7 @@ function CalculatorApp() {
   const keys = ["C", "←", "%", "/", "7", "8", "9", "*", "4", "5", "6", "-", "1", "2", "3", "+", "0", ".", "="];
   return (
     <div className="h-full flex flex-col p-3 bg-(--color-surface)">
-      <div className="rounded-xl border border-(--color-border) bg-(--color-canvas) px-3 py-3 text-right font-mono text-xl text-(--color-ink) min-h-12 break-all">
+      <div className="rounded-xl neu-btn bg-(--color-canvas) px-3 py-3 text-right font-mono text-xl text-(--color-ink) min-h-12 break-all">
         {display}
       </div>
       <div className="mt-2 grid grid-cols-4 gap-1.5 flex-1">
@@ -964,7 +964,7 @@ function CalendarApp() {
               setYear(year - 1);
             } else setMonth(next);
           }}
-          className="px-2 py-1 rounded border border-(--color-border) text-xs"
+          className="px-2 py-1 rounded neu-btn text-xs"
         >
           ←
         </button>
@@ -980,7 +980,7 @@ function CalendarApp() {
               setYear(year + 1);
             } else setMonth(next);
           }}
-          className="px-2 py-1 rounded border border-(--color-border) text-xs"
+          className="px-2 py-1 rounded neu-btn text-xs"
         >
           →
         </button>
@@ -1037,7 +1037,7 @@ function PowerBiApp({ files: allFiles, onStatus }: { files: DesktopFile[]; onSta
           aria-label="Dashboard data source"
           value={fileId}
           onChange={(event) => setFileId(event.target.value)}
-          className="rounded-md border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px]"
+          className="rounded-md neu-field bg-(--color-surface) px-2 py-1 text-[11px]"
         >
           <option value="">— choose a saved workbook —</option>
           {allFiles.filter((item) => item.kind === "sheet").map((item) => (
@@ -1054,7 +1054,7 @@ function PowerBiApp({ files: allFiles, onStatus }: { files: DesktopFile[]; onSta
           Refresh visual
         </button>
       </div>
-      <div className="flex-1 rounded-xl border border-(--color-border) bg-(--color-canvas) p-3">
+      <div className="flex-1 rounded-xl neu-btn bg-(--color-canvas) p-3">
         {numbers.length === 0 ? (
           <p className="text-xs text-(--color-muted)">
             Pehle Excel mein numbers wali sheet save karo, phir yahan chart banega.

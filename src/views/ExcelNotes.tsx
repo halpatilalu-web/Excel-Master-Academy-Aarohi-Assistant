@@ -277,7 +277,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition ${
               tab === "handwritten"
                 ? "bg-(--color-accent) text-white shadow-sm"
-                : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+                : "bg-(--color-surface) neu-btn text-(--color-muted)"
             }`}
           >
             <BookOpen size={16} /> Handwritten Notes ({filteredChapters.length})
@@ -290,7 +290,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition ${
               tab === "infographics"
                 ? "bg-(--color-accent) text-white shadow-sm"
-                : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+                : "bg-(--color-surface) neu-btn text-(--color-muted)"
             }`}
           >
             <Layers size={16} /> Professional Infographics ({INFOGRAPHICS.length})
@@ -303,7 +303,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition ${
               tab === "quick"
                 ? "bg-(--color-accent) text-white shadow-sm"
-                : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+                : "bg-(--color-surface) neu-btn text-(--color-muted)"
             }`}
           >
             <Zap size={16} /> Quick Cheat Cards
@@ -321,7 +321,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
             placeholder="Search VLOOKUP, Pivot, TRIM..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-(--color-surface) border border-(--color-border) rounded-xl text-sm outline-none focus:ring-2 focus:ring-(--color-accent)"
+            className="w-full pl-9 pr-4 py-2 bg-(--color-surface) neu-btn rounded-xl text-sm outline-none focus:ring-2 focus:ring-(--color-accent)"
           />
         </div>
       </div>
@@ -405,7 +405,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
                       <ul className="hand text-xl leading-7 mt-1 space-y-0.5 text-indigo-950">
                         {rich.enPoints.map((pt, idx) => (
                           <li key={idx} className="flex gap-1.5">
-                            <span className="text-emerald-700">✓</span>
+                            <span className="text-(--color-accent-dark)">✓</span>
                             <span>{pt}</span>
                           </li>
                         ))}
@@ -524,7 +524,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
                     <CheckCircle2 size={16} className="text-(--color-good) shrink-0" />
                   </div>
                   <Bilingual compact en={item.descEn} hi={item.descHi} className="text-sm mt-2.5" />
-                  <p className="mt-3 text-xs font-mono bg-(--color-canvas) p-2 rounded-lg border border-(--color-border)">
+                  <p className="mt-3 text-xs font-mono bg-(--color-canvas) p-2 rounded-lg neu-btn">
                     Ex: {item.example}
                   </p>
                 </Card>
@@ -540,7 +540,7 @@ export function ExcelNotes({ onGoChapter }: { onGoChapter?: (chapter: number) =>
               {shortcuts.map((item) => (
                 <Card key={item.key} className="!p-4">
                   <div className="flex items-center justify-between gap-2">
-                    <kbd className="text-xs font-bold bg-(--color-accent-soft) text-(--color-accent-dark) border border-(--color-border) px-2.5 py-1 rounded-md">
+                    <kbd className="text-xs font-bold bg-(--color-accent-soft) text-(--color-accent-dark) neu-btn px-2.5 py-1 rounded-md">
                       {item.key}
                     </kbd>
                     <Bookmark size={16} className="text-(--color-warn) shrink-0" />

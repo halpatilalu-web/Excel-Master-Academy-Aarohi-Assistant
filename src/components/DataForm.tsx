@@ -95,7 +95,7 @@ export function DataForm({ headers, rows, onNew, onUpdate, onDelete, onClose }: 
               <button
                 type="button"
                 onClick={() => load(cursor === null ? Math.max(0, rows.length - 1) : Math.max(0, cursor - 1))}
-                className="p-1 rounded-lg border border-(--color-border) hover:bg-(--color-accent-soft)"
+                className="p-1 rounded-lg neu-btn hover:bg-(--color-accent-soft)"
                 aria-label="Previous record"
               >
                 <ChevronLeft size={14} />
@@ -103,7 +103,7 @@ export function DataForm({ headers, rows, onNew, onUpdate, onDelete, onClose }: 
               <button
                 type="button"
                 onClick={() => load(cursor === null ? 0 : Math.min(rows.length - 1, cursor + 1))}
-                className="p-1 rounded-lg border border-(--color-border) hover:bg-(--color-accent-soft)"
+                className="p-1 rounded-lg neu-btn hover:bg-(--color-accent-soft)"
                 aria-label="Next record"
               >
                 <ChevronRight size={14} />
@@ -118,7 +118,7 @@ export function DataForm({ headers, rows, onNew, onUpdate, onDelete, onClose }: 
                   }}
                   aria-label="Find in form"
                   placeholder="Find"
-                  className="w-28 rounded-lg border border-(--color-border) bg-(--color-surface) pl-6 pr-2 py-1 text-[11px]"
+                  className="w-28 rounded-lg neu-field bg-(--color-surface) pl-6 pr-2 py-1 text-[11px]"
                 />
               </div>
             </div>
@@ -138,7 +138,7 @@ export function DataForm({ headers, rows, onNew, onUpdate, onDelete, onClose }: 
                   onKeyDown={(event) => {
                     if (event.key === "Enter") commitUpdate();
                   }}
-                  className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1.5 text-xs"
+                  className="w-full rounded-lg neu-field bg-(--color-surface) px-2 py-1.5 text-xs"
                 />
               </label>
             ))}

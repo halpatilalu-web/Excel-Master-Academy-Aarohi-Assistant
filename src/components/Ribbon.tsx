@@ -610,7 +610,7 @@ export function Ribbon({
                   run(fileActions[item.id]);
                   if (item.id === "close") setTab("home");
                 }}
-                className="flex flex-col items-start gap-0.5 rounded-lg border border-(--color-border) bg-(--color-surface) px-2.5 py-2 text-left hover:border-(--color-accent) hover:bg-(--color-accent-soft)"
+                className="flex flex-col items-start gap-0.5 rounded-lg neu-field bg-(--color-surface) px-2.5 py-2 text-left hover:border-(--color-accent) hover:bg-(--color-accent-soft)"
               >
                 <span className="flex items-center gap-1.5 text-[11px] font-bold text-(--color-ink)">
                   {item.icon}

@@ -78,7 +78,7 @@ export function AuthGate({ auth, appName, children, mode: authMode = "accounts" 
   if (authMode === "guest" && guestError) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" data-auth-gate>
-        <div className="w-full max-w-sm bg-(--color-surface) border border-(--color-border) rounded-2xl p-7">
+        <div className="w-full max-w-sm bg-(--color-surface) neu-btn rounded-2xl p-7">
           <h1 className="font-display text-2xl font-extrabold tracking-tight">{appName}</h1>
           <p role="alert" className="text-sm text-(--color-danger) mt-3">
             Server se guest session nahi ban paaya: {guestError}
@@ -112,7 +112,7 @@ export function AuthGate({ auth, appName, children, mode: authMode = "accounts" 
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="w-full max-w-sm bg-(--color-surface) border border-(--color-border) rounded-2xl p-7"
+        className="w-full max-w-sm bg-(--color-surface) neu-btn rounded-2xl p-7"
       >
         <div className="w-12 h-12 rounded-xl bg-(--color-accent) text-white flex items-center justify-center mb-5">
           <KeyRound size={22} />

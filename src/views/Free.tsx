@@ -40,7 +40,7 @@ export function Free({ onOpenDesktop }: { onOpenDesktop?: () => void } = {}) {
     <div className="space-y-4">
       {onOpenDesktop ? <DesktopPromo onOpen={onOpenDesktop} /> : null}
     <div className="space-y-5">
-      <section className="rounded-3xl border border-(--color-border) bg-(--color-surface) p-6 sm:p-8">
+      <section className="rounded-3xl neu-field bg-(--color-surface) p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-3">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-(--color-accent-soft) text-(--color-accent-dark) px-3 py-1 text-xs font-bold">

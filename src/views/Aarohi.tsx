@@ -188,7 +188,7 @@ export function Aarohi() {
           <img
             src={avatar.src}
             alt={avatar.alt}
-            className="w-full sm:w-40 aspect-square object-cover rounded-3xl border border-(--color-border) shadow-sm"
+            className="w-full sm:w-40 aspect-square object-cover rounded-3xl neu-btn shadow-sm"
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-3">
@@ -208,7 +208,7 @@ export function Aarohi() {
                       setVoiceOn((value) => !value);
                       stopSpeaking();
                     }}
-                    className="p-2 rounded-full border border-(--color-border)"
+                    className="p-2 rounded-full neu-btn"
                   >
                     {voiceOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
                   </button>
@@ -218,7 +218,7 @@ export function Aarohi() {
                   title="Chat saaf karo"
                   aria-label="Chat saaf karo"
                   onClick={clear}
-                  className="p-2 rounded-full border border-(--color-border)"
+                  className="p-2 rounded-full neu-btn"
                 >
                   <Trash2 size={18} />
                 </button>
@@ -268,7 +268,7 @@ export function Aarohi() {
                   src={avatar.src}
                   alt=""
                   aria-hidden="true"
-                  className="h-8 w-8 shrink-0 rounded-full border border-(--color-border) object-cover"
+                  className="h-8 w-8 shrink-0 rounded-full neu-btn object-cover"
                 />
               )}
               <div
@@ -308,7 +308,7 @@ export function Aarohi() {
               type="button"
               key={suggestion}
               onClick={() => void ask(suggestion)}
-              className="shrink-0 text-xs rounded-full border border-(--color-border) px-3 py-1.5 hover:bg-(--color-accent-soft)"
+              className="shrink-0 text-xs rounded-full neu-btn px-3 py-1.5 hover:bg-(--color-accent-soft)"
             >
               {suggestion}
             </button>

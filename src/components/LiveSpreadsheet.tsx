@@ -543,7 +543,7 @@ export function LiveSpreadsheet({
         </Button>
         <a
           href="#/workbook"
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold bg-(--color-surface) border border-(--color-border) hover:bg-(--color-accent-soft)"
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold bg-(--color-surface) neu-btn hover:bg-(--color-accent-soft)"
         >
           <ExternalLink size={15} /> Open full workbook
         </a>

@@ -172,7 +172,7 @@ export function Lab({
 
                   <Bilingual compact en={lab.taskEn} hi={lab.task} className="text-sm" />
 
-                  <div className="text-xs font-mono text-(--color-muted) bg-(--color-canvas) px-3 py-1.5 rounded-lg border border-(--color-border)">
+                  <div className="text-xs font-mono text-(--color-muted) bg-(--color-canvas) px-3 py-1.5 rounded-lg neu-btn">
                     Columns: {lab.header.join(" | ")}
                   </div>
 
@@ -208,7 +208,7 @@ export function Lab({
                   )}
 
                   {last && (
-                    <div className="text-xs rounded-xl bg-(--color-canvas) p-3 flex gap-2 border border-(--color-border)">
+                    <div className="text-xs rounded-xl bg-(--color-canvas) p-3 flex gap-2 neu-btn">
                       <FileCheck2 size={16} className="shrink-0 text-(--color-good)" />
                       <div>
                         <b>{last.fileName}</b> · {Math.max(1, Math.round(last.size / 1024))} KB

@@ -86,13 +86,13 @@ export function Bilingual({
 
   return (
     <div className={`grid sm:grid-cols-2 gap-2.5 ${className}`}>
-      <div className="rounded-xl bg-(--color-canvas) border border-(--color-border) px-3.5 py-2.5">
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 mb-1">
+      <div className="rounded-xl bg-(--color-canvas) neu-btn px-3.5 py-2.5">
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-(--color-accent-dark) mb-1">
           🇬🇧 English Explanation
         </span>
         <div className="text-sm leading-relaxed">{en}</div>
       </div>
-      <div className="rounded-xl bg-(--color-accent-soft)/60 border border-(--color-border) px-3.5 py-2.5">
+      <div className="rounded-xl bg-(--color-accent-soft)/60 neu-btn px-3.5 py-2.5">
         <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-1">
           🇮🇳 Hindi / Hinglish Samjhao
         </span>
@@ -114,7 +114,7 @@ export function LangSwitcher({ compact = false }: { compact?: boolean }) {
     <div
       role="group"
       aria-label="Explanation language"
-      className="inline-flex items-center rounded-xl border border-(--color-border) bg-(--color-canvas) p-0.5 text-xs font-semibold"
+      className="inline-flex items-center rounded-xl neu-btn bg-(--color-canvas) p-0.5 text-xs font-semibold"
     >
       {options.map((opt) => {
         const active = lang === opt.key;

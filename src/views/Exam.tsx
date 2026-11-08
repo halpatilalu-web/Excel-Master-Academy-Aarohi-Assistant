@@ -131,7 +131,7 @@ function ModuleTopicQuizzes() {
                 {q.o.map((opt, oi) => {
                   const cls = revealed
                     ? oi === q.a
-                      ? "border-emerald-500 bg-emerald-500/15 font-bold"
+                      ? "border-(--color-accent) bg-(--color-accent)/15 font-bold"
                       : chosen === oi
                         ? "border-rose-400 bg-rose-500/15"
                         : "border-(--color-border) opacity-75"
@@ -233,7 +233,7 @@ function SamplePapersView() {
                   const cls =
                     chosen !== undefined
                       ? oi === m.ans
-                        ? "border-emerald-500 bg-emerald-500/15 font-bold"
+                        ? "border-(--color-accent) bg-(--color-accent)/15 font-bold"
                         : chosen === oi
                           ? "border-rose-400 bg-rose-500/15"
                           : "border-(--color-border)"
@@ -269,7 +269,7 @@ function SamplePapersView() {
           return (
             <Card key={key} className="!p-4 space-y-3">
               <Bilingual en={ft.scenarioEn} hi={ft.scenarioHi} />
-              <div className="text-xs font-mono bg-(--color-canvas) px-3 py-2 rounded-lg border border-(--color-border)">
+              <div className="text-xs font-mono bg-(--color-canvas) px-3 py-2 rounded-lg neu-btn">
                 Sample Cells: {ft.sampleRef}
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -442,7 +442,7 @@ export function Exam() {
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
                 mode === "final"
                   ? "bg-(--color-accent) text-white shadow-sm"
-                  : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+                  : "bg-(--color-surface) neu-btn text-(--color-muted)"
               }`}
             >
               <ClipboardCheck size={16} /> Final Diploma Exam (20 Q)
@@ -453,7 +453,7 @@ export function Exam() {
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
                 mode === "quizzes"
                   ? "bg-(--color-accent) text-white shadow-sm"
-                  : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+                  : "bg-(--color-surface) neu-btn text-(--color-muted)"
               }`}
             >
               <Zap size={16} /> {DIPLOMA_MODULES.length} Module Topic Quizzes
@@ -464,7 +464,7 @@ export function Exam() {
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
                 mode === "papers"
                   ? "bg-(--color-accent) text-white shadow-sm"
-                  : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+                  : "bg-(--color-surface) neu-btn text-(--color-muted)"
               }`}
             >
               <FileText size={16} /> {SAMPLE_PAPERS.length} Solved Sample Papers
@@ -647,7 +647,7 @@ export function Exam() {
                     ? "bg-(--color-accent) text-white"
                     : ans[k] >= 0
                       ? "bg-(--color-accent-soft)"
-                      : "bg-(--color-surface) border border-(--color-border)"
+                      : "bg-(--color-surface) neu-btn"
                 }`}
               >
                 {k + 1}

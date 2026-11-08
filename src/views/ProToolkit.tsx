@@ -23,7 +23,7 @@ function ChipBtn({ active, onClick, children }: { active: boolean; onClick: () =
       onClick={onClick}
       className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${
         active
-          ? "bg-emerald-700 text-white border-emerald-700"
+          ? "bg-(--color-accent) text-white border-(--color-accent)"
           : "bg-(--color-surface) text-(--color-ink) border-(--color-border-strong) hover:bg-(--color-accent-soft)"
       }`}
     >
@@ -706,7 +706,7 @@ export function ProToolkit({
                 onClick={() => applyPreset(p)}
                 className={`text-left p-4 rounded-2xl border transition ${
                   selectedPreset.id === p.id
-                    ? "border-emerald-600 bg-(--color-accent-soft)/70 shadow-sm ring-2 ring-emerald-500/20"
+                    ? "border-(--color-accent) bg-(--color-accent-soft)/70 shadow-sm ring-2 ring-(--color-accent)/20"
                     : "border-(--color-border) bg-(--color-surface) hover:shadow-(--neu-raised)"
                 }`}
               >
@@ -726,7 +726,7 @@ export function ProToolkit({
             <Card className="lg:col-span-6 p-5 space-y-3.5">
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-(--color-ink) flex items-center gap-2">
-                  <Wand2 className="w-4 h-4 text-emerald-700" />
+                  <Wand2 className="w-4 h-4 text-(--color-accent-dark)" />
                   <Bilingual
                     en="Customize Your 5-Part Excel Automation Prompt"
                     hi="अपना 5-पार्ट Excel ऑटोमेशन प्रॉम्प्ट तैयार करें"
@@ -747,7 +747,7 @@ export function ProToolkit({
                   <input
                     value={workbook}
                     onChange={(e) => setWorkbook(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-(--color-border) font-mono text-xs focus:outline-none focus:border-(--color-accent)"
+                    className="w-full px-3 py-2 rounded-lg neu-field font-mono text-xs focus:outline-none"
                   />
                 </label>
                 <label className="space-y-1">
@@ -755,7 +755,7 @@ export function ProToolkit({
                   <input
                     value={sheet}
                     onChange={(e) => setSheet(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-(--color-border) font-mono text-xs focus:outline-none focus:border-(--color-accent)"
+                    className="w-full px-3 py-2 rounded-lg neu-field font-mono text-xs focus:outline-none"
                   />
                 </label>
                 <label className="space-y-1">
@@ -763,7 +763,7 @@ export function ProToolkit({
                   <input
                     value={range}
                     onChange={(e) => setRange(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-(--color-border) font-mono text-xs focus:outline-none focus:border-(--color-accent)"
+                    className="w-full px-3 py-2 rounded-lg neu-field font-mono text-xs focus:outline-none"
                   />
                 </label>
                 <label className="space-y-1">
@@ -771,7 +771,7 @@ export function ProToolkit({
                   <input
                     value={outputCell}
                     onChange={(e) => setOutputCell(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-(--color-border) font-mono text-xs focus:outline-none focus:border-(--color-accent)"
+                    className="w-full px-3 py-2 rounded-lg neu-field font-mono text-xs focus:outline-none"
                   />
                 </label>
               </div>
@@ -781,7 +781,7 @@ export function ProToolkit({
                 <input
                   value={columns}
                   onChange={(e) => setColumns(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-(--color-border) text-xs focus:outline-none focus:border-(--color-accent)"
+                  className="w-full px-3 py-2 rounded-lg neu-field text-xs focus:outline-none"
                 />
               </label>
 
@@ -791,7 +791,7 @@ export function ProToolkit({
                   rows={3}
                   value={requirement}
                   onChange={(e) => setRequirement(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-(--color-border) text-xs focus:outline-none focus:border-(--color-accent)"
+                  className="w-full px-3 py-2 rounded-lg neu-field text-xs focus:outline-none"
                 />
               </label>
             </Card>
@@ -824,10 +824,10 @@ export function ProToolkit({
                 </p>
               </Card>
 
-              <Card className="p-5 border-emerald-200 bg-(--color-accent-soft)/50">
+              <Card className="p-5 border-(--color-border) bg-(--color-accent-soft)/50">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="font-bold text-sm text-emerald-950 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-emerald-700" />
+                    <Sparkles className="w-4 h-4 text-(--color-accent-dark)" />
                     <Bilingual
                       en={`Blueprint Reference Solution (${selectedPreset.titleEn})`}
                       hi={`रेडीमेड समाधान (${selectedPreset.titleHi})`}
@@ -906,7 +906,7 @@ export function ProToolkit({
                   onClick={() => setActivePalette(pal)}
                   className={`w-full text-left p-4 rounded-2xl border transition ${
                     activePalette.id === pal.id
-                      ? "border-emerald-600 bg-(--color-accent-soft)/60 ring-2 ring-emerald-500/20"
+                      ? "border-(--color-accent) bg-(--color-accent-soft)/60 ring-2 ring-(--color-accent)/20"
                       : "border-(--color-border) bg-(--color-surface) hover:border-(--color-border-strong)"
                   }`}
                 >
@@ -936,7 +936,7 @@ export function ProToolkit({
             <Card className="lg:col-span-7 p-5 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-emerald-700" />
+                  <Palette className="w-4 h-4 text-(--color-accent-dark)" />
                   <span className="font-bold text-sm text-(--color-ink)">
                     <Bilingual
                       en="Live Excel Executive Report Preview (Click Swatch to Copy HEX/RGB)"
@@ -952,7 +952,7 @@ export function ProToolkit({
                   <button
                     key={sw.role}
                     onClick={() => copyText(sw.hex, `${sw.hex} | ${sw.rgb}`)}
-                    className="p-2.5 rounded-xl border border-(--color-border) bg-(--color-surface-2) hover:bg-(--color-accent-soft) text-left transition"
+                    className="p-2.5 rounded-xl neu-btn bg-(--color-surface-2) hover:bg-(--color-accent-soft) text-left transition"
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -973,7 +973,7 @@ export function ProToolkit({
 
               {/* Simulated Excel Sheet Canvas */}
               <div
-                className="rounded-2xl border border-(--color-border) p-4 space-y-4 shadow-inner transition-colors"
+                className="rounded-2xl neu-btn p-4 space-y-4 shadow-inner transition-colors"
                 style={{ backgroundColor: activePalette.canvasBg, color: activePalette.bodyText }}
               >
                 <div
@@ -1001,7 +1001,7 @@ export function ProToolkit({
                   ].map((kpi) => (
                     <div
                       key={kpi.k}
-                      className="rounded-xl p-3 border border-(--color-border)/80"
+                      className="rounded-xl p-3 neu-btn/80"
                       style={{ backgroundColor: kpi.alert ? "#FEF2F2" : activePalette.zebraBg }}
                     >
                       <div className="text-[11px] opacity-75">{kpi.k}</div>
@@ -1017,7 +1017,7 @@ export function ProToolkit({
                 </div>
 
                 {/* Styled Excel Table */}
-                <div className="overflow-x-auto rounded-xl border border-(--color-border)">
+                <div className="overflow-x-auto rounded-xl neu-btn">
                   <table className="w-full text-xs">
                     <thead>
                       <tr style={{ backgroundColor: activePalette.headerBg, color: activePalette.headerText }}>
@@ -1126,10 +1126,10 @@ export function ProToolkit({
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-(--color-accent-soft) border border-emerald-200">
+            <div className="p-4 rounded-xl bg-(--color-accent-soft) border border-(--color-border)">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-bold uppercase tracking-wider text-(--color-accent-dark) flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-emerald-700" />
+                  <Zap className="w-3.5 h-3.5 text-(--color-accent-dark)" />
                   <Bilingual en="Exact Fix / Safe Formula" hi="सही और सुरक्षित फॉर्मूला" />
                 </div>
                 <button
@@ -1155,7 +1155,7 @@ export function ProToolkit({
           <Card className="p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2">
-                <Keyboard className="w-5 h-5 text-emerald-700" />
+                <Keyboard className="w-5 h-5 text-(--color-accent-dark)" />
                 <div>
                   <h2 className="font-extrabold text-base text-(--color-ink)">
                     <Bilingual
@@ -1175,7 +1175,7 @@ export function ProToolkit({
               <div className="flex items-center gap-2">
                 <Pill tone="good">Score: {score}</Pill>
                 <Pill tone="warn">🔥 Streak: {streak}</Pill>
-                <div className="flex rounded-lg border border-(--color-border) overflow-hidden text-xs font-bold">
+                <div className="flex rounded-lg neu-btn overflow-hidden text-xs font-bold">
                   <button
                     onClick={() => {
                       setOsMode("win");
@@ -1236,7 +1236,7 @@ export function ProToolkit({
                   const isChosen = pickedOpt === opt;
                   let cls = "bg-white/10 hover:bg-white/20 border-white/15 text-white";
                   if (pickedOpt) {
-                    if (isCorrect) cls = "bg-emerald-500 border-(--color-accent) text-slate-950 font-black";
+                    if (isCorrect) cls = "bg-(--color-good-bg) border-(--color-good) text-(--color-ink) font-black";
                     else if (isChosen) cls = "bg-rose-600 border-rose-400 text-white";
                     else cls = "bg-white/5 border-white/10 text-white/50";
                   }
@@ -1297,7 +1297,7 @@ export function ProToolkit({
                 <h3 className="font-extrabold text-sm sm:text-base text-(--color-ink)">
                   <Bilingual en={item.qEn} hi={item.qHi} compact />
                 </h3>
-                <div className="p-3.5 rounded-xl bg-(--color-accent-soft)/70 border border-emerald-200/70 text-xs text-(--color-ink) leading-relaxed">
+                <div className="p-3.5 rounded-xl bg-(--color-accent-soft)/70 border border-(--color-border)/70 text-xs text-(--color-ink) leading-relaxed">
                   <Bilingual en={item.aEn} hi={item.aHi} compact />
                 </div>
               </Card>

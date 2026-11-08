@@ -304,7 +304,7 @@ export function VirtualKeyboard({
 
       {!dense && (
         <div
-          className="min-h-[2.25rem] rounded-lg bg-(--color-canvas) border border-(--color-border) px-2.5 py-1.5 text-[11px]"
+          className="min-h-[2.25rem] rounded-lg bg-(--color-canvas) neu-btn px-2.5 py-1.5 text-[11px]"
           role="status"
           aria-live="polite"
         >

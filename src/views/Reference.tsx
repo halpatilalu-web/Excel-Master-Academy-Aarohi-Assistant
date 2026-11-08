@@ -153,7 +153,7 @@ export function Reference({ tab, go, onTab, initialQuery = "" }: { tab: RefTab; 
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Chips items={SHORTCUT_CATS} value={cat} onPick={setCat} label={shortcutCatLabel} />
-            <div className="flex rounded-xl overflow-hidden border border-(--color-border) text-xs font-semibold">
+            <div className="flex rounded-xl overflow-hidden neu-btn text-xs font-semibold">
               {(["win", "mac"] as const).map((o) => (
                 <button key={o} onClick={() => setOs(o)} className={`px-3 py-1.5 ${os === o ? "bg-(--color-accent) text-white" : ""}`}>{o === "win" ? "Windows" : "Mac"}</button>
               ))}
@@ -208,7 +208,7 @@ export function Reference({ tab, go, onTab, initialQuery = "" }: { tab: RefTab; 
                   <span className="font-display font-extrabold text-base">{c.name}</span>
                   <Pill tone="info">{c.cat} • {c.worksWith}</Pill>
                 </div>
-                <div className="p-2.5 rounded-xl bg-(--color-accent-soft) border border-emerald-200/80 text-xs">
+                <div className="p-2.5 rounded-xl bg-(--color-accent-soft) border border-(--color-border)/80 text-xs">
                   <div className="font-bold text-(--color-accent-dark)">✓ Best For:</div>
                   <Bilingual en={c.bestForEn} hi={c.bestForHi} compact />
                 </div>

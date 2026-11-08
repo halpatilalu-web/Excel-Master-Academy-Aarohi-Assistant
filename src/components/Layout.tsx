@@ -158,9 +158,16 @@ export function Layout<K extends string>({
   }).filter((item) => nav.some((navItem) => navItem.key === item.key));
 
   return (
-    <div className="min-h-screen flex bg-(--color-canvas)">
+    <div className="relative min-h-screen flex bg-(--color-canvas)">
+      {/* Two huge, very soft colour pools: they give the flat canvas depth
+          without a single extra request. Purely decorative. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-(--color-accent)/12 blur-3xl" />
+        <div className="absolute -bottom-32 right-0 h-80 w-80 rounded-full bg-rose-300/20 blur-3xl" />
+        <div className="absolute left-1/2 top-1/3 h-96 w-96 -translate-x-1/2 rounded-full bg-sky-300/15 blur-3xl" />
+      </div>
       {/* Desktop Sticky Sidebar */}
-      <aside className="hidden md:flex md:flex-col md:sticky md:top-0 md:h-screen w-60 shrink-0 bg-(--color-canvas) px-4 py-5 overflow-y-auto">
+      <aside className="hidden md:flex md:flex-col md:sticky md:top-0 md:h-screen w-[15.5rem] shrink-0 bg-(--color-canvas) px-4 py-5 overflow-y-auto lg:w-64">
         <button
           type="button"
           onClick={() => onNavigate(nav[0].key)}
@@ -180,7 +187,7 @@ export function Layout<K extends string>({
             animate={{ x: 0 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
-            className="absolute left-0 top-0 h-full w-72 bg-(--color-canvas) p-5 shadow-2xl flex flex-col overflow-y-auto"
+            className="absolute left-0 top-0 h-full w-[80vw] max-w-xs bg-(--color-surface) p-5 flex flex-col overflow-y-auto rounded-r-3xl shadow-(--neu-raised-lg)"
           >
             <div className="flex items-center justify-between mb-5">
               <Brand name={brand} compact />
@@ -201,7 +208,7 @@ export function Layout<K extends string>({
 
       {/* Main Content Area with Clean Sticky Top Header */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-30 bg-(--color-canvas)/85 backdrop-blur-md px-4 sm:px-6 lg:px-10 h-14 flex items-center justify-between gap-3 md:mt-2">
+        <header className="glass-bar sticky top-0 z-30 px-3 sm:px-6 lg:px-10 h-14 md:h-16 flex items-center justify-between gap-3 md:mt-2 md:rounded-2xl md:mx-2 lg:mx-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -272,8 +279,13 @@ export function Layout<K extends string>({
           </div>
         </header>
 
-        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-5 sm:py-8 pb-24 md:pb-8">
-          <div className="max-w-6xl mx-auto">{children}</div>
+        {/* Phones: one centred column with generous breathing room.
+            Desktop: the sidebar stays, the content area widens to a spacious
+            grid, and the padding scales with the viewport. */}
+        <main className="flex-1 px-3 sm:px-6 lg:px-10 xl:px-12 py-5 sm:py-8 pb-28 md:pb-10">
+          <div className="mx-auto w-full max-w-[42rem] lg:max-w-none xl:max-w-[86rem]">
+            <div className="space-y-5 sm:space-y-6 lg:space-y-8">{children}</div>
+          </div>
         </main>
       </div>
 

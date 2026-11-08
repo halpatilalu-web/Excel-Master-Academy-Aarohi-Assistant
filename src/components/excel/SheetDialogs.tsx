@@ -55,7 +55,7 @@ export function Dialog({
         role="dialog"
         aria-label={title}
         aria-modal="true"
-        className={`w-full ${wide ? "sm:max-w-3xl" : "sm:max-w-lg"} max-h-[92vh] sm:max-h-[88vh] flex flex-col bg-(--color-surface) border border-(--color-border) rounded-t-2xl sm:rounded-2xl shadow-2xl`}
+        className={`w-full ${wide ? "sm:max-w-3xl" : "sm:max-w-lg"} max-h-[92vh] sm:max-h-[88vh] flex flex-col bg-(--color-surface) neu-btn rounded-t-2xl sm:rounded-2xl shadow-2xl`}
       >
         <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-(--color-border)">
           <div>
@@ -79,7 +79,7 @@ export function Dialog({
 }
 
 const fieldCls =
-  "w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-2.5 py-2 text-xs text-(--color-ink) outline-none focus:ring-2 focus:ring-(--color-accent)";
+  "w-full rounded-lg neu-field bg-(--color-surface) px-2.5 py-2 text-xs text-(--color-ink) outline-none focus:ring-2 focus:ring-(--color-accent)";
 const labelCls = "block text-[11px] font-semibold text-(--color-muted) mb-1";
 
 export function PrimaryButton({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
@@ -100,7 +100,7 @@ export function GhostButton({ children, onClick }: { children: React.ReactNode; 
     <button
       type="button"
       onClick={onClick}
-      className="rounded-lg border border-(--color-border) bg-(--color-surface) px-3.5 py-2 text-xs font-semibold text-(--color-ink) hover:bg-(--color-accent-soft)"
+      className="rounded-lg neu-field bg-(--color-surface) px-3.5 py-2 text-xs font-semibold text-(--color-ink) hover:bg-(--color-accent-soft)"
     >
       {children}
     </button>
@@ -265,7 +265,7 @@ export function DataValidationDialog({
       </label>
 
       {rules.length > 0 && (
-        <div className="rounded-xl border border-(--color-border) divide-y divide-(--color-border)">
+        <div className="rounded-xl neu-pressed-sm divide-y divide-(--color-border)">
           <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-(--color-muted)">Rules on this sheet</div>
           {rules.map((rule) => (
             <div key={rule.id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-[11px]">
@@ -449,7 +449,7 @@ export function ConditionalFormattingDialog({
       )}
 
       {rules.length > 0 && (
-        <div className="rounded-xl border border-(--color-border) divide-y divide-(--color-border)">
+        <div className="rounded-xl neu-pressed-sm divide-y divide-(--color-border)">
           <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-(--color-muted)">Rules on this sheet</div>
           {rules.map((rule) => (
             <div key={rule.id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-[11px]">
@@ -522,7 +522,7 @@ export function FilterDialog({
     >
       <div className="space-y-2">
         {conditions.map((condition, index) => (
-          <div key={`${condition.column}-${index}`} className="rounded-xl border border-(--color-border) p-2.5 space-y-2">
+          <div key={`${condition.column}-${index}`} className="rounded-xl neu-btn p-2.5 space-y-2">
             <div className="grid sm:grid-cols-3 gap-2">
               <select
                 aria-label={`Filter column ${index + 1}`}
@@ -648,7 +648,7 @@ export function NameManagerDialog({
           <input id="nm-range" aria-label="Range reference" className={fieldCls} value={range} onChange={(event) => setRange(event.target.value)} placeholder="B2:B30" />
         </div>
       </div>
-      <div className="rounded-xl border border-(--color-border) divide-y divide-(--color-border)">
+      <div className="rounded-xl neu-pressed-sm divide-y divide-(--color-border)">
         {names.length === 0 && <p className="px-3 py-2 text-xs text-(--color-muted)">Koi naam nahi. Upar se add karo.</p>}
         {names.map((item) => (
           <div key={item.id} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
@@ -656,7 +656,7 @@ export function NameManagerDialog({
               <b className="font-mono">{item.name}</b> <span className="text-(--color-muted)">= {item.range}</span>
             </span>
             <span className="flex items-center gap-1">
-              <button type="button" onClick={() => onGoTo(item.range)} className="px-2 py-0.5 rounded border border-(--color-border) text-[11px] font-semibold">
+              <button type="button" onClick={() => onGoTo(item.range)} className="px-2 py-0.5 rounded neu-btn text-[11px] font-semibold">
                 Go to
               </button>
               <button
@@ -715,7 +715,7 @@ export function GoToDialog({
               key={item.id}
               type="button"
               onClick={() => setValue(item.name)}
-              className="rounded-full border border-(--color-border) px-2.5 py-1 text-[11px] font-semibold text-(--color-ink) hover:bg-(--color-accent-soft)"
+              className="rounded-full neu-btn px-2.5 py-1 text-[11px] font-semibold text-(--color-ink) hover:bg-(--color-accent-soft)"
             >
               {item.name}
             </button>
@@ -820,7 +820,7 @@ export function FormatCellsDialog({
           <label className={labelCls} htmlFor="fc-color">
             Font colour
           </label>
-          <input id="fc-color" aria-label="Font colour" type="color" value={color || "#111827"} onChange={(event) => setColor(event.target.value)} className="h-8 w-16 rounded-md border border-(--color-border) bg-transparent" />
+          <input id="fc-color" aria-label="Font colour" type="color" value={color || "#111827"} onChange={(event) => setColor(event.target.value)} className="h-8 w-16 rounded-md neu-btn bg-transparent" />
         </div>
       </div>
 
