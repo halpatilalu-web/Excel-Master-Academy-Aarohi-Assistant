@@ -224,7 +224,7 @@ export function Dashboard({
 
           {/* Right Column: Unified Student Progress Panel */}
           <div className="lg:col-span-5">
-            <div className="rounded-2xl border border-(--color-border) bg-(--color-canvas) p-5 space-y-5">
+            <div className="neu-card p-5 space-y-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-wider text-(--color-muted)">
@@ -279,7 +279,7 @@ export function Dashboard({
                 <button
                   type="button"
                   onClick={() => go("certificate")}
-                  className="rounded-xl bg-(--color-surface) border border-(--color-border) hover:border-(--color-accent) px-2 py-2 transition cursor-pointer"
+                  className="rounded-xl bg-(--color-surface) border border-(--color-border) hover:shadow-(--neu-raised) px-2 py-2 transition cursor-pointer"
                 >
                   <div className="font-display font-extrabold text-sm text-(--color-accent-dark)">
                     {certReady ? "Ready ✓" : `${pct}%`}
@@ -311,7 +311,7 @@ export function Dashboard({
         <button
           type="button"
           onClick={() => go("workbook")}
-          className="group text-left rounded-2xl border border-(--color-accent)/40 bg-(--color-accent-soft)/60 p-4 sm:p-5 hover:border-(--color-accent) transition cursor-pointer"
+          className="group text-left rounded-2xl border border-(--color-accent)/40 bg-(--color-accent-soft)/60 p-4 sm:p-5 hover:shadow-(--neu-raised) transition cursor-pointer"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-(--color-accent-dark)">
@@ -331,7 +331,7 @@ export function Dashboard({
         <button
           type="button"
           onClick={() => go("free")}
-          className="group text-left rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 sm:p-5 hover:border-(--color-accent) transition cursor-pointer"
+          className="group text-left neu-card p-4 sm:p-5 hover:shadow-(--neu-raised) transition cursor-pointer"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">
@@ -396,7 +396,7 @@ export function Dashboard({
                 key={m.id}
                 whileHover={{ y: -3 }}
                 transition={{ duration: 0.16 }}
-                className="group rounded-2xl border border-(--color-border) bg-(--color-surface) overflow-hidden flex flex-col hover:border-(--color-accent)/60 hover:shadow-md transition"
+                className="group neu-card overflow-hidden flex flex-col hover:shadow-(--neu-raised-lg) transition"
               >
                 <div className="relative h-24 overflow-hidden bg-(--color-surface-2)">
                   <img
@@ -492,7 +492,7 @@ export function Dashboard({
                 key={item.key}
                 type="button"
                 onClick={() => go(item.key)}
-                className="group text-left rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 hover:border-(--color-accent) hover:shadow-sm transition flex flex-col justify-between gap-3 cursor-pointer"
+                className="group text-left neu-card p-4 hover:shadow-(--neu-raised) transition flex flex-col justify-between gap-3 cursor-pointer"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2">

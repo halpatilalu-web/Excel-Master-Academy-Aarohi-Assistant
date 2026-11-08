@@ -8,7 +8,7 @@
  * that are code-split (Charts, Reference, Aarohi) so a broken lazy import or a
  * bad prop reaches CI as a red test instead of a blank preview.
  */
-import { cleanup, configure, render, screen } from "@testing-library/react";
+import { cleanup, configure, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 configure({ asyncUtilTimeout: 5000 });
@@ -148,5 +148,19 @@ describe("app shell", { timeout: 15000 }, () => {
     await mountApp();
     expect(await screen.findByText(/Guest · this device/i)).toBeTruthy();
     expect(screen.getByText(/Master Excel A-to-Z/i)).toBeTruthy();
+  });
+});
+
+describe("guided practice inside the free workbook", () => {
+  it("offers written tasks and shows the instructions when one is picked", async () => {
+    await mountApp("#/workbook");
+    // Every task is listed by name, not hidden behind a blank grid.
+    const task = await screen.findByRole("button", { name: /Student marksheet/i });
+    fireEvent.click(task);
+    const brief = await screen.findByRole("region", { name: /Task brief/i });
+    // The brief is instructions: numbered steps + the exact cells to type in.
+    expect(within(brief).getAllByRole("listitem").length).toBeGreaterThanOrEqual(4);
+    expect(within(brief).getByText(/Kya likhna hai/i)).toBeTruthy();
+    expect(within(brief).getByText(/Yahan galti hoti hai/i)).toBeTruthy();
   });
 });

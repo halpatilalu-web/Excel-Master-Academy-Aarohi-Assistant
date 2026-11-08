@@ -197,6 +197,11 @@ export interface ExcelGridProps {
   fill?: boolean;
   /** Data Validation rules to start with (the practice sheets' dropdowns). */
   validation?: ValidationRule[];
+  /**
+   * Address the task table asked the student to write in. Changes to this value
+   * move the cursor there, so "tap the cell in the instructions" works.
+   */
+  jumpTo?: string | null;
 }
 
 type History = { sheet: string; address: string; before: string; after: string }[];
@@ -219,6 +224,7 @@ export function ExcelGrid({
   onCellsChange,
   fill = false,
   validation: initialValidation,
+  jumpTo = null,
 }: ExcelGridProps) {
   const wbDocs = useWorkbooks();
   const wb = useWorkbook({
@@ -249,6 +255,15 @@ export function ExcelGrid({
   const [grade, setGrade] = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
+
+  /** The task brief asked for a cell — move the cursor there. */
+  useEffect(() => {
+    if (!jumpTo) return;
+    const parsed = splitAddress(jumpTo);
+    if (!parsed) return;
+    setActive(`${colName(parsed.col)}${parsed.row + 1}`);
+    setRangeText(`${colName(parsed.col)}${parsed.row + 1}`);
+  }, [jumpTo]);
 
   /** Scroll the active cell into view (Excel keeps the cursor visible). */
   useEffect(() => {
@@ -2310,7 +2325,7 @@ export function ExcelGrid({
       )}
 
       <div
-        className={`overflow-hidden border border-(--color-border) bg-(--color-surface) shadow-sm flex flex-col ${
+        className={`overflow-hidden bg-(--color-surface) neu-raised flex flex-col ${
           zen
             ? "fixed inset-0 z-[85] rounded-none border-0"
             : `rounded-2xl ${focusMode ? "ring-2 ring-(--color-accent)/40" : ""} ${fill ? "flex-1 min-h-0" : ""}`
@@ -2345,7 +2360,7 @@ export function ExcelGrid({
             }}
             onBlur={() => setRangeText(active)}
             title="Name box — address likho aur Enter dabao (jaise F5)"
-            className="w-16 sm:w-20 shrink-0 text-center font-mono text-[11px] sm:text-xs font-extrabold rounded-lg bg-(--color-accent-soft) text-(--color-accent-dark) py-1.5 border border-(--color-border)"
+            className="w-16 sm:w-20 shrink-0 text-center font-mono text-[11px] sm:text-xs font-extrabold rounded-lg neu-pressed-sm text-(--color-accent-dark) py-1.5"
           />
           <button
             type="button"
@@ -2410,7 +2425,7 @@ export function ExcelGrid({
                 setEditing(false);
               }}
               placeholder='Cell par tap karo ya yahan type karo — =SUM(B2:B9), =XLOOKUP(...), =FILTER(...)'
-              className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-2.5 py-1.5 font-mono text-xs sm:text-sm outline-none focus:ring-2 focus:ring-(--color-accent)"
+              className="w-full neu-field px-2.5 py-1.5 font-mono text-xs sm:text-sm outline-none"
             />
             {suggest && (
               <div className="absolute z-40 left-0 right-0 mt-1 rounded-xl border border-(--color-border) bg-(--color-surface) shadow-lg overflow-hidden">
@@ -2507,7 +2522,7 @@ export function ExcelGrid({
               key={item.id}
               type="button"
               onClick={item.onClick}
-              className="inline-flex items-center gap-1 rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[10px] sm:text-[11px] font-semibold text-(--color-ink) whitespace-nowrap hover:bg-(--color-accent-soft)"
+              className="neu-btn inline-flex items-center gap-1 px-2 py-1 text-[10px] sm:text-[11px] font-semibold text-(--color-ink) whitespace-nowrap"
             >
               {item.icon}
               {item.label}
@@ -2516,7 +2531,7 @@ export function ExcelGrid({
           <button
             type="button"
             onClick={() => setZen((value) => !value)}
-            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[10px] sm:text-[11px] font-semibold text-(--color-ink) whitespace-nowrap"
+            className="ml-auto neu-btn inline-flex items-center gap-1 px-2 py-1 text-[10px] sm:text-[11px] font-semibold text-(--color-ink) whitespace-nowrap"
           >
             {zen ? <Minimize2 size={12} /> : <Maximize2 size={12} />} {zen ? "Exit full screen" : "Full screen"}
           </button>
@@ -2587,8 +2602,8 @@ export function ExcelGrid({
                 }}
                 className={`${fill ? "px-2 py-1 text-[11px]" : "px-3 py-1.5 text-xs"} rounded-lg font-bold whitespace-nowrap border transition ${
                   s.name === activeSheet
-                    ? "bg-(--color-accent) text-white border-transparent"
-                    : "bg-(--color-canvas) border-(--color-border) text-(--color-muted) hover:bg-(--color-accent-soft)"
+                    ? "bg-(--color-accent) text-white border-transparent shadow-(--neu-raised-sm)"
+                    : "neu-btn text-(--color-muted)"
                 }`}
               >
                 {s.name}
@@ -2725,7 +2740,7 @@ export function ExcelGrid({
             pasteBlock(activeSheet, active, text);
             setStatus(`Pasted ${text.split("\n").length} row(s) starting at ${active}.`);
           }}
-          className={`overflow-auto outline-none ${
+          className={`overflow-auto outline-none bg-(--color-paper) ${
             zen ? "flex-1 min-h-0" : fill ? "flex-1 min-h-[240px]" : split ? "max-h-[46vh] ring-1 ring-inset ring-(--color-accent)/30 rounded-b-none" : "max-h-[70vh]"
           }`}
         >
@@ -3054,7 +3069,7 @@ export function ExcelGrid({
         </div>
 
         {/* Status bar */}
-        <div className="px-3 py-2 bg-(--color-canvas) border-t border-(--color-border) flex flex-wrap items-center justify-between gap-2 text-[11px] text-(--color-muted)">
+        <div className="px-3 py-2 bg-(--color-surface) border-t border-(--color-border) flex flex-wrap items-center justify-between gap-2 text-[11px] text-(--color-muted)">
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1">
               <Save size={12} /> {wb.saving ? "Saving…" : wb.savedAt ? `Saved ${new Date(wb.savedAt).toLocaleTimeString()}` : "Autosaves to your account"}

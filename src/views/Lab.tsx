@@ -108,8 +108,8 @@ export function Lab({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeS
           onClick={() => setTab("live")}
           className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
             tab === "live"
-              ? "bg-(--color-accent) text-white shadow-sm"
-              : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+              ? "bg-(--color-accent) text-white shadow-(--neu-raised-sm)"
+              : "neu-btn text-(--color-muted)"
           }`}
         >
           <Table2 size={16} /> Live Practice Sheet (In-Browser Excel)
@@ -119,8 +119,8 @@ export function Lab({ initialSheet = "sheet-marks" }: { initialSheet?: PracticeS
           onClick={() => setTab("datasets")}
           className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
             tab === "datasets"
-              ? "bg-(--color-accent) text-white shadow-sm"
-              : "bg-(--color-surface) border border-(--color-border) text-(--color-muted)"
+              ? "bg-(--color-accent) text-white shadow-(--neu-raised-sm)"
+              : "neu-btn text-(--color-muted)"
           }`}
         >
           <FolderKanban size={16} /> Project Datasets ({LABS.length} Workbooks)

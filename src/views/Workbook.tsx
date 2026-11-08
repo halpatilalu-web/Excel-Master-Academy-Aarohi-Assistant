@@ -6,6 +6,9 @@ import { Bilingual } from "../lib/lang";
 import { CATALOG_BY_NAME, CATALOG_CATS, CATALOG_NAMES, M365_COUNT, type CatalogCat } from "../data/formulaCatalog";
 import { knownFunctions } from "../lib/excel/formula/engine";
 import { PRACTICE_SHEETS } from "../components/LiveSpreadsheet";
+import { TaskBrief } from "../components/excel/TaskBrief";
+import { PRACTICE_TASKS, taskFor } from "../data/practiceTasks";
+import type { PracticeSheetId } from "../components/LiveSpreadsheet";
 
 interface Template {
   id: string;
@@ -85,6 +88,14 @@ export function Workbook() {
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<CatalogCat | "All">("All");
   const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
+  /**
+   * "Guided tasks" turns this same grid into a graded exercise: pick a task,
+   * read the written instructions, then do it in the sheet and press Check
+   * answers. A blank template only shows the tool; the task teaches the work.
+   */
+  const [guidedId, setGuidedId] = useState<PracticeSheetId | null>(null);
+  const guided = guidedId ? PRACTICE_SHEETS.find((sheet) => sheet.id === guidedId) ?? null : null;
+  const [jumpTo, setJumpTo] = useState<string | null>(null);
 
   const hits = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -144,13 +155,64 @@ export function Workbook() {
         ))}
       </div>
 
+      {/* Guided practice: the same grid, but with a written task to do in it. */}
+      <div className="neu-card p-3 sm:p-4 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-wide text-(--color-muted) flex items-center gap-1">
+            <Sparkles size={13} /> Guided tasks — likha hua kaam
+          </span>
+          <button
+            type="button"
+            onClick={() => setGuidedId(null)}
+            aria-pressed={guidedId === null}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+              guidedId === null ? "bg-(--color-accent) text-white shadow-(--neu-raised-sm)" : "neu-btn text-(--color-muted)"
+            }`}
+          >
+            Free practice
+          </button>
+          {PRACTICE_TASKS.map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              onClick={() => {
+                setGuidedId(task.id);
+                setJumpTo(null);
+              }}
+              aria-pressed={guidedId === task.id}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition text-left ${
+                guidedId === task.id ? "bg-(--color-accent) text-white shadow-(--neu-raised-sm)" : "neu-btn text-(--color-muted)"
+              }`}
+            >
+              {PRACTICE_SHEETS.find((sheet) => sheet.id === task.id)?.emoji} {task.titleEn}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-(--color-muted)">
+          Tasks {PRACTICE_TASKS.length} · har task mein steps, cells aur formula likha hai — aur “Check answers” sach batata hai.
+        </p>
+      </div>
+
+      {guided && <TaskBrief task={taskFor(guided.id)} onApplyStep={(at) => setJumpTo(at)} />}
+
       <ExcelGrid
-        key={template.id}
-        template={`workbook-${template.id}`}
-        title={template.name}
-        sheets={template.sheets}
-        rows={40}
-        cols={12}
+        key={guided ? `guided-${guided.id}` : template.id}
+        template={guided ? `guided-${guided.id}` : `workbook-${template.id}`}
+        title={guided ? guided.titleEn : template.name}
+        sheets={guided ? [{ name: "Practice", cells: guided.initialGrid }] : template.sheets}
+        rows={guided ? Math.max(40, Object.keys(guided.initialGrid).length + 12) : 40}
+        cols={guided ? Math.max(10, guided.cols.length + 2) : 12}
+        brief={
+          guided
+            ? {
+                title: `${guided.emoji} ${guided.titleEn}`,
+                hint: guided.titleHi,
+                formulaHint: guided.hintFormula,
+                checks: guided.checks,
+              }
+            : undefined
+        }
+        jumpTo={jumpTo}
       />
 
       <Card className="!p-4 space-y-3">
@@ -188,7 +250,7 @@ export function Workbook() {
           {hits.map((entry) => (
             <div
               key={`${entry.name}-${entry.cat}`}
-              className="rounded-xl border border-(--color-border) bg-(--color-canvas) px-3 py-2"
+              className="neu-card-sm px-3 py-2"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-xs font-bold">{entry.name}</span>

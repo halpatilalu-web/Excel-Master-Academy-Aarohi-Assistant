@@ -124,7 +124,11 @@ describe("Windows desktop", () => {
     fireEvent.click(within(win).getByRole("button", { name: /New blank workbook/i }));
     expect(within(win).getByLabelText(/Workbook name/i)).toBeTruthy();
     // A cascade window left ~400 px of sheet; Excel now fills the desktop.
-    expect(win.getAttribute("style") ?? "").toContain("100%");
+    // The size is clamped to the live viewport, so assert it fills it exactly.
+    const style = win.getAttribute("style") ?? "";
+    expect(style).toContain(`width: ${window.innerWidth}px`);
+    expect(style).toContain("left: 0px");
+    expect(style).toContain("top: 0px");
     // The ribbon is there, and Ctrl+F1-style collapse gives the sheet its rows.
     const ribbon = within(win).getByLabelText("Ribbon tabs");
     expect(within(ribbon).getAllByRole("button").length).toBeGreaterThanOrEqual(9);

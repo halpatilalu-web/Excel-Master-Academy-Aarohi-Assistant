@@ -277,7 +277,7 @@ function SamplePapersView() {
                   value={draftFormulas[key] ?? ""}
                   onChange={(e) => setDraftFormulas((cur) => ({ ...cur, [key]: e.target.value }))}
                   placeholder="Write your Excel formula here (e.g., =B2*$G$1)…"
-                  className="flex-1 rounded-xl border border-(--color-border) bg-(--color-canvas) px-3 py-2 font-mono text-xs sm:text-sm"
+                  className="flex-1 neu-card-sm px-3 py-2 font-mono text-xs sm:text-sm"
                 />
                 <Button
                   variant="secondary"
