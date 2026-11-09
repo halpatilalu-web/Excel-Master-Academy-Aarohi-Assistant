@@ -236,6 +236,22 @@ export function ExcelGrid({
 
   const [active, setActive] = useState("A1");
   const [editing, setEditing] = useState(false);
+  /**
+   * Where the edit was started from. The in-cell input only grabs focus when
+   * the edit came from the *sheet*; when the student clicks the formula bar the
+   * caret must stay in the bar. Without this the cell input stole focus back on
+   * every render and the bar ping-ponged ("focus@Edit cell A1" forever), which
+   * is why typing in the formula bar did nothing.
+   */
+  const [editFrom, setEditFrom] = useState<"cell" | "bar" | null>(null);
+  /**
+   * True when the editor was opened by a click/tap. Excel rule: picking a cell
+   * and typing *replaces* what is in it, so the text starts selected; F2, Enter
+   * and double-click edit in place with the caret at the end.
+   */
+  const [editSelectAll, setEditSelectAll] = useState(false);
+  /** Timestamp of the last touch tap, to swallow the emulated mouse events. */
+  const lastTouchRef = useRef(0);
   const [draft, setDraft] = useState("");
   const [showHelp, setShowHelp] = useState(true);
   const [showCatalog, setShowCatalog] = useState(false);
@@ -280,7 +296,32 @@ export function ExcelGrid({
   }, [active]);
   /* ---- pro-editor extras: fill handle, flash fill, split view, widths ---- */
   const [fillTo, setFillTo] = useState<string | null>(null);
-  const [showKeyboard, setShowKeyboard] = useState(false);
+  // On a touch-first device there is no physical keyboard, so the on-screen pad
+  // opens with the sheet; on a laptop it stays folded (there is a real one).
+  // Whatever the student chooses is remembered, so a student who prefers the
+  // phone's own keyboard is not fought on every reload.
+  const [showKeyboard, setShowKeyboard] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const stored = window.localStorage.getItem("excel-academy:keyboard");
+      if (stored === "1") return true;
+      if (stored === "0") return false;
+    } catch {
+      /* private mode */
+    }
+    return window.matchMedia?.("(pointer: coarse)").matches === true;
+  });
+  const toggleKeyboard = useCallback((next?: boolean) => {
+    setShowKeyboard((current) => {
+      const value = next ?? !current;
+      try {
+        window.localStorage.setItem("excel-academy:keyboard", value ? "1" : "0");
+      } catch {
+        /* private mode */
+      }
+      return value;
+    });
+  }, []);
   const [split, setSplit] = useState(false);
   const [widths, setWidths] = useState<Record<string, number>>({});
   const [flash, setFlash] = useState<{ rule: ReturnType<typeof inferFlashFill>["rule"]; source: string[]; explain: string } | null>(null);
@@ -463,7 +504,7 @@ export function ExcelGrid({
    * range selection (Excel's shift-click, needed for "applies to A2:F20").
    */
   const selectCell = useCallback(
-    (address: string, opts: { edit?: boolean; extend?: boolean } = {}) => {
+    (address: string, opts: { edit?: boolean; extend?: boolean; replace?: boolean } = {}) => {
       if (opts.extend) {
         const start = splitAddress(active);
         const end = splitAddress(address);
@@ -475,22 +516,34 @@ export function ExcelGrid({
           return;
         }
       }
+      // Leaving a cell mid-edit must save what was typed (Excel commits on the
+      // next click instead of throwing the draft away).
+      if (editing && address !== active) commit(active, draft);
       setActive(address);
       setRangeText(address);
       if (opts.edit) {
         setDraft(sheet?.cells[address] ?? "");
+        setEditFrom("cell");
+        setEditSelectAll(Boolean(opts.replace));
         setEditing(true);
       } else {
+        setEditFrom(null);
+        setEditSelectAll(false);
         setEditing(false);
       }
     },
-    [active, sheet],
+    [active, commit, draft, editing, sheet],
   );
 
-  /** Start editing the active cell from the keyboard or a double tap. */
+  /**
+   * Start editing the active cell from the keyboard, a tap or the formula bar.
+   * `from` decides who keeps the caret: the cell input, or the formula bar.
+   */
   const beginEdit = useCallback(
-    (initial?: string) => {
+    (initial?: string, from: "cell" | "bar" = "cell", replace = false) => {
       setDraft(initial ?? sheet?.cells[active] ?? "");
+      setEditFrom(from);
+      setEditSelectAll(replace);
       setEditing(true);
       setStatus(`Editing ${active} — Enter dabao ya bahar tap karo.`);
     },
@@ -598,7 +651,7 @@ export function ExcelGrid({
     // which is the closest thing this app has to a ribbon.
     if (meta && event.shiftKey && event.key === "F1") {
       event.preventDefault();
-      setShowKeyboard((v) => !v);
+      toggleKeyboard();
       return;
     }
     if (meta && !event.shiftKey && event.key.toLowerCase() === "e") {
@@ -1362,11 +1415,27 @@ export function ExcelGrid({
         return;
       }
       if (code === "space") {
+        if (editing && editSelectAll) {
+          setEditSelectAll(false);
+          setDraft(" ");
+          return;
+        }
         if (editing) setDraft((d) => `${d} `);
         else {
+          setEditFrom("cell");
           setEditing(true);
           setDraft(" ");
         }
+        return;
+      }
+      if (code === "backspace") {
+        // The on-screen ⌫ — same as the keyboard, in the editor or in the bar.
+        if (editing) setDraft((d) => d.slice(0, -1));
+        else if (rawActive) commit(active, rawActive.slice(0, -1));
+        return;
+      }
+      if (code === "shift") {
+        // Shift on the pad only changes what its own letter keys type.
         return;
       }
       if (["left", "right", "up", "down"].includes(code)) {
@@ -1378,9 +1447,20 @@ export function ExcelGrid({
         setStatus("Insert/overtype: Excel's Insert key toggles how typing replaces the cell.");
         return;
       }
-      if (code.startsWith("digit-") || code.startsWith("op-") || ascii) {
-        if (editing) setDraft((d) => `${d}${key}`);
-        else {
+      if (code.startsWith("digit-") || code.startsWith("op-") || code.startsWith("type-") || ascii) {
+        if (editing && editSelectAll) {
+          // The text was selected by the click that opened the editor, so the
+          // first character replaces the old value — Excel's "type over" rule.
+          // The on-screen pad hits this path too, where there is no real
+          // selection to overwrite.
+          setEditFrom("cell");
+          setEditSelectAll(false);
+          setDraft(key);
+        } else if (editing) {
+          setEditFrom("cell");
+          setDraft((d) => `${d}${key}`);
+        } else {
+          setEditFrom("cell");
           setEditing(true);
           setDraft(key);
         }
@@ -1396,6 +1476,7 @@ export function ExcelGrid({
       commit,
       copySelection,
       draft,
+      editSelectAll,
       editing,
       engine,
       move,
@@ -2134,7 +2215,7 @@ export function ExcelGrid({
           setStatus(split ? "Split view off." : "Split view on — header row stays frozen.");
           break;
         case "keyboard":
-          setShowKeyboard((value) => !value);
+          toggleKeyboard();
           break;
         case "gridlines":
           setGridlines((value) => !value);
@@ -2380,15 +2461,16 @@ export function ExcelGrid({
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck={false}
-              onMouseDown={() => beginEdit()}
-              onTouchStart={() => beginEdit()}
-              onFocus={() => beginEdit()}
+              onMouseDown={() => beginEdit(undefined, "bar")}
+              onTouchStart={() => beginEdit(undefined, "bar")}
+              onFocus={() => beginEdit(undefined, "bar")}
               onChange={(event) => {
                 // Edit *in place*: keep the caret where the student is typing, so a
                 // single argument can be fixed without retyping the whole formula.
                 const element = event.target;
                 const position = element.selectionStart;
                 setDraft(element.value);
+                setEditFrom("bar");
                 setEditing(true);
                 if (position !== null) {
                   requestAnimationFrame(() => {
@@ -2407,10 +2489,12 @@ export function ExcelGrid({
                   // accepts the highlighted function suggestion instead.
                   commit(active, draft);
                   setEditing(false);
+                  setEditFrom(null);
                   setStatus(`${active} saved — “${draft}”`);
                 }
                 if (event.key === "Escape") {
                   setEditing(false);
+                  setEditFrom(null);
                   setDraft(rawActive);
                   setSuggest(null);
                 }
@@ -2423,6 +2507,7 @@ export function ExcelGrid({
                 // Clicking a cell commits what is in the bar instead of losing it.
                 if (editing && draft !== rawActive) commit(active, draft);
                 setEditing(false);
+                setEditFrom(null);
               }}
               placeholder='Cell par tap karo ya yahan type karo — =SUM(B2:B9), =XLOOKUP(...), =FILTER(...)'
               className="w-full neu-field px-2.5 py-1.5 font-mono text-xs sm:text-sm outline-none"
@@ -2487,7 +2572,7 @@ export function ExcelGrid({
               aria-label={`Edit cell ${active}`}
               title="Edit this cell in the formula bar"
               onClick={() => {
-                beginEdit();
+                beginEdit(undefined, "bar");
                 formulaInput.current?.focus();
               }}
               className="p-1.5 rounded-lg border border-(--color-border) bg-(--color-surface) text-(--color-accent-dark) shrink-0"
@@ -2495,11 +2580,26 @@ export function ExcelGrid({
               <Pencil size={14} />
             </button>
           )}
+          {/* The on-screen keyboard is one tap away in every layout — the phone,
+              the lab and the desktop window (where the quick-access row folds). */}
+          <button
+            type="button"
+            aria-label={showKeyboard ? "Hide virtual keyboard" : "Show virtual keyboard (A–Z, 0–9, symbols)"}
+            aria-pressed={showKeyboard}
+            title="Virtual Excel keyboard — A–Z, 0–9 aur har symbol"
+            onClick={() => toggleKeyboard()}
+            className={`p-1.5 rounded-lg shrink-0 text-(--color-accent-dark) ${
+              showKeyboard ? "neu-pressed-sm" : "border border-(--color-border) bg-(--color-surface)"
+            }`}
+          >
+            <Keyboard size={14} />
+          </button>
         </div>
 
         {/* Quick access row: the four things students ask for most, always visible.
-            Inside the desktop window it folds away — Excel keeps those commands
-            in the ribbon, and vertical space is what students actually need. */}
+            Inside the desktop window the long list folds away — Excel keeps those
+            commands in the ribbon — but the Keyboard button stays: a student in
+            the desktop window with no physical keyboard still has to type. */}
         <div
           className={`px-2 sm:px-3 py-1.5 bg-(--color-surface-2) border-b border-(--color-border) flex items-center gap-1 overflow-x-auto no-print ${
             fill ? "hidden" : ""
@@ -2511,7 +2611,7 @@ export function ExcelGrid({
             { id: "quick-filter", label: `Filter${filter ? ` (${filter.filters.length})` : ""}`, icon: <FilterIcon size={13} />, onClick: openFilter },
             { id: "quick-form", label: "Data Form", icon: <ClipboardList size={13} />, onClick: () => setShowForm(true) },
             { id: "quick-format", label: "Format Cells", icon: <Palette size={13} />, onClick: () => setDialog("format") },
-            { id: "quick-keyboard", label: "Keyboard", icon: <Keyboard size={13} />, onClick: () => setShowKeyboard((value) => !value) },
+            { id: "quick-keyboard", label: showKeyboard ? "Hide keyboard" : "Keyboard", icon: <Keyboard size={13} />, ariaPressed: showKeyboard, onClick: () => toggleKeyboard() },
             { id: "quick-validate", label: "Validate", icon: <ShieldCheck size={13} />, onClick: () => setDialog("validation") },
             { id: "quick-spell", label: "Spelling", icon: <Check size={13} />, onClick: () => setPanel("spell") },
             { id: "quick-note", label: "Note", icon: <Plus size={13} />, onClick: () => setPanel("notes") },
@@ -2522,7 +2622,10 @@ export function ExcelGrid({
               key={item.id}
               type="button"
               onClick={item.onClick}
-              className="neu-btn inline-flex items-center gap-1 px-2 py-1 text-[10px] sm:text-[11px] font-semibold text-(--color-ink) whitespace-nowrap"
+              aria-pressed={"ariaPressed" in item ? item.ariaPressed : undefined}
+              className={`neu-btn inline-flex items-center gap-1 px-2 py-1 text-[10px] sm:text-[11px] font-semibold whitespace-nowrap ${
+                "ariaPressed" in item && item.ariaPressed ? "text-(--color-accent-dark) shadow-(--neu-pressed-sm)" : "text-(--color-ink)"
+              }`}
             >
               {item.icon}
               {item.label}
@@ -2539,9 +2642,7 @@ export function ExcelGrid({
 
         {/* Undo / redo / quick bold + number format — Excel's QAT, kept next to the bar */}
         <div
-          className={`px-2 sm:px-3 py-1.5 bg-(--color-canvas) border-b border-(--color-border) flex flex-wrap items-center gap-1.5 no-print ${
-            fill ? "hidden" : ""
-          }`}
+          className="px-2 sm:px-3 py-1.5 bg-(--color-canvas) border-b border-(--color-border) flex flex-wrap items-center gap-1.5 no-print"
         >
           <div className="flex items-center gap-1">
             <IconBtn title="Undo (Ctrl+Z)" onClick={undo} disabled={!history.length}>
@@ -2659,8 +2760,12 @@ export function ExcelGrid({
         </div>
 
         {showKeyboard && (
-          <div className="px-2.5 py-2 bg-(--color-surface) border-b border-(--color-border) no-print">
-            <VirtualKeyboard onKey={(def) => runCommand(def)} onClose={() => setShowKeyboard(false)} />
+          <div
+            className="px-2.5 py-2 bg-(--color-surface) border-b border-(--color-border) no-print"
+            // Keep the caret in the sheet while the student taps the pad.
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <VirtualKeyboard onKey={(def) => runCommand(def)} onClose={() => toggleKeyboard(false)} />
           </div>
         )}
 
@@ -2864,7 +2969,21 @@ export function ExcelGrid({
                     return (
                       <td
                         key={address}
+                        onPointerDown={(event) => {
+                          if (event.pointerType === "touch" || event.pointerType === "pen") {
+                            lastTouchRef.current = Date.now();
+                          }
+                        }}
                         onMouseDown={(event) => {
+                          // A touch tap also emits mousedown ~300ms later. That
+                          // compatibility event used to land *after* the editor
+                          // opened and close it again, so on a phone tapping a
+                          // cell selected it but never showed a keyboard.
+                          if (Date.now() - lastTouchRef.current < 800) return;
+                          // Keep the focus where the click put it: without this the
+                          // scrollable grid container takes focus on mousedown and
+                          // the brand-new in-cell editor blurs before it exists.
+                          event.preventDefault();
                           // Shift = extend the selection, exactly like Excel.
                           if (event.shiftKey) {
                             selectCell(address, { extend: true });
@@ -2877,7 +2996,10 @@ export function ExcelGrid({
                             setStatus(`${address} painted with the copied format.`);
                             return;
                           }
-                          selectCell(address);
+                          // A click is also a tap: put the cell in edit mode so
+                          // the cursor (or the on-screen keyboard) can type the
+                          // moment the student touches it.
+                          selectCell(address, { edit: true, replace: true });
                         }}
                         onDoubleClick={() => {
                           setActive(address);
@@ -2889,7 +3011,7 @@ export function ExcelGrid({
                           // expect when they tap a cell and then type.
                           if (event.pointerType === "touch" || event.pointerType === "pen") {
                             setActive(address);
-                            beginEdit();
+                            beginEdit(undefined, "cell", true);
                           }
                         }}
                         title={
@@ -2925,11 +3047,24 @@ export function ExcelGrid({
                             style={{ width: `calc(${(bars[address] * 100).toFixed(1)}% - 4px)` }}
                           />
                         )}
-                        {isActive && editing ? (
+                        {isActive && editing && editFrom !== "bar" ? (
                           <input
                             autoFocus
                             ref={(element) => {
-                              if (element && document.activeElement !== element) element.focus({ preventScroll: true });
+                              if (!element) return;
+                              // Focus once, when the editor mounts from a cell
+                              // interaction. Re-focusing on every render stole
+                              // the caret back from the formula bar.
+                              if (document.activeElement !== element) element.focus({ preventScroll: true });
+                              // Click-and-type replaces the old value, like
+                              // Excel. The selection has to be applied after the
+                              // browser has placed its own caret, so it waits a
+                              // frame (autoFocus may also have just run).
+                              if (editSelectAll) {
+                                requestAnimationFrame(() => {
+                                  if (document.activeElement === element) element.select();
+                                });
+                              }
                             }}
                             aria-label={`Edit cell ${address}`}
                             inputMode={rawActive.startsWith("=") ? "text" : undefined}

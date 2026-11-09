@@ -109,8 +109,11 @@ describe("pro tools", () => {
   it("shows the virtual keyboard with the function keys Excel has", async () => {
     render(<ExcelGrid template="t-keys" title="Keys" sheets={[{ name: "S", cells: { A1: "1" } }]} rows={4} cols={3} />);
     fireEvent.click(screen.getByRole("button", { name: /^View$/i }));
-    // The ribbon button's accessible name is its visible label ("⌨Virtual keyboard").
-    fireEvent.click(screen.getByRole("button", { name: /Virtual keyboard/i }));
+    // The pad opens from the ribbon, the quick-access row or the button next to
+    // the formula bar; any of them must show the same keypad. It starts OPEN on
+    // a touch device, so a click here may close it — assert the end state.
+    const openers = screen.getAllByRole("button", { name: /Keyboard/i });
+    fireEvent.click(openers[openers.length - 1]);
     // The keypad opens on its main-keys tab, with the Excel function-key tab.
     expect(screen.getByRole("button", { name: /F1–F12/i })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /F1–F12/i }));
@@ -637,7 +640,11 @@ describe("Insert tab objects", () => {
 
   it("draws a sparkline inside the active cell", async () => {
     mount("t-spark");
+    // A click now also opens the in-cell editor (type-to-replace, like Excel),
+    // so commit the empty editor first — the sheet, not the editor, takes the
+    // Insert ribbon command.
     fireEvent.mouseDown(cell("C2"));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "Escape" });
     tab("Insert");
     cmd("Sparkline");
     const panel = await screen.findByRole("dialog", { name: "Insert" });
@@ -668,6 +675,9 @@ describe("Insert tab objects", () => {
   it("inserts a real HYPERLINK formula for a link", async () => {
     mount("t-link");
     fireEvent.mouseDown(cell("D6"));
+    // Clicking a cell now opens its editor (Excel's type-to-replace); close it
+    // so the ribbon command applies to the sheet.
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "Escape" });
     tab("Insert");
     cmd("Link");
     const panel = await screen.findByRole("dialog", { name: "Insert" });
@@ -683,6 +693,9 @@ describe("Insert tab objects", () => {
   it("adds a rupee symbol to the active cell", async () => {
     mount("t-symbol");
     fireEvent.mouseDown(cell("D5"));
+    // Clicking a cell now opens its editor (Excel's type-to-replace); close it
+    // so the ribbon command applies to the sheet.
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "Escape" });
     tab("Insert");
     cmd("Symbol");
     const panel = await screen.findByRole("dialog", { name: "Insert" });
@@ -693,10 +706,132 @@ describe("Insert tab objects", () => {
   it("anchors a shape to the active cell", async () => {
     mount("t-shape");
     fireEvent.mouseDown(cell("E4"));
+    // Clicking a cell now opens its editor (Excel's type-to-replace); close it
+    // so the ribbon command applies to the sheet.
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "Escape" });
     tab("Insert");
     cmd("Shapes");
     const panel = await screen.findByRole("dialog", { name: "Insert" });
     fireEvent.click(within(panel).getByRole("button", { name: /Insert Star shape/i }));
     expect(await screen.findByLabelText("Star shape on E4")).toBeTruthy();
+  });
+
+  /* --------------------------------------------------------------------- *
+   * Input reachability — the three bugs students actually hit              *
+   * --------------------------------------------------------------------- */
+
+  it("opens the cell editor on a single click (and on a touch tap)", async () => {
+    mount("t-click-edit");
+    const grid = screen.getByRole("grid");
+
+    fireEvent.mouseDown(cell("B2"));
+    expect(document.querySelector('input[aria-label="Edit cell B2"]')).toBeTruthy();
+
+    // A tap arrives as pointerup(touch) followed by the browser's emulated
+    // mousedown ~300ms later. That compatibility event used to close the editor
+    // again, so a phone showed no keyboard at all.
+    cleanup();
+    mount("t-tap-edit");
+    const tapGrid = screen.getByRole("grid");
+    fireEvent.pointerDown(cell("B2"), { pointerType: "touch" });
+    fireEvent.pointerUp(cell("B2"), { pointerType: "touch" });
+    fireEvent.mouseDown(cell("B2"));
+    expect(document.querySelector('input[aria-label="Edit cell B2"]')).toBeTruthy();
+
+    // Typing replaces the old value, like Excel: B2 says "20" before the tap.
+    const editor = document.querySelector('input[aria-label="Edit cell B2"]') as HTMLInputElement;
+    fireEvent.change(editor, { target: { value: "=1+1" } });
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(tapGrid.textContent).toContain("2");
+  });
+
+  it("keeps the caret in the formula bar instead of fighting the cell editor", async () => {
+    render(
+      <ExcelGrid template="t-bar-focus" title="Bar" sheets={[{ name: "S", cells: { A1: "10", A2: "20" } }]} rows={6} cols={4} />,
+    );
+    const bar = screen.getByLabelText("Formula bar") as HTMLInputElement;
+    fireEvent.focus(bar);
+    // The in-cell editor must not mount while the bar owns the edit — that
+    // ping-pong was why typing in the bar went nowhere.
+    expect(document.querySelector('td input[aria-label^="Edit cell"]')).toBeNull();
+    // A1 is the active cell, so the formula cannot reference it — use plain
+    // numbers, which is all this test needs to prove the bar's Enter commits.
+    fireEvent.change(bar, { target: { value: "=10+20" } });
+    fireEvent.keyDown(bar, { key: "Enter" });
+    expect(screen.getAllByText("30").length).toBeGreaterThan(0);
+  });
+
+  it("has every letter, digit and symbol on the virtual keyboard", async () => {
+    mount("t-full-pad");
+    // Open the pad from the quick-access row.
+    fireEvent.click(screen.getByRole("button", { name: /^Keyboard$/i }));
+    const pad = screen.getByRole("group", { name: /Virtual Excel keyboard/i });
+    const caps = Array.from(pad.querySelectorAll("button")).map((b) =>
+      (b.getAttribute("aria-label") ?? b.textContent ?? "").trim(),
+    );
+    for (const letter of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+      expect(caps, `missing ${letter}`).toContain(letter);
+    }
+    for (const digit of "0123456789") {
+      expect(caps, `missing ${digit}`).toContain(digit);
+    }
+    for (const symbol of ["(", ")", ",", ":", "$", "4", "*", "/", "+", "&", "^", "%", "<", ">"]) {
+      expect(caps, `missing ${symbol}`).toContain(symbol);
+    }
+  });
+
+  it("types a formula by tapping the on-screen keys", async () => {
+    mount("t-pad-type");
+    fireEvent.click(screen.getByRole("button", { name: /^Keyboard$/i }));
+    const pad = screen.getByRole("group", { name: /Virtual Excel keyboard/i });
+    const cap = (label: string) =>
+      Array.from(pad.querySelectorAll("button")).find(
+        (b) => (b.textContent ?? "").trim() === label || (b.getAttribute("aria-label") ?? "") === label,
+      ) as HTMLButtonElement;
+
+    fireEvent.mouseDown(cell("C2"));
+    // =, s, u, m, (, a, 1, :, a, 2, ) — one tap per character, like a laptop.
+    for (const label of ["=", "S", "U", "M", "(", "A", "1", ":", "A", "2", ")"]) {
+      expect(cap(label), `no cap for ${label}`).toBeTruthy();
+      fireEvent.click(cap(label));
+    }
+    const editor = document.querySelector('input[aria-label="Edit cell C2"]') as HTMLInputElement;
+    // Unshifted caps type lower case, exactly like a physical keyboard.
+    expect((editor ?? (screen.getByLabelText("Formula bar") as HTMLInputElement)).value).toBe("=sum(a1:a2)");
+
+    // Shift swaps every row the way a laptop does: 4 → $, 5 → %, letters → caps.
+    fireEvent.click(cap("⇧ Shift"));
+    expect(cap("$"), "shifted 4 should print $").toBeTruthy();
+    expect(cap("%").textContent?.trim()).toBe("%");
+    fireEvent.click(cap("A"));
+    expect((document.querySelector('input[aria-label="Edit cell C2"]') as HTMLInputElement).value).toBe("=sum(a1:a2)A");
+  });
+});
+
+describe("virtual keyboard memory", () => {
+  const sheet = [{ name: "S", cells: { A1: "1" } }];
+  const mountPad = (template: string) =>
+    render(<ExcelGrid template={template} title="Keys" sheets={sheet} rows={4} cols={3} />);
+
+  it("remembers a hidden pad instead of forcing it open on every visit", () => {
+    // jsdom reports no coarse pointer, so the pad starts closed here.
+    mountPad("t-pad-memory-1");
+    expect(screen.queryByRole("group", { name: /Virtual Excel keyboard/i })).toBeNull();
+    cleanup();
+
+    localStorage.setItem("excel-academy:keyboard", "1");
+    mountPad("t-pad-memory-2");
+    expect(screen.getByRole("group", { name: /Virtual Excel keyboard/i })).toBeTruthy();
+    cleanup();
+
+    localStorage.setItem("excel-academy:keyboard", "0");
+    mountPad("t-pad-memory-3");
+    expect(screen.queryByRole("group", { name: /Virtual Excel keyboard/i })).toBeNull();
+  });
+
+  it("writes the student's choice back to storage", () => {
+    mountPad("t-pad-memory-4");
+    fireEvent.click(screen.getAllByRole("button", { name: /Keyboard/i })[0]);
+    expect(localStorage.getItem("excel-academy:keyboard")).toBe("1");
   });
 });

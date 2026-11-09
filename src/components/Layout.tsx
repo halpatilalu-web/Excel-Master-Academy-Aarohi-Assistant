@@ -113,6 +113,12 @@ export function Layout<K extends string>({
 
   const footer = (
     <div className="mt-auto pt-4 border-t border-(--color-border) space-y-1">
+      {/* Phones fold the header's language switch in here, where the full
+          labels ("Hindi + English") fit. */}
+      <div className="md:hidden px-3 pb-1.5">
+        <p className="pb-1 text-[10px] font-bold uppercase tracking-widest text-(--color-muted)/80">Explanation language</p>
+        <LangSwitcher />
+      </div>
       <button
         type="button"
         onClick={() => void exportBackup()}
@@ -208,7 +214,7 @@ export function Layout<K extends string>({
 
       {/* Main Content Area with Clean Sticky Top Header */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="glass-bar sticky top-0 z-30 px-3 sm:px-6 lg:px-10 h-14 md:h-16 flex items-center justify-between gap-3 md:mt-2 md:rounded-2xl md:mx-2 lg:mx-4">
+        <header className="glass-bar sticky top-0 z-30 px-3 sm:px-6 lg:px-10 h-16 md:h-16 flex items-center justify-between gap-3 md:mt-2 md:rounded-2xl md:mx-2 lg:mx-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -218,9 +224,12 @@ export function Layout<K extends string>({
             >
               <Menu size={20} />
             </button>
-            <div className="md:hidden">
-              <Brand name={brand} compact />
+            <div className="md:hidden shrink-0">
+              <Brand name={brand} compact markOnly />
             </div>
+            <span className="md:hidden min-w-0 flex-1 truncate text-[13px] font-bold text-(--color-ink)">
+              {activeItem?.label ?? brand}
+            </span>
             {activeItem && (
               <div className="hidden md:flex items-center gap-2 text-sm font-semibold text-(--color-ink) truncate">
                 {activeItem.group && (
@@ -240,7 +249,7 @@ export function Layout<K extends string>({
                 type="button"
                 aria-label="Search (Ctrl+K)"
                 onClick={onOpenSearch}
-                className="neu-btn inline-flex items-center gap-2 px-3 py-1.5 text-xs text-(--color-muted) transition cursor-pointer"
+                className="neu-btn inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-(--color-muted) transition cursor-pointer"
               >
                 <Search size={14} />
                 <span className="hidden sm:inline">Search formulas, chapters…</span>
@@ -250,7 +259,9 @@ export function Layout<K extends string>({
               </button>
             )}
 
-            <LangSwitcher compact />
+            <span className="hidden md:inline-flex">
+              <LangSwitcher compact />
+            </span>
 
             {onOpenBreak && (
               <button
@@ -294,14 +305,25 @@ export function Layout<K extends string>({
   );
 }
 
-function Brand({ name, compact = false }: { name: string; compact?: boolean }) {
+function Brand({
+  name,
+  compact = false,
+  markOnly = false,
+}: {
+  name: string;
+  compact?: boolean;
+  /** Just the X tile — for a header with no room for the wordmark. */
+  markOnly?: boolean;
+}) {
   return (
     <div className="flex items-center gap-2.5">
       <span className="w-9 h-9 rounded-xl neu-btn-accent grid place-items-center font-display font-extrabold text-sm">
         X
       </span>
-      <div className="leading-tight">
-        <span className={`font-display font-extrabold tracking-tight block ${compact ? "text-sm" : "text-base"}`}>
+      <div className={`leading-tight ${markOnly ? "hidden" : ""}`}>
+        <span
+          className={`font-display font-extrabold tracking-tight block truncate ${compact ? "text-sm max-w-[7.5rem]" : "text-base"}`}
+        >
           {name}
         </span>
         {!compact && (
