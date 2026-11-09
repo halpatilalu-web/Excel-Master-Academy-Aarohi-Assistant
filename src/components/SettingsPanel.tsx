@@ -9,7 +9,7 @@
  * and by the desktop shell's Settings app, so the two can never disagree —
  * they both read `src/lib/settings.ts`.
  */
-import { Headphones, Keyboard, LayoutGrid, Mic2, RotateCcw, Sigma, Volume2, Wand2, X } from "lucide-react";
+import { Headphones, Keyboard, LayoutGrid, Mic2, RotateCcw, Volume2, Wand2, X } from "lucide-react";
 import { Bilingual } from "../lib/lang";
 import { resetSettings, useAllSettings, type AppSettings } from "../lib/settings";
 
@@ -43,13 +43,6 @@ const ROWS: SwitchRow[] = [
     hi: "Player me timed lyrics (emoji ke saath)",
     icon: <Mic2 size={15} />,
     hint: "Har gaane ki apni Hinglish lines, uske beat par. Original lines hain, koi copyrighted gaana nahi.",
-  },
-  {
-    key: "formulaPreview",
-    label: "Formula bubble",
-    hi: "Cell ke bilkul left ek live formula + result",
-    icon: <Sigma size={15} />,
-    hint: "Type karte waqt formula cell ke saath chipka rehta hai, scroll karne par bhi saath chalta hai.",
   },
   {
     key: "gridlines",
