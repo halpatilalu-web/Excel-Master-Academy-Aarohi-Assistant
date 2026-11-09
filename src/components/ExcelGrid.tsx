@@ -3,7 +3,7 @@
  * original code written for this course, deliberately not a licensed
  * spreadsheet SDK, so nothing here is behind a subscription.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownUp,
   Check,
@@ -372,6 +372,13 @@ export function ExcelGrid({
   /** Full-screen on phones: the sheet gets the whole screen, chrome collapses. */
   const [zen, setZen] = useState(false);
   const [rangeText, setRangeText] = useState("");
+  /**
+   * Where the active cell sits inside the scroll container, so the fill handle
+   * can be drawn as an overlay *on top of everything* instead of inside the
+   * cell. Inside the cell it disappeared whenever the cell opened its editor
+   * (a phone tap always opens it) and it was only 8px wide.
+   */
+  const [handleSpot, setHandleSpot] = useState<{ left: number; top: number; w: number; h: number } | null>(null);
   const [zoom, setZoom] = useState(100);
   /** Which cell's validation dropdown is open (Excel's in-cell arrow). */
   const [picker, setPicker] = useState<string | null>(null);
@@ -446,6 +453,45 @@ export function ExcelGrid({
     });
     return out;
   }, [engine, sheet, activeSheet, rows, cols]);
+
+  /**
+   * Keep the fill-handle overlay glued to the active cell's bottom-right
+   * corner. Measured (not computed from row heights) because rows wrap, zoom
+   * changes the size, and the header is sticky — a computed position would
+   * drift by a few pixels and the handle would sit just off the corner.
+   * Measured before paint, so the square never flashes on the previous cell.
+   */
+  useLayoutEffect(() => {
+    const container = gridRef.current;
+    if (!container) return;
+    const measure = () => {
+      const cell = container.querySelector<HTMLElement>(`td[data-address="${active}"]`);
+      if (!cell) {
+        setHandleSpot(null);
+        return;
+      }
+      const cellBox = cell.getBoundingClientRect();
+      const box = container.getBoundingClientRect();
+      // Off-screen (scrolled away): draw nothing rather than a floating square.
+      if (cellBox.bottom < box.top || cellBox.top > box.bottom) {
+        setHandleSpot(null);
+        return;
+      }
+      setHandleSpot({
+        left: cellBox.right - box.left + container.scrollLeft,
+        top: cellBox.bottom - box.top + container.scrollTop,
+        w: cellBox.width,
+        h: cellBox.height,
+      });
+    };
+    measure();
+    container.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    return () => {
+      container.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+    };
+  }, [active, activeSheet, rows, cols, zoom, editing, formats, sheet]);
 
   useEffect(() => {
     if (onCellsChange && sheet) onCellsChange(sheet.cells);
@@ -1023,6 +1069,85 @@ export function ExcelGrid({
     },
     [commit, sheet],
   );
+
+  /**
+   * Start a fill-handle drag from `address`.
+   *
+   * One routine for mouse and finger — the difference is only which event
+   * starts it. It listens on `window` rather than on the handle, because the
+   * pointer is captured by the little square: `event.target` would stay the
+   * handle forever, so each move is hit-tested against the page instead.
+   *
+   * While the drag runs, the cell under the cursor is previewed (`fillTo`) and
+   * the browser's text selection / long-press menu are switched off — a drag on
+   * a cell full of text used to select the text and open the "Copy" menu, which
+   * is the "copy ka option aa rha hai" students saw.
+   */
+  const startFillDrag = useCallback(
+    (address: string) => {
+      const cellUnder = (x: number, y: number) =>
+        document.elementFromPoint(x, y)?.closest?.("td[data-address]") ?? null;
+
+      const previousSelect = document.body.style.userSelect;
+      document.body.style.userSelect = "none";
+      const stopMenu = (event: Event) => event.preventDefault();
+      document.addEventListener("contextmenu", stopMenu, true);
+
+      const finish = () => {
+        document.body.style.userSelect = previousSelect;
+        document.removeEventListener("contextmenu", stopMenu, true);
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onCancel);
+        window.removeEventListener("touchmove", onTouchMove);
+      };
+
+      const track = (x: number, y: number) => {
+        const label = cellUnder(x, y)?.getAttribute("data-address");
+        setFillTo(label && label !== address ? label : null);
+      };
+      const drop = (x: number, y: number) => {
+        const end = cellUnder(x, y)?.getAttribute("data-address") ?? null;
+        if (end && end !== address) fillRange(address, end);
+        else setFillTo(null);
+      };
+
+      const onMove = (event: MouseEvent) => track(event.clientX, event.clientY);
+      const onUp = (event: MouseEvent) => {
+        const { clientX, clientY } = event;
+        finish();
+        drop(clientX, clientY);
+      };
+      const onPointerMove = (event: PointerEvent) => track(event.clientX, event.clientY);
+      const onPointerUp = (event: PointerEvent) => {
+        const { clientX, clientY } = event;
+        finish();
+        drop(clientX, clientY);
+      };
+      const onCancel = () => {
+        finish();
+        setFillTo(null);
+      };
+      // Some mobile browsers send only touch events for a fast drag.
+      const onTouchMove = (event: TouchEvent) => {
+        const touch = event.touches[0];
+        if (!touch) return;
+        event.preventDefault();
+        track(touch.clientX, touch.clientY);
+      };
+
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+      window.addEventListener("pointercancel", onCancel);
+      window.addEventListener("touchmove", onTouchMove, { passive: false });
+    },
+    [fillRange],
+  );
+
 
   /** Copy the active cell down over the whole contiguous block above it. */
   const fillDown = useCallback(() => {
@@ -3025,10 +3150,62 @@ export function ExcelGrid({
             pasteBlock(activeSheet, active, text);
             setStatus(`Pasted ${text.split("\n").length} row(s) starting at ${active}.`);
           }}
-          className={`overflow-auto outline-none bg-(--color-paper) ${
+          className={`relative overflow-auto outline-none bg-(--color-paper) ${
             zen ? "flex-1 min-h-0" : fill ? "flex-1 min-h-[240px]" : split ? "max-h-[46vh] ring-1 ring-inset ring-(--color-accent)/30 rounded-b-none" : "max-h-[70vh]"
           }`}
         >
+          {/*
+            FILL HANDLE — the corner square you drag to copy a formula.
+
+            It is an overlay, not a child of the cell: inside the cell it
+            vanished whenever the editor opened (every phone tap opens it) and
+            its 8px box was unusable with a thumb. Here it is 28px of touch
+            area with an Excel-sized square drawn inside, it survives editing,
+            and it is drawn above the cell so nothing can cover it.
+          */}
+          {handleSpot && (
+            <span
+              role="button"
+              tabIndex={-1}
+              aria-label={`Fill handle ${active}`}
+              title="Yahan se pakad ke drag karo — formula neeche/daaye copy hoga"
+              data-fill-handle
+              /*
+                Nudged 4px inside the cell: the geometric corner is exactly on
+                the border between two cells, and elementFromPoint on a border
+                can resolve to the neighbour — a straight-down drag then filled
+                the wrong column.
+              */
+              style={{ left: handleSpot.left - 18, top: handleSpot.top - 18 }}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                // A tap on a phone leaves the cell editor open with its text
+                // selected; grabbing the handle must not drag that selection.
+                if (editing) setEditing(false);
+                startFillDrag(active);
+              }}
+              onPointerDown={(event) => {
+                if (event.pointerType === "mouse") return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (editing) setEditing(false);
+                startFillDrag(active);
+              }}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+                fillDownAuto();
+              }}
+              onClick={(event) => event.stopPropagation()}
+              onContextMenu={(event) => event.preventDefault()}
+              className="absolute z-30 grid h-7 w-7 cursor-crosshair touch-none select-none place-items-end p-[9px]"
+            >
+              <span
+                aria-hidden
+                className="block h-2.5 w-2.5 rounded-[1px] border border-white bg-(--color-accent) shadow-sm dark:border-(--color-surface)"
+              />
+            </span>
+          )}
           <table className="border-collapse text-xs sm:text-sm min-w-full" style={{ fontSize: `${zoom}%` }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-(--color-canvas) text-(--color-muted)">
@@ -3290,7 +3467,13 @@ export function ExcelGrid({
                                 setDraft(event.target.value);
                               }}
                               onBlur={() => {
-                                commit(address, draft);
+                                // Clobber guard: the editor opens holding the
+                                // cell's own value. If focus leaves without the
+                                // student changing a character, writing `draft`
+                                // back is a no-op at best — and on phones, where
+                                // grabbing the fill handle closes the editor
+                                // mid-drag, it used to blank the cell.
+                                if (draft !== raw) commit(address, draft);
                                 setEditing(false);
                               }}
                               onKeyDown={onKeyDown}
@@ -3378,47 +3561,6 @@ export function ExcelGrid({
                             )}
                             {isActive && !editing && (
                               <span aria-hidden className="text-(--color-accent) text-[9px] shrink-0">✎</span>
-                            )}
-                            {/* Fill handle: drag it down to copy (relative refs shift like Excel). */}
-                            {isActive && !editing && (
-                              <span
-                                role="button"
-                                aria-label={`Fill handle ${address}`}
-                                title="Drag down (or double-click) to fill"
-                                onMouseDown={(downEvent) => {
-                                  downEvent.preventDefault();
-                                  downEvent.stopPropagation();
-                                  /**
-                                   * While the button is held the pointer is
-                                   * captured by this little square, so
-                                   * `event.target` is the handle — never the
-                                   * cell under the cursor. Every move event
-                                   * therefore has to be hit-tested against the
-                                   * page, or the drag looks dead (which is
-                                   * exactly what students reported).
-                                   */
-                                  const cellUnder = (x: number, y: number) =>
-                                    document.elementFromPoint(x, y)?.closest?.("td[data-address]") ?? null;
-                                  const onMove = (moveEvent: MouseEvent) => {
-                                    const label = cellUnder(moveEvent.clientX, moveEvent.clientY)?.getAttribute("data-address");
-                                    if (label && label !== address) setFillTo(label);
-                                  };
-                                  const onUp = (upEvent: MouseEvent) => {
-                                    window.removeEventListener("mousemove", onMove);
-                                    window.removeEventListener("mouseup", onUp);
-                                    const end = cellUnder(upEvent.clientX, upEvent.clientY)?.getAttribute("data-address") ?? null;
-                                    if (end && end !== address) fillRange(address, end);
-                                    else setFillTo(null);
-                                  };
-                                  window.addEventListener("mousemove", onMove);
-                                  window.addEventListener("mouseup", onUp);
-                                }}
-                                onDoubleClick={(doubleEvent) => {
-                                  doubleEvent.stopPropagation();
-                                  fillDownAuto();
-                                }}
-                                className="absolute -bottom-[3px] -right-[3px] w-2 h-2 rounded-[1px] bg-(--color-accent) border border-white dark:border-(--color-surface) cursor-crosshair z-20"
-                              />
                             )}
                           </div>
                         )}

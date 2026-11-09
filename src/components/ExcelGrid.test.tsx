@@ -1013,6 +1013,49 @@ describe("one formula, a grabbable fill handle and a resizable keyboard", () => 
     expect((screen.getByLabelText("Edit cell A1") as HTMLInputElement).value).toBe("7");
   });
 
+  it("keeps the fill handle on a cell that is being edited, so a phone can still fill", () => {
+    mount("t-handle-editing");
+    // A phone tap opens the editor — which is exactly the state the handle
+    // used to vanish in, leaving only "Edit cell" and a text-selection menu.
+    fireEvent.pointerDown(cell("A1"), { pointerType: "touch" });
+    fireEvent.pointerUp(cell("A1"), { pointerType: "touch" });
+    fireEvent.mouseDown(cell("A1"));
+    expect(document.querySelector('input[aria-label="Edit cell A1"]')).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Fill handle A1/i })).toBeTruthy();
+  });
+
+  it("closes the editor when the handle is grabbed and keeps the cell's value", async () => {
+    mount("t-handle-drag");
+    fireEvent.pointerDown(cell("A1"), { pointerType: "touch" });
+    fireEvent.pointerUp(cell("A1"), { pointerType: "touch" });
+    fireEvent.mouseDown(cell("A1"));
+    const editor = document.querySelector('input[aria-label="Edit cell A1"]') as HTMLInputElement;
+    // Touch-typing leaves the whole draft selected; grabbing the handle must
+    // not drag that selection or write it back over the cell.
+    editor.select();
+
+    const handle = screen.getByRole("button", { name: /Fill handle A1/i });
+    const target = within(screen.getByRole("grid"))
+      .getAllByRole("cell")
+      .find((c) => c.getAttribute("data-address") === "A4");
+    const original = (document as unknown as { elementFromPoint?: unknown }).elementFromPoint;
+    (document as unknown as { elementFromPoint?: () => Element }).elementFromPoint = () => target as unknown as Element;
+    fireEvent.mouseDown(handle);
+    fireEvent.mouseMove(handle);
+    fireEvent.mouseUp(handle);
+    (document as unknown as { elementFromPoint?: unknown }).elementFromPoint = original;
+
+    expect(document.querySelector('td input[aria-label^="Edit cell"]')).toBeNull();
+    // A1 still holds its own text: closing an untouched editor is a no-op.
+    const a1 = within(screen.getByRole("grid"))
+      .getAllByRole("cell")
+      .find((c) => c.getAttribute("data-address") === "A1");
+    // t-handle-drag seeds A1=1, A2=2 — closing the editor untouched keeps the 1.
+    expect(a1?.textContent).toContain("1");
+    // ...and the drag continued the Excel series downwards: 3, 4.
+    expect((await screen.findAllByText("4")).length).toBeGreaterThan(0);
+  });
+
   it("sizes the keyboard from presets and from the corner grip, and remembers it", () => {
     localStorage.setItem("excel-academy:keyboard", "1");
     mount("t-kb-size");
