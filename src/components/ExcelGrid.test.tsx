@@ -25,12 +25,10 @@ afterEach(cleanup);
 const SHEETS = [{ name: "Practice", cells: { A1: "10", A2: "20", A3: "=SUM(A1:A2)" } }];
 
 /**
- * Type through the formula bar the way a student does: one press on the bar
- * opens it as an editor (the bar is a status line the rest of the time, so the
- * formula is never on screen twice).
+ * The formula field above the sheet is editable again (Excel's layout), so this
+ * is just a readable handle on it.
  */
 function openBar(): HTMLInputElement {
-  fireEvent.click(screen.getByLabelText(/Open the formula bar/i));
   return screen.getByLabelText("Formula bar") as HTMLInputElement;
 }
 
@@ -73,7 +71,10 @@ describe("ExcelGrid", () => {
     render(<ExcelGrid template="t-cyc" title="Cycle" sheets={[{ name: "Sheet1", cells: { A1: "5" } }]} rows={4} cols={3} />);
     const bar = openBar();
     fireEvent.change(bar, { target: { value: "=A1+1" } });
-    fireEvent.keyDown(bar, { key: "Enter" });
+    // "=" opened the function list; Esc closes it so Enter means "commit".
+    fireEvent.keyDown(bar, { key: "Escape" });
+    fireEvent.change(screen.getByLabelText("Formula bar"), { target: { value: "=A1+1" } });
+    fireEvent.keyDown(screen.getByLabelText("Formula bar"), { key: "Enter" });
     expect(screen.getAllByText(/#(CYCLE|CIRCULAR)/i).length).toBeGreaterThan(0);
   });
 
@@ -253,7 +254,7 @@ describe("the two bugs students reported", () => {
     expect((await screen.findAllByText("6")).length).toBeGreaterThan(0);
     // Re-selecting the cell still shows the edited formula, not a blank.
     fireEvent.mouseDown(within(screen.getByRole("grid")).getAllByRole("cell")[2]);
-    expect(screen.getByLabelText(/Open the formula bar/i).textContent).toBe("=SUM(A2:A2)");
+    expect((screen.getByLabelText("Formula bar") as HTMLInputElement).value).toBe("=SUM(A2:A2)");
   });
 
   it("keeps the autocomplete open while editing the middle of a formula", async () => {
@@ -450,6 +451,9 @@ describe("Excel parity: validation, conditional formatting, filter, names", () =
     const c2 = document.querySelector('[data-address="C2"]') as HTMLElement;
     fireEvent.mouseDown(c2);
     const bar = openBar();
+    // Pressing the field starts an edit (Excel's behaviour) — the tick/cross
+    // buttons appear with it.
+    fireEvent.mouseDown(bar);
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(screen.getByLabelText(/Commit edit/i)).toBeTruthy();
     fireEvent.change(bar, { target: { value: '=UPPER(C1)&" 2026"' } });
@@ -461,7 +465,7 @@ describe("Excel parity: validation, conditional formatting, filter, names", () =
     mount("t-zen");
     fireEvent.click(screen.getByRole("button", { name: /Full screen/i }));
     expect(screen.getByRole("button", { name: /Exit full screen/i })).toBeTruthy();
-    expect(screen.getByLabelText(/Open the formula bar/i)).toBeTruthy();
+    expect(screen.getByLabelText("Formula bar")).toBeTruthy();
     expect(screen.getByRole("grid")).toBeTruthy();
   });
 });
@@ -703,7 +707,7 @@ describe("Insert tab objects", () => {
     expect(cell("D6").textContent).toContain("Course");
     // Click the cell and the formula bar shows the formula that was written.
     fireEvent.mouseDown(cell("D6"));
-    expect(screen.getByLabelText(/Open the formula bar/i).textContent).toBe('=HYPERLINK("https://excel.dev","Course")');
+    expect((screen.getByLabelText("Formula bar") as HTMLInputElement).value).toBe('=HYPERLINK("https://excel.dev","Course")');
   });
 
   it("adds a rupee symbol to the active cell", async () => {
@@ -920,26 +924,18 @@ describe("typing in a cell", () => {
     expect(screen.getAllByText("24").length).toBeGreaterThan(0);
   });
 
-  it("shows the live formula and its result beside the cell being edited", () => {
+  it("keeps the formula in the field, with no bubble beside the cell", () => {
     mount("t-bubble");
     fireEvent.mouseDown(cell("A1"));
     fireEvent.doubleClick(cell("A1"));
     fireEvent.change(screen.getByLabelText("Edit cell A1"), { target: { value: "=10+20" } });
-    const bubble = document.querySelector("[data-formula-bubble]");
-    expect(bubble).toBeTruthy();
-    expect(bubble?.textContent).toContain("=10+20");
-    expect(bubble?.textContent).toContain("30");
+    // One place: the formula field above the sheet (Excel's own layout). The
+    // bubble that used to hang beside the cell is gone for good.
+    expect((screen.getByLabelText("Formula bar") as HTMLInputElement).value).toBe("=10+20");
+    expect(document.querySelector("[data-formula-bubble]")).toBeNull();
   });
 
-  it("hides the bubble and the pad when Settings turns them off", () => {
-    setSetting("formulaPreview", false);
-    mount("t-gates");
-    fireEvent.mouseDown(cell("A1"));
-    fireEvent.doubleClick(cell("A1"));
-    fireEvent.change(screen.getByLabelText("Edit cell A1"), { target: { value: "=1+1" } });
-    expect(document.querySelector("[data-formula-bubble]")).toBeNull();
-    cleanup();
-
+  it("hides the pad when Settings turns the keyboard off", () => {
     // The keyboard switch is the master gate, even on a touch device.
     setSetting("virtualKeyboard", false);
     localStorage.setItem("excel-academy:keyboard", "1");
@@ -968,18 +964,39 @@ describe("one formula, a grabbable fill handle and a resizable keyboard", () => 
     );
   const cell = (address: string) => document.querySelector(`td[data-address="${address}"]`) as HTMLElement;
 
-  it("shows the typed formula in one place only — the cell and its bubble", () => {
+  it("shows the typed formula in the field and in the cell — and nowhere else", () => {
     mount("t-one-place");
     fireEvent.mouseDown(cell("B1"));
     fireEvent.keyDown(screen.getByRole("grid"), { key: "=" });
     fireEvent.change(screen.getByLabelText("Edit cell B1"), { target: { value: "=SUM(A1:A2)" } });
 
-    // The in-cell editor and the bubble — that is it. The bar above is a
-    // status line, not a second copy of the formula.
     expect((screen.getByLabelText("Edit cell B1") as HTMLInputElement).value).toBe("=SUM(A1:A2)");
-    expect(document.querySelector("[data-formula-bubble]")?.textContent).toContain("=SUM(A1:A2)");
-    expect(screen.queryByLabelText("Formula bar")).toBeNull();
-    expect(screen.getByLabelText(/Open the formula bar/i).textContent).not.toContain("=SUM(A1:A2)");
+    expect((screen.getByLabelText("Formula bar") as HTMLInputElement).value).toBe("=SUM(A1:A2)");
+    expect(document.querySelector("[data-formula-bubble]")).toBeNull();
+  });
+
+  it("lists every formula the moment “=” is typed, then narrows as you type", () => {
+    mount("t-list");
+    fireEvent.mouseDown(cell("B1"));
+    fireEvent.doubleClick(cell("B1"));
+    const editor = screen.getByLabelText("Edit cell B1") as HTMLInputElement;
+
+    // Just "=" → the whole library, not an empty box.
+    fireEvent.change(editor, { target: { value: "=" } });
+    const list = screen.getByRole("listbox", { name: /Excel functions/i });
+    const all = within(list).getAllByRole("option");
+    expect(all.length).toBeGreaterThan(20);
+    expect(screen.getByText(/Saare formulas/i)).toBeTruthy();
+
+    // "=XL" → only XLOOKUP-family names.
+    fireEvent.change(screen.getByLabelText("Edit cell B1"), { target: { value: "=XL" } });
+    const narrowed = within(screen.getByRole("listbox", { name: /Excel functions/i })).getAllByRole("option");
+    expect(narrowed.length).toBeGreaterThan(0);
+    narrowed.forEach((option) => expect(option.textContent).toMatch(/XL/i));
+
+    // Enter inserts the highlighted function and keeps editing inside it.
+    fireEvent.keyDown(screen.getByLabelText("Edit cell B1"), { key: "Enter" });
+    expect((screen.getByLabelText("Edit cell B1") as HTMLInputElement).value).toBe("=XLOOKUP(");
   });
 
   it("keeps the fill handle on a selected cell so a corner drag can start", () => {

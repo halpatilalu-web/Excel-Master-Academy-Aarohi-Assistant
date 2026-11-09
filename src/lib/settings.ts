@@ -28,8 +28,6 @@ export interface AppSettings {
   sound: boolean;
   /** Sheet gridlines, on by default like Excel. */
   gridlines: boolean;
-  /** Show the live formula bubble next to the cell being edited. */
-  formulaPreview: boolean;
 }
 
 const KEY = "excel-academy:settings";
@@ -43,7 +41,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lyrics: true,
   sound: false,
   gridlines: true,
-  formulaPreview: true,
 };
 
 function read(): AppSettings {

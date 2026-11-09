@@ -39,7 +39,7 @@ import { Button, Card, Pill } from "./ui";
 import type { Scalar } from "../lib/excel/formula/core";
 import type { CellValue } from "../lib/excel/sheetTools";
 import { isErr } from "../lib/excel/formula/core";
-import { Workbook, knownFunctions } from "../lib/excel/formula/engine";
+import { knownFunctions } from "../lib/excel/formula/engine";
 import { buildXlsx, parseXlsx, type ExportSheet } from "../lib/excel/xlsx";
 import {
   ERROR_HELP,
@@ -57,7 +57,6 @@ import { CATALOG_BY_NAME, CATALOG_NAMES } from "../data/formulaCatalog";
 import { inferFlashFill } from "../lib/excel/flashfill";
 import { dataBars, removeDuplicates, sortRows, usedRange } from "../lib/excel/dataTools";
 import { VirtualKeyboard } from "./VirtualKeyboard";
-import { FormulaBubble } from "./excel/FormulaBubble";
 import { FloatingKeyboard } from "./FloatingKeyboard";
 import { useSetting } from "../lib/settings";
 import { Ribbon, type RibbonCommand, type RibbonTab } from "./Ribbon";
@@ -269,6 +268,8 @@ export function ExcelGrid({
   const [showCatalog, setShowCatalog] = useState(false);
   const [catalogQuery, setCatalogQuery] = useState("");
   const [suggest, setSuggest] = useState<{ items: string[]; word: string } | null>(null);
+  /** Which row of the function list ↑↓ has landed on. */
+  const [suggestCursor, setSuggestCursor] = useState(0);
   // Formatting is restored from the saved workbook, so colours/bold survive a
   // reload and the .xlsx download keeps them.
   const savedWorkbook = wbDocs.items.find((doc) => doc.template === template);
@@ -325,7 +326,6 @@ export function ExcelGrid({
    * — even on a phone — and the toolbar button says so instead of pretending.
    */
   const [keyboardAllowed] = useSetting("virtualKeyboard");
-  const [formulaPreview] = useSetting("formulaPreview");
   const [gridlinesSetting] = useSetting("gridlines");
   // Settings ▸ gridlines follows the stored switch until the ribbon overrides it.
   useEffect(() => setGridlines(gridlinesSetting), [gridlinesSetting]);
@@ -446,40 +446,6 @@ export function ExcelGrid({
     });
     return out;
   }, [engine, sheet, activeSheet, rows, cols]);
-
-  /**
-   * A throwaway book that holds the sheet *plus the formula being typed*, so the
-   * bubble beside the cell can show the live result before Enter is pressed.
-   * The real sheet is untouched — this is a preview, not a commit.
-   */
-  const livePreview = useMemo<Record<string, Scalar>>(() => {
-    if (!editing || !editAddress || !sheet || !draft.startsWith("=")) return {};
-    try {
-      const preview = new Workbook({
-        sheets: [{ name: "Preview", cells: { ...sheet.cells, [editAddress]: draft } }],
-        names: engine.definedNames(),
-      });
-      const parsed = splitAddress(editAddress);
-      if (!parsed) return {};
-      return { [editAddress]: preview.value("Preview", parsed.row, parsed.col) };
-    } catch {
-      return {};
-    }
-  }, [draft, editAddress, editing, engine, sheet]);
-
-  // A drag-select ends wherever the button is released — inside the grid, on a
-  // scrollbar, or outside the sheet entirely.
-  useEffect(() => {
-    const release = () => {
-      dragSelectRef.current = false;
-    };
-    window.addEventListener("mouseup", release);
-    window.addEventListener("pointercancel", release);
-    return () => {
-      window.removeEventListener("mouseup", release);
-      window.removeEventListener("pointercancel", release);
-    };
-  }, []);
 
   useEffect(() => {
     if (onCellsChange && sheet) onCellsChange(sheet.cells);
@@ -644,31 +610,88 @@ export function ExcelGrid({
 
   /* ---------------------------- autocomplete -------------------------- */
 
+  /**
+   * Function list while typing a formula.
+   *
+   * Excel behaviour, and what students asked for: the moment `=` is typed the
+   * list of functions appears — no need to type two letters first. Typing then
+   * narrows it down (`=SU` → SUM, SUMIF, SUMIFS…). It works from the cell *and*
+   * from the formula bar, because both write into `draft`.
+   */
   useEffect(() => {
-    if (!editing) {
+    if (!editing || !draft.startsWith("=")) {
       setSuggest(null);
       return;
     }
-    const match = /([A-Za-z][A-Za-z0-9.]*)\(?[^()]*$/.exec(draft);
+    // The word being typed: after "=" and after any operator, comma or "(".
+    const tail = draft.slice(1);
+    const match = /([A-Za-z][A-Za-z0-9._]*)$/.exec(tail);
     const word = match?.[1]?.toUpperCase() ?? "";
-    if (!word || word.length < 2) {
+    // A finished, closed formula has no business showing a list.
+    if (draft.trimEnd().endsWith(")")) {
       setSuggest(null);
       return;
     }
-    const items = ALL_FUNCTION_NAMES.filter((name) => name.startsWith(word)).slice(0, 8);
-    const exact = items.some((item) => item === word) && items.length === 1;
+    // No word yet? Only offer the whole library at a *function position* —
+    // right after "=" or after "(", ",", or an operator — never in the middle
+    // of `=10+20`, where a list would just sit on top of the sheet.
+    let depth = 0;
+    let inString = false;
+    for (const char of tail) {
+      if (char === '"') inString = !inString;
+      else if (inString) continue;
+      else if (char === "(") depth += 1;
+      else if (char === ")") depth -= 1;
+    }
+    // After "=(" the student is writing an argument, not a function name —
+    // offering SUM there just gets in the way.
+    const atFunctionPosition = (tail.trim() === "" || /[(,+\-*/:&^%<>=]$/.test(tail.trimEnd())) && depth <= 0;
+    if (!word && !atFunctionPosition) {
+      setSuggest(null);
+      return;
+    }
+    const items = word
+      ? ALL_FUNCTION_NAMES.filter((name) => name.toUpperCase().startsWith(word))
+      : ALL_FUNCTION_NAMES;
+    // An exact, unambiguous match is already written — no point listing it.
+    const exact = word && items.length === 1 && items[0] === word;
     setSuggest(items.length && !exact ? { items, word } : null);
+    setSuggestCursor(0);
   }, [draft, editing]);
 
-  const applySuggestion = (name: string) => {
-    const entry = catalogEntry(name);
-    setDraft((current) => {
-      const withName = current.replace(/([A-Za-z][A-Za-z0-9.]*)(\()?[^()]*$/, `${name}(`);
-      return withName === current ? `${current}${name}(` : withName;
-    });
-    setSuggest(null);
-    void entry;
-  };
+  /**
+   * Insert a function from the list. Used by the suggestion rows and by Enter,
+   * so picking SUM really writes `=SUM(` and leaves the caret inside it.
+   */
+  const insertFunction = useCallback(
+    (name: string) => {
+      // `draft` is read directly, not through a setState callback: the caret
+      // restore below needs the finished text, and a stale closure here wrote
+      // "=XLOOKUP(XLOOKUP(" — the typed word plus the inserted one.
+      const current = draft;
+      const base = current.startsWith("=") ? current : `=${current}`;
+      const replaced = /([A-Za-z][A-Za-z0-9._]*)$/.test(base)
+        ? base.replace(/([A-Za-z][A-Za-z0-9._]*)$/, `${name}(`)
+        : `${base}${name}(`;
+      setDraft(replaced);
+      setEditing(true);
+      setSuggest(null);
+      // Put the caret back inside the brackets of the cell/bar that owns the edit.
+      requestAnimationFrame(() => {
+        const target = editFrom === "bar" ? formulaInput.current : cellInput.current;
+        target?.focus({ preventScroll: true });
+        const at = replaced.length;
+        try {
+          target?.setSelectionRange(at, at);
+        } catch {
+          /* not focusable yet */
+        }
+      });
+    },
+    [draft, editFrom],
+  );
+
+  const applySuggestion = (name: string) => insertFunction(name);
 
   /* ------------------------------ keyboard ---------------------------- */
 
@@ -778,21 +801,38 @@ export function ExcelGrid({
         setDraft("");
         setSuggest(null);
       }
+      // While the function list is open, ↑↓ choose and Enter/Tab insert — the
+      // same keys Excel uses. It matters most in the cell editor, where the
+      // arrows would otherwise move the selection and close the editor.
+      if (suggest && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+        event.preventDefault();
+        setSuggestCursor((current) => {
+          const count = suggest.items.length;
+          return event.key === "ArrowDown" ? (current + 1) % count : (current - 1 + count) % count;
+        });
+        return;
+      }
+      if (suggest && (event.key === "Enter" || event.key === "Tab")) {
+        event.preventDefault();
+        // The cell editor's keydown re-enters this handler through the grid,
+        // which would treat the very same Enter as "commit" — so the list
+        // insertion has to stop the event here.
+        event.stopPropagation();
+        insertFunction(suggest.items[suggestCursor] ?? suggest.items[0]);
+        return;
+      }
       if (event.key === "Enter") {
         event.preventDefault();
         commit(active, draft);
         setEditing(false);
-        if (suggest?.items[0]) {
-          // Enter picks the highlighted function instead of moving on.
-          applySuggestion(suggest.items[0]);
-          return;
-        }
+        setBarEditing(false);
         move(event.shiftKey ? -1 : 1, 0);
       }
       if (event.key === "Tab") {
         event.preventDefault();
         commit(active, draft);
         setEditing(false);
+        setBarEditing(false);
         move(0, event.shiftKey ? -1 : 1);
       }
       return;
@@ -2533,122 +2573,142 @@ export function ExcelGrid({
             fx
           </button>
           {/*
-            ONE place for the formula.
+            The formula field — editable again, like Excel's.
 
-            This row used to be a full-width editable formula bar *and* the
-            cell showed the formula *and* the bubble showed it again — three
-            copies, and on a phone the bar's copy was cut off at the top. Now
-            the bar is a read-only status line: while editing it shows the cell
-            (and, if the keyboard is docked, the pad right under it); the
-            formula itself lives in the bubble beside the cell. "f(x)" opens the
-            bar for someone who prefers typing up there.
+            It went read-only for a round while the bubble beside the cell held
+            the formula; that made "= dabao to formulas dikhein" impossible,
+            because `=` was typed into the cell and the list only existed for
+            the bar. So: the field is editable, it owns the autocomplete, and
+            the bubble is gone (one formula place, and it is the classic one).
           */}
           <div className="relative flex-1 min-w-0">
-            {barEditing ? (
-              <input
-                ref={formulaInput}
-                aria-label="Formula bar"
-                value={draft}
-                inputMode="text"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                autoFocus
-                onChange={(event) => {
-                  // Edit *in place*: keep the caret where the student is typing, so a
-                  // single argument can be fixed without retyping the whole formula.
-                  const element = event.target;
-                  const position = element.selectionStart;
-                  setDraft(element.value);
-                  setEditFrom("bar");
-                  setEditAddress(active);
-                  setEditing(true);
-                  if (position !== null) {
-                    requestAnimationFrame(() => {
-                      try {
-                        element.setSelectionRange(position, position);
-                      } catch {
-                        /* some browsers refuse on non-focused inputs */
-                      }
-                    });
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
+            <input
+              ref={formulaInput}
+              aria-label="Formula bar"
+              value={editing ? draft : rawActive}
+              inputMode="text"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              onMouseDown={() => {
+                if (!editing) beginEdit(undefined, "bar", false, active);
+              }}
+              onTouchStart={() => {
+                if (!editing) beginEdit(undefined, "bar", false, active);
+              }}
+              onFocus={() => {
+                if (!editing) beginEdit(undefined, "bar", false, active);
+              }}
+              onChange={(event) => {
+                // Edit *in place*: keep the caret where the student is typing, so a
+                // single argument can be fixed without retyping the whole formula.
+                const element = event.target;
+                const position = element.selectionStart;
+                setDraft(element.value);
+                setEditFrom("bar");
+                setEditAddress(active);
+                setBarEditing(true);
+                setEditing(true);
+                if (position !== null) {
+                  requestAnimationFrame(() => {
+                    try {
+                      element.setSelectionRange(position, position);
+                    } catch {
+                      /* some browsers refuse on non-focused inputs */
+                    }
+                  });
+                }
+              }}
+              onKeyDown={(event) => {
+                if (suggest && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+                  event.preventDefault();
+                  setSuggestCursor((current) => {
+                    const count = suggest.items.length;
+                    return event.key === "ArrowDown" ? (current + 1) % count : (current - 1 + count) % count;
+                  });
+                  return;
+                }
+                if (suggest && event.key === "Tab") {
+                  event.preventDefault();
+                  insertFunction(suggest.items[suggestCursor] ?? suggest.items[0]);
+                  return;
+                }
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  // Enter on a highlighted suggestion inserts it instead of
+                  // committing a half-typed function name.
+                  if (suggest?.items.length) {
                     event.preventDefault();
-                    commit(active, draft);
-                    setEditing(false);
-                    setEditFrom(null);
-                    setBarEditing(false);
-                    setStatus(`${active} saved — “${draft}”`);
+                    insertFunction(suggest.items[suggestCursor] ?? suggest.items[0]);
+                    return;
                   }
-                  if (event.key === "Escape") {
-                    setEditing(false);
-                    setEditFrom(null);
-                    setBarEditing(false);
-                    setDraft(rawActive);
-                    setSuggest(null);
-                  }
-                  if (event.key === "Tab" && suggest?.items[0]) {
-                    event.preventDefault();
-                    applySuggestion(suggest.items[0]);
-                  }
-                }}
-                onBlur={() => {
-                  // Clicking a cell commits what is in the bar instead of losing it.
-                  if (editing && draft !== rawActive) commit(active, draft);
+                  commit(active, draft);
                   setEditing(false);
                   setEditFrom(null);
                   setBarEditing(false);
-                }}
-                placeholder='Yahan type karo — =SUM(B2:B9)'
-                className="w-full neu-field px-2.5 py-1.5 font-mono text-xs sm:text-sm outline-none"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  // Open the bar as an editor, seeded with the cell's own value.
-                  beginEdit(undefined, "bar", false, active);
-                  setBarEditing(true);
-                }}
-                aria-label="Open the formula bar to type a formula"
-                title="Yahan se bhi formula likh sakte ho (keyboard ki tarah)"
-                className="w-full truncate rounded-lg bg-(--color-surface) px-2.5 py-1.5 text-left font-mono text-[11px] text-(--color-muted) shadow-(--neu-pressed-sm) hover:text-(--color-ink) sm:text-xs"
+                  setStatus(`${active} saved — “${draft}”`);
+                }
+                if (event.key === "Escape") {
+                  setEditing(false);
+                  setEditFrom(null);
+                  setBarEditing(false);
+                  setDraft(rawActive);
+                  setSuggest(null);
+                }
+              }}
+              onBlur={() => {
+                // Clicking a cell commits what is in the bar instead of losing it.
+                if (editing && editFrom === "bar" && draft !== rawActive) commit(active, draft);
+                setEditing(false);
+                setEditFrom(null);
+                setBarEditing(false);
+              }}
+              placeholder='Cell par tap karo ya yahan type karo — “=” dabao to saare formulas ki list'
+              className="w-full neu-field px-2.5 py-1.5 font-mono text-xs sm:text-sm outline-none"
+            />
+            {suggest && (
+              <div
+                role="listbox"
+                aria-label="Excel functions"
+                // Phones: the bar sits at the top of a scrollable sheet, so a
+                // panel hanging below it lands off-screen. There the list
+                // becomes a full-width sheet pinned near the bottom, right
+                // above the keyboard the student is tapping.
+                // z-65: above the floating music player (z-40) on a phone, so
+                // the list is never hidden behind the transport buttons.
+                className="absolute z-[65] left-0 right-0 mt-1 overflow-hidden rounded-xl border border-(--color-border) bg-(--color-surface) shadow-xl max-sm:fixed max-sm:inset-x-2 max-sm:bottom-3 max-sm:top-auto max-sm:mt-0"
               >
-                {/*
-                  Only ONE live copy of the formula on screen. While a cell is
-                  being edited the formula lives in the bubble beside that cell
-                  (and in the cell itself) — never here as well.
-                */}
-                {editing && editFrom === "cell"
-                  ? `${active} · type kar rahe ho — formula cell ke paas dikhega`
-                  : rawActive.startsWith("=")
-                    ? rawActive
-                    : `${active} · formula likho…`}
-              </button>
-            )}
-            {suggest && barEditing && (
-              <div className="absolute z-40 left-0 right-0 mt-1 overflow-hidden rounded-xl border border-(--color-border) bg-(--color-surface) shadow-lg">
-                {suggest.items.map((name) => {
-                  const entry = catalogEntry(name);
-                  return (
-                    <button
-                      key={name}
-                      type="button"
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        applySuggestion(name);
-                      }}
-                      className="flex w-full items-baseline gap-2 px-3 py-1.5 text-left hover:bg-(--color-accent-soft)"
-                    >
-                      <span className="font-mono text-xs font-bold">{name}</span>
-                      <span className="truncate text-[11px] text-(--color-muted)">{entry?.hi ?? entry?.en}</span>
-                    </button>
-                  );
-                })}
-                <div className="border-t border-(--color-border) px-3 py-1 text-[10px] text-(--color-muted)">
-                  Tab / Enter to insert
+                <div className="flex items-center justify-between border-b border-(--color-border) px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-(--color-muted)">
+                  <span>
+                    {suggest.word ? `“${suggest.word}” se milte formulas` : "Saare formulas"} · {suggest.items.length}
+                  </span>
+                  <span className="font-mono normal-case tracking-normal">↑↓ Enter · Esc band</span>
+                </div>
+                <div className="max-h-64 overflow-y-auto overscroll-contain max-sm:max-h-[42vh]">
+                  {suggest.items.map((name, index) => {
+                    const entry = catalogEntry(name);
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        role="option"
+                        aria-selected={index === suggestCursor}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          insertFunction(name);
+                        }}
+                        onMouseEnter={() => setSuggestCursor(index)}
+                        className={`flex w-full items-baseline gap-2 px-3 py-1.5 text-left ${
+                          index === suggestCursor ? "bg-(--color-accent-soft)" : "hover:bg-(--color-accent-soft)"
+                        }`}
+                      >
+                        <span className="shrink-0 font-mono text-xs font-bold text-(--color-accent-dark)">{name}</span>
+                        <span className="truncate text-[11px] text-(--color-muted)">
+                          {entry?.hi ?? entry?.en ?? "Excel function"}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -3236,9 +3296,6 @@ export function ExcelGrid({
                               onKeyDown={onKeyDown}
                               className="w-full px-2 py-1 bg-transparent font-mono text-xs sm:text-sm outline-none"
                             />
-                            {formulaPreview && draft.startsWith("=") && (
-                              <FormulaBubble draft={draft} result={livePreview?.[address] ?? null} address={address} />
-                            )}
                           </>
                         ) : (
                           <div className="px-2 py-1 min-h-[26px] flex items-center justify-between gap-1">
