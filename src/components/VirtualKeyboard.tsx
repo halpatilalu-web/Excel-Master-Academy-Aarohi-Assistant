@@ -2,19 +2,20 @@
  * @license MIT
  * On-screen Excel keyboard.
  *
- * Purpose: a student on a phone or a laptop without a numpad should still be
- * able to *see and press* every key real Excel uses — F1…F12, Ctrl/Alt/Shift
- * chords, arrows, Enter/Tab and the dedicated keys (Insert, Delete, Home, End,
- * Page Up/Down, Esc). Buttons fire the same handler the physical key does, so
+ * A student on a phone — or on a laptop with no keyboard, or one who cannot
+ * reach F4 — must be able to *see and press* every key they need: A–Z, 0–9, all
+ * the formula symbols, the arrows and Enter/Tab/Del, the F1–F12 row and the
+ * Ctrl/Alt chords. Buttons fire the same handler the physical key does, so
  * nothing here is a mock-up: pressing F4 really toggles the reference style,
- * Ctrl+E really runs Flash Fill.
+ * Ctrl+E really runs Flash Fill, and typing S-U-M here really writes `SUM`.
  *
  * The keyboard is also the teaching surface: hovering a key shows what Excel
- * does with it in Hindi + English, and the "shortcut tray" below lists the
- * combos for the sheet the student is working on.
+ * does with it in Hindi + English, and the tray below keeps the last hint on
+ * screen while the student works.
  */
 import { useMemo, useState } from "react";
-import { Keyboard, X } from "lucide-react";
+import { Delete, Keyboard, X } from "lucide-react";
+import { MAIN_ROWS, bottomRow, rowKeys, type TypedKey } from "./keyLayout";
 
 export interface KeyDef {
   /** Text printed on the key cap. */
@@ -76,7 +77,6 @@ const SPECIAL: KeyDef[] = [
   { label: "Esc", code: "escape", key: "Escape", w: 1.2, en: "Cancel the edit", hi: "Edit cancel karo" },
   { label: "Tab", code: "tab", key: "Tab", w: 1.3, en: "Next cell (Shift+Tab = back)", hi: "Agla cell" },
   { label: "Enter", code: "enter", key: "Enter", w: 1.5, en: "Commit and move down", hi: "Value daalo aur neeche jao" },
-  { label: "Space", code: "space", key: " ", w: 3.2 },
   { label: "←", code: "left", key: "ArrowLeft", en: "Move left", hi: "Baayein" },
   { label: "↑", code: "up", key: "ArrowUp", en: "Move up", hi: "Upar" },
   { label: "↓", code: "down", key: "ArrowDown", en: "Move down", hi: "Neeche" },
@@ -94,29 +94,108 @@ const SPECIAL: KeyDef[] = [
   { label: "Alt+=", code: "autosum", key: "=", alt: true, w: 1.7, en: "AutoSum", hi: "AutoSum", accent: true },
 ];
 
+/** The tappable caps of one keyboard row. */
+function Caps({
+  keys,
+  onPress,
+  onHint,
+  keyClass,
+  className,
+}: {
+  keys: TypedKey[];
+  onPress: (key: TypedKey) => void;
+  onHint: (hint: { en: string; hi: string } | null) => void;
+  keyClass: (accent?: boolean) => string;
+  className?: string;
+}) {
+  return (
+    <div className={`flex gap-1 ${className ?? ""}`}>
+      {keys.map((cap, index) => (
+        <button
+          key={`${cap.label}-${index}`}
+          type="button"
+          aria-label={
+            cap.action === "backspace"
+              ? "Backspace"
+              : cap.action === "clear"
+                ? "Cancel the edit"
+                : cap.label.length === 1
+                  ? cap.label
+                  : cap.key.trim() || cap.label
+          }
+          onMouseEnter={() => onHint(cap.en ? { en: cap.en, hi: cap.hi ?? "" } : null)}
+          // mousedown is prevented so the sheet's editor keeps the caret while
+          // the student taps the on-screen keys.
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onPress(cap)}
+          style={{ flexGrow: cap.w ?? 1, flexBasis: `${(cap.w ?? 1) * 2.1}rem` }}
+          className={`${keyClass()} px-1 py-2 sm:py-2.5 min-h-[2.25rem]`}
+        >
+          {cap.action === "backspace" ? <Delete size={14} className="mx-auto" /> : cap.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function VirtualKeyboard({
   onKey,
   onClose,
   /** Show the teaching labels under each row. */
   dense = false,
+  /** Start with Shift on (upper-case letters). */
+  startShifted = false,
 }: {
   onKey: (def: { key: string; ctrl?: boolean; shift?: boolean; alt?: boolean; code: string }) => void;
   onClose: () => void;
   dense?: boolean;
+  startShifted?: boolean;
 }) {
   const [tab, setTab] = useState<"keys" | "ctrl" | "fn">("keys");
+  const [shifted, setShifted] = useState(startShifted);
   const [hover, setHover] = useState<{ en: string; hi: string } | null>(null);
 
   const keyClass = (accent?: boolean) =>
-    `relative select-none rounded-lg border text-[11px] sm:text-xs font-semibold transition active:translate-y-px ` +
+    `relative select-none rounded-lg text-[11px] sm:text-xs font-semibold transition active:translate-y-px ` +
     (accent
-      ? "border-(--color-accent) bg-(--color-accent-soft) text-(--color-accent-dark) "
-      : "border-(--color-border-strong) bg-(--color-surface) text-(--color-ink) ") +
-    "hover:bg-(--color-accent-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent) shadow-[0_1px_0_var(--color-border-strong)]";
+      ? "neu-btn-accent "
+      : "neu-btn text-(--color-ink) ") +
+    "hover:bg-(--color-accent-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent)";
 
   const press = (def: KeyDef) => {
     onKey({ key: def.key, ctrl: def.ctrl, shift: def.shift, alt: def.alt, code: def.code });
     if (def.en || def.hi) setHover({ en: def.en ?? "", hi: def.hi ?? "" });
+  };
+
+  /**
+   * A letter/digit cap types into the grid. The code is the character itself so
+   * the grid's `runCommand` treats it exactly like a physical keypress.
+   */
+  const typeKey = (cap: TypedKey) => {
+    if (cap.action === "backspace") {
+      onKey({ key: "Backspace", code: "backspace" });
+      setHover({ en: "Backspace — delete the last character", hi: "Aakhri character mitao" });
+      return;
+    }
+    if (cap.action === "clear") {
+      onKey({ key: "Escape", code: "escape" });
+      setHover({ en: "Esc — cancel this edit", hi: "Edit cancel karo" });
+      return;
+    }
+    if (cap.action === "enter") {
+      onKey({ key: "Enter", code: "enter" });
+      setHover({ en: "Enter — commit and move down", hi: "Value save karo aur neeche jao" });
+      return;
+    }
+    if (cap.key === "Shift") {
+      setShifted((value) => !value);
+      return;
+    }
+    onKey({ key: cap.key, code: `type-${cap.key}` });
+    setHover({
+      en: cap.en ?? `Type “${cap.key}”`,
+      hi: cap.hi ?? `“${cap.key}” likho`,
+    });
   };
 
   const fnPad = useMemo(
@@ -131,18 +210,22 @@ export function VirtualKeyboard({
   );
 
   return (
-    <div className="rounded-2xl border border-(--color-border-strong) bg-(--color-surface-2) p-2.5 sm:p-3 space-y-2">
+    <div
+      className="rounded-2xl border border-(--color-border-strong) bg-(--color-surface-2) p-2 sm:p-3 space-y-1.5"
+      role="group"
+      aria-label="Virtual Excel keyboard"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-xs font-bold text-(--color-ink)">
-          <Keyboard size={14} /> Virtual Excel keyboard
+          <Keyboard size={14} /> Virtual keyboard
           <span className="hidden sm:inline text-[11px] font-medium text-(--color-muted)">
-            — press a key, the grid does the same thing as your laptop
+            — A–Z, 0–9 aur har symbol
           </span>
         </div>
         <div className="flex items-center gap-1.5">
           {(
             [
-              ["keys", "Main keys"],
+              ["keys", "Keys A–Z"],
               ["fn", "F1–F12"],
               ["ctrl", "Ctrl / Alt"],
             ] as const
@@ -151,10 +234,9 @@ export function VirtualKeyboard({
               key={id}
               type="button"
               onClick={() => setTab(id)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
-                tab === id
-                  ? "bg-(--color-accent) text-white border-transparent"
-                  : "border-(--color-border) text-(--color-muted) hover:text-(--color-ink)"
+              aria-pressed={tab === id}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${
+                tab === id ? "bg-(--color-accent) text-white" : "neu-btn text-(--color-muted)"
               }`}
             >
               {label}
@@ -172,60 +254,51 @@ export function VirtualKeyboard({
       </div>
 
       {tab === "keys" && (
-        <div className="space-y-1.5">
-          {/* Number row + the keys students forget */}
-          <div className="flex gap-1">
-            {"1234567890".split("").map((digit) => (
+        <div className="space-y-1">
+          {/* Number row, three QWERTY letter rows, then Shift/Space/Clear. */}
+          {MAIN_ROWS.map((row, index) => (
+            <Caps
+              key={index}
+              keys={rowKeys(row, index, shifted)}
+              onPress={typeKey}
+              onHint={setHover}
+              keyClass={keyClass}
+              className={index === 2 ? "px-3" : index === 3 ? "px-6" : ""}
+            />
+          ))}
+          <Caps keys={bottomRow(shifted)} onPress={typeKey} onHint={setHover} keyClass={keyClass} />
+
+          {/* The operators a formula needs most, always visible. */}
+          <div className="flex flex-wrap gap-1 pt-0.5">
+            {["$", "*", "/", "+", "&", "^", "%", "<", ">", '"', "|", ";", "?", "_"].map((op) => (
               <button
-                key={digit}
+                key={op}
                 type="button"
-                onMouseEnter={() => setHover({ en: `Type ${digit}`, hi: `${digit} likho` })}
-                onClick={() => onKey({ key: digit, code: `digit-${digit}` })}
-                className={`${keyClass()} flex-1 py-2`}
+                onMouseEnter={() => setHover({ en: `Insert “${op}” into the formula`, hi: `Formula mein “${op}” daalo` })}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onKey({ key: op, code: `op-${op}` })}
+                style={{ flexGrow: 1, flexBasis: "1.6rem" }}
+                className={`${keyClass()} px-1 py-1.5 font-mono`}
               >
-                {digit}
+                {op}
               </button>
             ))}
-            <button type="button" onClick={() => onKey({ key: "-", code: "minus" })} className={`${keyClass()} px-2.5 py-2`}>
-              −
-            </button>
-            <button type="button" onClick={() => onKey({ key: "=", code: "equals" })} className={`${keyClass()} px-2.5 py-2`}>
-              =
-            </button>
           </div>
 
+          {/* Navigation + editing keys, one tap away. */}
           <div className="flex flex-wrap gap-1">
-            {SPECIAL.map((def) => (
+            {SPECIAL.filter((def) => !["flash", "autosum"].includes(def.code)).map((def) => (
               <button
                 key={def.code}
                 type="button"
                 title={def.en}
                 onMouseEnter={() => setHover({ en: def.en ?? "", hi: def.hi ?? "" })}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => press(def)}
-                style={{ flexGrow: def.w ?? 1, flexBasis: `${(def.w ?? 1) * 3.2}rem` }}
-                className={`${keyClass(def.accent)} px-2 py-2`}
+                style={{ flexGrow: def.w ?? 1, flexBasis: `${(def.w ?? 1) * 2.6}rem` }}
+                className={`${keyClass(def.accent)} px-1.5 py-1.5`}
               >
                 {def.label}
-              </button>
-            ))}
-          </div>
-
-          {/* The operators a formula needs, always visible */}
-          <div className="flex gap-1">
-            {["(", ")", ",", ":", "$", "*", "/", "+", "&", "^", "%", "<", ">"].map((op) => (
-              <button
-                key={op}
-                type="button"
-                onMouseEnter={() =>
-                  setHover({
-                    en: `Insert "${op}" into the formula`,
-                    hi: `Formula mein "${op}" daalo`,
-                  })
-                }
-                onClick={() => onKey({ key: op, code: `op-${op}` })}
-                className={`${keyClass()} flex-1 py-2 font-mono`}
-              >
-                {op}
               </button>
             ))}
           </div>
@@ -240,6 +313,7 @@ export function VirtualKeyboard({
                 key={fk.label}
                 type="button"
                 onMouseEnter={() => setHover({ en: fk.en, hi: fk.hi })}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onKey({ key: fk.key, code: fk.code })}
                 className={`${keyClass(fk.accent)} px-2 py-2.5 flex flex-col items-start gap-0.5 text-left`}
               >
@@ -265,10 +339,11 @@ export function VirtualKeyboard({
                 type="button"
                 title={`Ctrl+${ck.label} — ${ck.en}`}
                 onMouseEnter={() => setHover({ en: `Ctrl+${ck.label} — ${ck.en}`, hi: ck.hi })}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onKey({ key: ck.key, ctrl: true, code: ck.code })}
                 className={`${keyClass(ck.accent)} px-2.5 py-2 inline-flex items-center gap-1`}
               >
-                <span className="text-(--color-muted) font-mono text-[10px]">Ctrl</span>+{ck.label}
+                <span className="font-mono text-[10px] opacity-70">Ctrl</span>+{ck.label}
               </button>
             ))}
           </div>
@@ -279,10 +354,11 @@ export function VirtualKeyboard({
                 key={ak.code}
                 type="button"
                 onMouseEnter={() => setHover({ en: `Alt+${ak.label} — ${ak.en}`, hi: ak.hi })}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onKey({ key: ak.key, alt: true, code: ak.code })}
                 className={`${keyClass(ak.code === "autosum")} px-2.5 py-2 inline-flex items-center gap-1`}
               >
-                <span className="text-(--color-muted) font-mono text-[10px]">Alt</span>+{ak.label}
+                <span className="font-mono text-[10px] opacity-70">Alt</span>+{ak.label}
               </button>
             ))}
             {["Shift+F2", "Shift+F3", "Shift+F4", "Shift+F11", "Ctrl+Shift+%", "Ctrl+Shift+#", "Ctrl+Shift+F1"].map((combo) => (
@@ -304,7 +380,7 @@ export function VirtualKeyboard({
 
       {!dense && (
         <div
-          className="min-h-[2.25rem] rounded-lg bg-(--color-canvas) neu-btn px-2.5 py-1.5 text-[11px]"
+          className="min-h-[2.1rem] rounded-lg bg-(--color-canvas) neu-pressed-sm px-2.5 py-1.5 text-[11px]"
           role="status"
           aria-live="polite"
         >
@@ -314,7 +390,9 @@ export function VirtualKeyboard({
               <span className="text-(--color-muted)"> · {hover.hi}</span>
             </>
           ) : (
-            <span className="text-(--color-muted)">Key par hover karo — Excel mein uska kaam yahan dikhega.</span>
+            <span className="text-(--color-muted)">
+              Key dabao — Excel mein uska kaam yahan dikhega. Shift se bade letters aur $, %, ( ) milte hain.
+            </span>
           )}
         </div>
       )}
