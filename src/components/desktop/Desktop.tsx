@@ -1103,7 +1103,15 @@ function PowerBiApp({ files: allFiles, onStatus }: { files: DesktopFile[]; onSta
 function SettingsApp({ wallpaperId, onWallpaper }: { wallpaperId: string; onWallpaper: (id: string) => void }) {
   return (
     <div className="h-full space-y-3 overflow-y-auto bg-(--color-surface) p-3 pb-8">
-      <div>
+      {/* The switch board first — that is what Settings is for; wallpaper and
+          the notes come after, so nothing important is below the fold. It is
+          the same board the site uses, so desktop Excel and the site can never
+          disagree about what is on. */}
+      <div className="rounded-xl bg-(--color-canvas) p-2.5">
+        <SettingsPanel />
+      </div>
+
+      <div className="rounded-xl bg-(--color-canvas) p-2.5">
         <div className="text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Personalisation</div>
         <div className="flex flex-wrap gap-2 mt-1.5">
           {WALLPAPERS.map((item) => (
@@ -1119,11 +1127,6 @@ function SettingsApp({ wallpaperId, onWallpaper }: { wallpaperId: string; onWall
             </button>
           ))}
         </div>
-      </div>
-      {/* The same switch board the rest of the app uses, so desktop Excel and
-          the site can never disagree about what is on. */}
-      <div className="rounded-xl bg-(--color-canvas) p-2.5">
-        <SettingsPanel />
       </div>
 
       <Bilingual

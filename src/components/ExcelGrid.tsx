@@ -257,6 +257,11 @@ export function ExcelGrid({
   const replaceOnTypeRef = useRef(false);
   /** The address being edited — the preview bubble and commit both read it. */
   const [editAddress, setEditAddress] = useState<string | null>(null);
+  /**
+   * True when the student chose to type in the formula bar. The bar is a plain
+   * status line the rest of the time, so the formula is never on screen twice.
+   */
+  const [barEditing, setBarEditing] = useState(false);
   /** Timestamp of the last touch tap, to swallow the emulated mouse events. */
   const lastTouchRef = useRef(0);
   const [draft, setDraft] = useState("");
@@ -585,6 +590,7 @@ export function ExcelGrid({
         setDraft(sheet?.cells[address] ?? "");
         setEditFrom("cell");
         setEditAddress(address);
+        setBarEditing(false);
         replaceOnTypeRef.current = Boolean(opts.replace);
         setEditing(true);
       } else {
@@ -610,6 +616,7 @@ export function ExcelGrid({
       setDraft(initial ?? sheet?.cells[address] ?? "");
       setEditFrom(from);
       setEditAddress(address);
+      setBarEditing(from === "bar");
       replaceOnTypeRef.current = replace;
       setEditing(true);
       // `address`, not `active`: on a tap the state update has not landed yet,
@@ -809,13 +816,11 @@ export function ExcelGrid({
         move(0, -1);
         break;
       case "Enter":
-        event.preventDefault();
-        setEditing(true);
-        setDraft(rawActive);
-        break;
       case "F2":
         event.preventDefault();
         setEditing(true);
+        setEditFrom("cell");
+        setEditAddress(active);
         setDraft(rawActive);
         break;
       case "Delete":
@@ -830,6 +835,17 @@ export function ExcelGrid({
         break;
       default:
         if (event.key.length === 1 && !meta) {
+          /*
+            Typing on the active cell starts the edit — and names it, so the
+            bubble beside the cell can preview the formula. `preventDefault`
+            is essential: without it the browser also inserts the character
+            into the editor that is focused a moment later, and the seed
+            character doubles ("5" became "55", "=SUM(" became "==SUM(").
+          */
+          event.preventDefault();
+          setEditAddress(active);
+          setEditFrom("cell");
+          replaceOnTypeRef.current = false;
           setEditing(true);
           setDraft(event.key);
         }
@@ -1510,6 +1526,9 @@ export function ExcelGrid({
         return;
       }
       if (code.startsWith("digit-") || code.startsWith("op-") || code.startsWith("type-") || ascii) {
+        // The pad starts the edit itself, so it also has to name the cell it is
+        // editing — otherwise the live formula bubble has nothing to preview.
+        setEditAddress(active);
         if (editing && replaceOnTypeRef.current) {
           // The text was selected by the click that opened the editor, so the
           // first character replaces the old value — Excel's "type over" rule.
@@ -2513,69 +2532,104 @@ export function ExcelGrid({
           >
             fx
           </button>
+          {/*
+            ONE place for the formula.
+
+            This row used to be a full-width editable formula bar *and* the
+            cell showed the formula *and* the bubble showed it again — three
+            copies, and on a phone the bar's copy was cut off at the top. Now
+            the bar is a read-only status line: while editing it shows the cell
+            (and, if the keyboard is docked, the pad right under it); the
+            formula itself lives in the bubble beside the cell. "f(x)" opens the
+            bar for someone who prefers typing up there.
+          */}
           <div className="relative flex-1 min-w-0">
-            <input
-              ref={formulaInput}
-              aria-label="Formula bar"
-              value={editing ? draft : rawActive}
-              inputMode="text"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-              onMouseDown={() => beginEdit(undefined, "bar")}
-              onTouchStart={() => beginEdit(undefined, "bar")}
-              onFocus={() => beginEdit(undefined, "bar")}
-              onChange={(event) => {
-                // Edit *in place*: keep the caret where the student is typing, so a
-                // single argument can be fixed without retyping the whole formula.
-                const element = event.target;
-                const position = element.selectionStart;
-                setDraft(element.value);
-                setEditFrom("bar");
-                setEditAddress(active);
-                setEditing(true);
-                if (position !== null) {
-                  requestAnimationFrame(() => {
-                    try {
-                      element.setSelectionRange(position, position);
-                    } catch {
-                      /* some browsers refuse on non-focused inputs */
-                    }
-                  });
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  // Enter always commits what you typed (Excel behaviour); Tab
-                  // accepts the highlighted function suggestion instead.
-                  commit(active, draft);
+            {barEditing ? (
+              <input
+                ref={formulaInput}
+                aria-label="Formula bar"
+                value={draft}
+                inputMode="text"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                autoFocus
+                onChange={(event) => {
+                  // Edit *in place*: keep the caret where the student is typing, so a
+                  // single argument can be fixed without retyping the whole formula.
+                  const element = event.target;
+                  const position = element.selectionStart;
+                  setDraft(element.value);
+                  setEditFrom("bar");
+                  setEditAddress(active);
+                  setEditing(true);
+                  if (position !== null) {
+                    requestAnimationFrame(() => {
+                      try {
+                        element.setSelectionRange(position, position);
+                      } catch {
+                        /* some browsers refuse on non-focused inputs */
+                      }
+                    });
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    commit(active, draft);
+                    setEditing(false);
+                    setEditFrom(null);
+                    setBarEditing(false);
+                    setStatus(`${active} saved — “${draft}”`);
+                  }
+                  if (event.key === "Escape") {
+                    setEditing(false);
+                    setEditFrom(null);
+                    setBarEditing(false);
+                    setDraft(rawActive);
+                    setSuggest(null);
+                  }
+                  if (event.key === "Tab" && suggest?.items[0]) {
+                    event.preventDefault();
+                    applySuggestion(suggest.items[0]);
+                  }
+                }}
+                onBlur={() => {
+                  // Clicking a cell commits what is in the bar instead of losing it.
+                  if (editing && draft !== rawActive) commit(active, draft);
                   setEditing(false);
                   setEditFrom(null);
-                  setStatus(`${active} saved — “${draft}”`);
-                }
-                if (event.key === "Escape") {
-                  setEditing(false);
-                  setEditFrom(null);
-                  setDraft(rawActive);
-                  setSuggest(null);
-                }
-                if (event.key === "Tab" && suggest?.items[0]) {
-                  event.preventDefault();
-                  applySuggestion(suggest.items[0]);
-                }
-              }}
-              onBlur={() => {
-                // Clicking a cell commits what is in the bar instead of losing it.
-                if (editing && draft !== rawActive) commit(active, draft);
-                setEditing(false);
-                setEditFrom(null);
-              }}
-              placeholder='Cell par tap karo ya yahan type karo — =SUM(B2:B9), =XLOOKUP(...), =FILTER(...)'
-              className="w-full neu-field px-2.5 py-1.5 font-mono text-xs sm:text-sm outline-none"
-            />
-            {suggest && (
-              <div className="absolute z-40 left-0 right-0 mt-1 rounded-xl border border-(--color-border) bg-(--color-surface) shadow-lg overflow-hidden">
+                  setBarEditing(false);
+                }}
+                placeholder='Yahan type karo — =SUM(B2:B9)'
+                className="w-full neu-field px-2.5 py-1.5 font-mono text-xs sm:text-sm outline-none"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  // Open the bar as an editor, seeded with the cell's own value.
+                  beginEdit(undefined, "bar", false, active);
+                  setBarEditing(true);
+                }}
+                aria-label="Open the formula bar to type a formula"
+                title="Yahan se bhi formula likh sakte ho (keyboard ki tarah)"
+                className="w-full truncate rounded-lg bg-(--color-surface) px-2.5 py-1.5 text-left font-mono text-[11px] text-(--color-muted) shadow-(--neu-pressed-sm) hover:text-(--color-ink) sm:text-xs"
+              >
+                {/*
+                  Only ONE live copy of the formula on screen. While a cell is
+                  being edited the formula lives in the bubble beside that cell
+                  (and in the cell itself) — never here as well.
+                */}
+                {editing && editFrom === "cell"
+                  ? `${active} · type kar rahe ho — formula cell ke paas dikhega`
+                  : rawActive.startsWith("=")
+                    ? rawActive
+                    : `${active} · formula likho…`}
+              </button>
+            )}
+            {suggest && barEditing && (
+              <div className="absolute z-40 left-0 right-0 mt-1 overflow-hidden rounded-xl border border-(--color-border) bg-(--color-surface) shadow-lg">
                 {suggest.items.map((name) => {
                   const entry = catalogEntry(name);
                   return (
@@ -2586,14 +2640,16 @@ export function ExcelGrid({
                         event.preventDefault();
                         applySuggestion(name);
                       }}
-                      className="w-full text-left px-3 py-1.5 hover:bg-(--color-accent-soft) flex items-baseline gap-2"
+                      className="flex w-full items-baseline gap-2 px-3 py-1.5 text-left hover:bg-(--color-accent-soft)"
                     >
                       <span className="font-mono text-xs font-bold">{name}</span>
-                      <span className="text-[11px] text-(--color-muted) truncate">{entry?.hi ?? entry?.en}</span>
+                      <span className="truncate text-[11px] text-(--color-muted)">{entry?.hi ?? entry?.en}</span>
                     </button>
                   );
                 })}
-                <div className="px-3 py-1 text-[10px] text-(--color-muted) border-t border-(--color-border)">Tab / Enter to insert</div>
+                <div className="border-t border-(--color-border) px-3 py-1 text-[10px] text-(--color-muted)">
+                  Tab / Enter to insert
+                </div>
               </div>
             )}
           </div>
@@ -2635,7 +2691,8 @@ export function ExcelGrid({
               title="Edit this cell in the formula bar"
               onClick={() => {
                 beginEdit(undefined, "bar");
-                formulaInput.current?.focus();
+                setBarEditing(true);
+                requestAnimationFrame(() => formulaInput.current?.focus());
               }}
               className="p-1.5 rounded-lg border border-(--color-border) bg-(--color-surface) text-(--color-accent-dark) shrink-0"
             >
@@ -3063,10 +3120,26 @@ export function ExcelGrid({
                             setStatus(`${address} painted with the copied format.`);
                             return;
                           }
-                          // A click is also a tap: put the cell in edit mode so
-                          // the cursor (or the on-screen keyboard) can type the
-                          // moment the student touches it.
-                          selectCell(address, { edit: true, replace: true });
+                          /*
+                            Click ≠ edit, exactly like Excel.
+
+                            A mouse press used to open the in-cell editor
+                            immediately. That made the fill handle unreachable:
+                            the little square sits in the corner of the active
+                            cell, so pressing it put the cell in edit mode and
+                            the drag turned into a caret drag — "corner se drag
+                            karne jata hu, cell me chala jata hai". Selecting
+                            first also brings back drag-select over a range.
+
+                            Typing still starts the edit (first keystroke), F2
+                            and double-click edit in place, and a *touch* tap
+                            keeps its own path below.
+                          */
+                          selectCell(address, { edit: false });
+                          // Keep the keyboard on the sheet: `preventDefault`
+                          // stopped the browser from focusing the grid, so the
+                          // next typed character had nowhere to land.
+                          gridRef.current?.focus({ preventScroll: true });
                         }}
                         onMouseEnter={() => {
                           if (!dragSelectRef.current || address === active) return;
@@ -3089,6 +3162,9 @@ export function ExcelGrid({
                           if (event.pointerType === "touch" || event.pointerType === "pen") {
                             beginEdit(undefined, "cell", true, address);
                           }
+                          // A plain mouse press selected the cell; releasing it
+                          // must not leave a drag-select armed.
+                          dragSelectRef.current = false;
                         }}
                         title={
                           noteHere
@@ -3247,7 +3323,7 @@ export function ExcelGrid({
                               <span aria-hidden className="text-(--color-accent) text-[9px] shrink-0">✎</span>
                             )}
                             {/* Fill handle: drag it down to copy (relative refs shift like Excel). */}
-                            {isActive && (
+                            {isActive && !editing && (
                               <span
                                 role="button"
                                 aria-label={`Fill handle ${address}`}
@@ -3255,16 +3331,25 @@ export function ExcelGrid({
                                 onMouseDown={(downEvent) => {
                                   downEvent.preventDefault();
                                   downEvent.stopPropagation();
+                                  /**
+                                   * While the button is held the pointer is
+                                   * captured by this little square, so
+                                   * `event.target` is the handle — never the
+                                   * cell under the cursor. Every move event
+                                   * therefore has to be hit-tested against the
+                                   * page, or the drag looks dead (which is
+                                   * exactly what students reported).
+                                   */
+                                  const cellUnder = (x: number, y: number) =>
+                                    document.elementFromPoint(x, y)?.closest?.("td[data-address]") ?? null;
                                   const onMove = (moveEvent: MouseEvent) => {
-                                    const cell = (moveEvent.target as HTMLElement | null)?.closest?.("td");
-                                    const label = cell?.getAttribute("data-address");
+                                    const label = cellUnder(moveEvent.clientX, moveEvent.clientY)?.getAttribute("data-address");
                                     if (label && label !== address) setFillTo(label);
                                   };
                                   const onUp = (upEvent: MouseEvent) => {
                                     window.removeEventListener("mousemove", onMove);
                                     window.removeEventListener("mouseup", onUp);
-                                    const cell = (upEvent.target as HTMLElement | null)?.closest?.("td");
-                                    const end = cell?.getAttribute("data-address") ?? null;
+                                    const end = cellUnder(upEvent.clientX, upEvent.clientY)?.getAttribute("data-address") ?? null;
                                     if (end && end !== address) fillRange(address, end);
                                     else setFillTo(null);
                                   };

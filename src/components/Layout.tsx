@@ -117,6 +117,34 @@ export function Layout<K extends string>({
 
   const footer = (
     <div className="mt-auto pt-4 border-t border-(--color-border) space-y-1">
+      {/*
+        Settings lives at the *bottom* of the navigation, not in the header.
+        A header button sat right next to Save/Undo while a student was typing,
+        so a mis-tap opened a panel over the sheet. Down here it is out of the
+        way of the task and still one tap from anywhere.
+      */}
+      {/* Same shape as every other nav tab, so it reads as part of the app. */}
+      <button
+        type="button"
+        aria-label={settingsOpen ? "Close settings" : "Open settings"}
+        aria-expanded={settingsOpen}
+        onClick={() => {
+          setSettingsOpen((value) => !value);
+          // Phones open settings from the drawer; close the drawer with it.
+          setMobileOpen(false);
+        }}
+        className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition cursor-pointer ${
+          settingsOpen
+            ? "neu-nav-active text-(--color-accent-dark) font-bold"
+            : "text-(--color-muted) hover:text-(--color-ink) hover:shadow-(--neu-raised-sm) hover:bg-(--color-surface)/60"
+        }`}
+      >
+        <Settings size={16} className={settingsOpen ? "text-(--color-accent)" : "opacity-80"} />
+        <span className="flex-1 text-left truncate">Settings</span>
+        <span className="rounded-md bg-(--color-accent-soft) px-1.5 py-0.5 text-[9px] font-bold text-(--color-accent-dark)">
+          ON/OFF
+        </span>
+      </button>
       {/* Phones fold the header's language switch in here, where the full
           labels ("Hindi + English") fit. */}
       <div className="md:hidden px-3 pb-1.5">
@@ -185,7 +213,14 @@ export function Layout<K extends string>({
         >
           <Brand name={brand} />
         </button>
-        <div className="mt-6 flex-1">{navList(() => undefined)}</div>
+        {/*
+          On a desktop Settings *becomes* the sidebar: the navigation is
+          swapped for the switch board, so opening it covers the sheet for
+          nothing at all. The bottom Settings tab brings it back and closes it.
+        */}
+        <div className="mt-6 flex-1">
+          {settingsOpen ? <SettingsPanel onClose={() => setSettingsOpen(false)} /> : navList(() => undefined)}
+        </div>
         {footer}
       </aside>
 
@@ -280,19 +315,6 @@ export function Layout<K extends string>({
               </button>
             )}
 
-            <button
-              type="button"
-              aria-label={settingsOpen ? "Close settings" : "Open settings"}
-              aria-expanded={settingsOpen}
-              title="Settings — features ON/OFF"
-              onClick={() => setSettingsOpen((value) => !value)}
-              className={`p-2 rounded-xl transition ${
-                settingsOpen ? "neu-pressed-sm text-(--color-accent-dark)" : "neu-btn text-(--color-muted) hover:text-(--color-ink)"
-              }`}
-            >
-              <Settings size={15} />
-            </button>
-
             {onToggleDark && (
               <button
                 type="button"
@@ -316,9 +338,16 @@ export function Layout<K extends string>({
               type="button"
               aria-label="Close settings"
               onClick={() => setSettingsOpen(false)}
-              className="fixed inset-0 z-40 cursor-default bg-black/20 no-print"
+              className="fixed inset-0 z-40 cursor-default bg-black/25 no-print"
             />
-            <div className="fixed right-3 top-[4.25rem] z-50 w-[min(24rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain rounded-2xl bg-(--color-surface) p-3 pb-4 shadow-(--neu-raised-lg) no-print">
+            {/* Bottom sheet on phones (thumb-reachable, and the sheet above it
+                stays visible), a right-hand drawer from md up — never over the
+                formula bar or the cell a student is working in. */}
+            <div
+              role="dialog"
+              aria-label="Settings"
+              className="fixed inset-x-0 bottom-0 z-50 mx-auto md:hidden max-h-[80dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-(--color-surface) p-3 pb-24 shadow-(--neu-raised-lg) no-print md:inset-x-auto md:right-4 md:bottom-4 md:max-h-[calc(100dvh-7rem)] md:w-[24rem] md:rounded-3xl md:pb-4"
+            >
               <SettingsPanel onClose={() => setSettingsOpen(false)} />
             </div>
           </>
