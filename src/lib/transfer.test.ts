@@ -57,39 +57,75 @@ describe("copyText", () => {
 });
 
 describe("saveFile", () => {
+  // jsdom has no download machinery and logs "Not implemented: navigation" for
+  // any real anchor click, so the anchor is stubbed for the whole suite. What is
+  // under test is the decision logic, not jsdom's navigator.
+  let clicked: HTMLAnchorElement[] = [];
+  const realClick = HTMLAnchorElement.prototype.click;
+
+  beforeEach(() => {
+    clicked = [];
+  });
+
+  afterEach(() => {
+    HTMLAnchorElement.prototype.click = realClick;
+  });
+
+  const stubClick = (blocked: boolean) => {
+    HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
+      clicked.push(this);
+      if (blocked) {
+        const event = new MouseEvent("click", { cancelable: true, bubbles: true });
+        this.dispatchEvent(event);
+        event.preventDefault();
+      }
+    };
+  };
+
   it("downloads through a real anchor and keeps the object URL alive briefly", async () => {
     vi.useFakeTimers();
     const createObjectURL = vi.fn(() => "blob:sheet");
     const revokeObjectURL = vi.fn();
     (URL as unknown as { createObjectURL: typeof createObjectURL }).createObjectURL = createObjectURL;
     (URL as unknown as { revokeObjectURL: typeof revokeObjectURL }).revokeObjectURL = revokeObjectURL;
-    let clickedName: string | null = null;
-    const realClick = HTMLAnchorElement.prototype.click;
-    HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
-      clickedName = this.download;
-    };
+    stubClick(false);
 
     const result = await saveFile("marks.xlsx", [new Uint8Array([1, 2, 3])], "application/vnd.ms-excel");
     expect(result).toEqual({ ok: true, via: "download" });
-    expect(clickedName).toBe("marks.xlsx");
+    expect(clicked.map((a) => a.download)).toEqual(["marks.xlsx"]);
     expect(revokeObjectURL).not.toHaveBeenCalled(); // revoked later, not mid-download
+    expect(document.querySelectorAll("a[download]").length).toBe(0); // anchor cleaned up
 
-    vi.advanceTimersByTime(31_000);
+    vi.advanceTimersByTime(61_000);
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:sheet");
-    HTMLAnchorElement.prototype.click = realClick;
     vi.useRealTimers();
   });
 
-  it("says plainly that a blocked download failed", async () => {
-    const realClick = HTMLAnchorElement.prototype.click;
-    HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
-      // A WebView that has no download support cancels the default action.
-      this.dispatchEvent(new MouseEvent("click", { cancelable: true, bubbles: true }));
+  it("reports an exception instead of claiming the file was saved", async () => {
+    stubClick(false);
+    const realDispatch = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function click() {
+      throw new Error("downloads blocked");
     };
     const result = await saveFile("marks.csv", ["a,b"]);
-    HTMLAnchorElement.prototype.click = realClick;
-    // Either the click went through or it was reported — never a silent success.
-    expect(["download", "failed"]).toContain(result.via);
+    HTMLAnchorElement.prototype.click = realDispatch;
+    expect(result).toEqual({ ok: false, via: "failed" });
     expect(SAVE_FAILED_TEXT).toMatch(/save nahi hua/i);
+  });
+
+  it("prefers the share sheet when the platform has one (the APK path)", async () => {
+    const share = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    Object.defineProperty(navigator, "canShare", { value: () => true, configurable: true });
+    stubClick(false);
+    const result = await saveFile("marks.csv", ["a,b"], "text/csv");
+    expect(result).toEqual({ ok: true, via: "share" });
+    expect(share).toHaveBeenCalledTimes(1);
+    // A real file reached the share sheet — not just a name.
+    const shared = (share.mock.calls[0] as unknown[])[0] as { files: File[] };
+    expect(shared.files[0].name).toBe("marks.csv");
+    expect(clicked.length).toBe(0); // no download fallback was needed
+    delete (navigator as unknown as Record<string, unknown>).share;
+    delete (navigator as unknown as Record<string, unknown>).canShare;
   });
 });

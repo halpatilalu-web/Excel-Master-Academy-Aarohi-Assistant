@@ -3,16 +3,24 @@
  *
  * The web build hands a Blob to an `<a download>` click, which every desktop
  * browser honours. An Android WebView does not: unless the host app installed a
- * `DownloadListener` (most wrappers do not), the click is simply dropped. The
- * button looked like it worked, the student got nothing, and there was no way
- * to tell whether the export had failed or the file had gone somewhere.
+ * `DownloadListener` (most wrappers do not), the click is dropped silently.
+ * JavaScript cannot see that drop — there is no event for "the download never
+ * started" — so pretending to detect it would just be a different lie.
  *
- * So this module:
- *   1. prefers the Web Share API (`navigator.canShare`) when the platform has
- *      it — on Android that opens the normal "Save to Files / Drive" sheet;
- *   2. otherwise uses the classic Blob download;
- *   3. watches for the click actually being cancelled (the WebView case) and
- *      reports `false`, so callers can *say* it did not work instead of lying.
+ * What this module does instead:
+ *   1. prefers the Web Share API where it exists (`navigator.canShare`) — on
+ *      Android that opens the real "Save to Files / Drive" sheet, which works
+ *      inside a WebView;
+ *   2. otherwise performs the classic Blob download;
+ *   3. reports `ok: false` when the platform *does* let us know (share
+ *      cancelled for a real error, no DOM, exception while downloading), and
+ *      callers show `SAVE_FAILED_TEXT` instead of a silent nothing;
+ *   4. keeps the object URL alive long enough for slow Android download
+ *      managers, which used to be revoked out from under the download.
+ *
+ * For the APK itself the durable fix is host-side (a `DownloadListener` or the
+ * Capacitor Filesystem plugin); `docs/audit/ANDROID-WEBVIEW-REPORT.md` says
+ * exactly what to add.
  */
 export interface SaveResult {
   ok: boolean;
@@ -20,74 +28,66 @@ export interface SaveResult {
   via: "share" | "download" | "failed";
 }
 
-function toBlob(parts: BlobPart[], mime: string): Blob {
-  return parts[0] instanceof Blob ? (parts[0] as Blob) : new Blob(parts, { type: mime || "application/octet-stream" });
-}
+/** Short, student-facing line for a failed save. */
+export const SAVE_FAILED_TEXT =
+  "File save nahi hua — app/browser ne download block kiya. Laptop par try karo ya screenshot le lo.";
 
-/**
- * Save `data` as `name`.
- *
- * `signalText` is optional: when the platform has a share sheet and the file is
- * small enough to be worth sharing as text (CSV, JSON, TXT), sharing the text
- * itself works on more Android targets than sharing a Blob.
- */
-export async function saveFile(name: string, data: BlobPart[], mime = "text/plain", signalText?: string): Promise<SaveResult> {
-  const blob = toBlob(data, mime);
+type ShareNavigator = Navigator & {
+  canShare?: (data?: { files?: File[] }) => boolean;
+  share?: (data: { files?: File[]; title?: string; text?: string }) => Promise<void>;
+};
 
-  // 1. Share sheet (Android APK, mobile browsers, and Safari on iOS).
-  const nav = typeof navigator === "undefined" ? undefined : (navigator as Navigator & {
-    canShare?: (data?: { files?: File[] }) => boolean;
-    share?: (data: { files?: File[]; title?: string; text?: string }) => Promise<void>;
-  });
+export async function saveFile(
+  name: string,
+  data: BlobPart[],
+  mime = "text/plain",
+  shareText?: string,
+): Promise<SaveResult> {
+  const blob = data[0] instanceof Blob ? (data[0] as Blob) : new Blob(data, { type: mime || "application/octet-stream" });
+
+  // 1. Share sheet: the path that actually works inside a WebView.
+  const nav = typeof navigator === "undefined" ? undefined : (navigator as ShareNavigator);
   if (nav?.canShare && nav.share) {
     try {
       const file = new File([blob], name, { type: mime || "application/octet-stream" });
       if (nav.canShare({ files: [file] })) {
-        await nav.share({ files: [file], title: name, text: signalText });
+        await nav.share({ files: [file], title: name, text: shareText });
         return { ok: true, via: "share" };
       }
     } catch (error) {
-      // A cancelled share sheet is not a failure the student needs told about.
-      if ((error as Error)?.name !== "AbortError") {
-        /* fall through to the download path */
-      } else {
-        return { ok: false, via: "failed" };
-      }
+      // The student dismissed the sheet: not a failure worth a red message.
+      if ((error as Error)?.name === "AbortError") return { ok: false, via: "failed" };
+      // Anything else: fall through to the download path.
     }
   }
 
   // 2. Classic download.
-  if (typeof document === "undefined") return { ok: false, via: "failed" };
-  const url = URL.createObjectURL(blob);
+  if (typeof document === "undefined" || typeof URL?.createObjectURL !== "function") {
+    return { ok: false, via: "failed" };
+  }
+  let url: string;
+  try {
+    url = URL.createObjectURL(blob);
+  } catch {
+    return { ok: false, via: "failed" };
+  }
   const link = document.createElement("a");
   link.href = url;
   link.download = name;
   link.rel = "noopener";
-  // Keep it out of the layout but still inside the document: a detached anchor
-  // is ignored by some WebViews.
+  // Attached but invisible: a detached anchor is ignored by some WebViews.
   link.style.display = "none";
   document.body.appendChild(link);
-  let cancelled = false;
-  const onClick = (event: MouseEvent) => {
-    // A WebView without download support lets the default action be cancelled;
-    // browsers that do support it never cancel, so this never false-alarms.
-    if (event.defaultPrevented) cancelled = true;
-  };
-  link.addEventListener("click", onClick);
   try {
     link.click();
   } catch {
-    cancelled = true;
-  } finally {
-    link.removeEventListener("click", onClick);
     link.remove();
-    // Revoke on the next tick — revoking synchronously can cancel the download
-    // in Firefox and in some Android builds.
-    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    URL.revokeObjectURL(url);
+    return { ok: false, via: "failed" };
   }
-  return cancelled ? { ok: false, via: "failed" } : { ok: true, via: "download" };
+  link.remove();
+  // Slow Android download managers can take a while to start reading the blob;
+  // revoking immediately made an empty file.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return { ok: true, via: "download" };
 }
-
-/** Short, student-facing line for a failed save. */
-export const SAVE_FAILED_TEXT =
-  "File save nahi hua — browser/App ne download block kiya. Screenshot le lo ya laptop par try karo.";
