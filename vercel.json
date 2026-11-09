@@ -5,14 +5,12 @@
   "outputDirectory": "dist",
   "headers": [
     {
-      "comment": "Vite hashes these file names, so a given URL never changes content. Cache for a year instead of re-validating on every visit — this is the single biggest repeat-visit win on a slow phone.",
       "source": "/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "comment": "The service worker must always be revalidated, otherwise a fixed offline shell could be pinned for a year.",
       "source": "/sw.js",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache" }
