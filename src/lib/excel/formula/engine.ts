@@ -71,6 +71,11 @@ export class Workbook {
     this.names = data.names ?? {};
   }
 
+  /** Defined names as `Name → formula text` (a scratch book needs them too). */
+  definedNames(): Record<string, string> {
+    return { ...this.names };
+  }
+
   sheetNames(): string[] {
     return [...this.sheets.keys()];
   }

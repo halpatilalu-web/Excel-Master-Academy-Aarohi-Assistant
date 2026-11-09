@@ -343,11 +343,162 @@ def track_english(path: Path):
     write_mp3ish_wav(buf, path, peak=0.78)
 
 
+# --------------------------------------------------------------------------- #
+# Three more Hindi beds, so the player is a *playlist* and the switch button
+# has somewhere to go. Each one is a different raga-flavoured mood, not the
+# same loop re-exported — the scale, tempo and instrument mix all change.
+# --------------------------------------------------------------------------- #
+def track_hindi_morning(path: Path):
+    """Raag Bhairav-ish morning calm: slow, no drums, tanpura-like drone."""
+    bpm = 58
+    beat = 60.0 / bpm
+    bar = beat * 4
+    bars = 10
+    buf = [0.0] * int(bar * bars * SR)
+
+    # Bhairav: Sa komal Re, shuddha Ga, shuddha Dha — the "dawn" colour.
+    roots = [55, 48, 51, 50]  # G3, C3, Eb3, D3
+    shapes = [(0, 3, 7, 10), (0, 3, 7, 12), (0, 4, 7, 11), (0, 3, 7, 10)]
+    for b in range(bars):
+        i = b % 4
+        root = roots[i]
+        start = int(b * bar * SR)
+        for interval in shapes[i]:
+            mix_into(buf, pad(note_hz(root + interval), bar * 1.05, detune=0.004), start, 0.15)
+        # tanpura drone, no tabla: the "morning practice" bed
+        mix_into(buf, pad(note_hz(root - 12), bar * 1.0, detune=0.002, kind="tri"), start, 0.2)
+        for step in range(4):
+            deg = [0, 3, 7, 10][(step + i) % 4]
+            mix_into(buf, pluck(note_hz(root + 12 + deg), beat * 2.2, bright=0.35), start + int(step * beat * SR), 0.18)
+
+    motif = [
+        (2, 0.0, 67, 1.5), (2, 2.0, 70, 1.5),
+        (3, 1.0, 72, 1.0), (3, 2.5, 70, 1.5),
+        (4, 0.0, 67, 2.0), (4, 2.0, 63, 1.5),
+        (5, 1.0, 65, 1.5), (5, 3.0, 67, 1.0),
+        (6, 0.0, 70, 1.5), (6, 2.0, 72, 1.5),
+        (7, 0.5, 70, 2.0), (7, 3.0, 67, 1.0),
+        (8, 0.0, 63, 3.0),
+    ]
+    for bar_i, off, midi, length in motif:
+        mix_into(buf, pad(note_hz(midi), max(0.3, length * beat), detune=0.0012, kind="tri"),
+                 int((bar_i * bar + off * beat) * SR), 0.16)
+
+    buf = lowpass(buf, 6200)
+    buf = room_reverb(buf, mix=0.36, decay=0.62)
+    write_mp3ish_wav(buf, path, peak=0.78)
+
+
+def track_hindi_rain(path: Path):
+    """Monsoon lofi: keherwa tabla, a rain bed, and a slower swung arpeggio."""
+    bpm = 68
+    beat = 60.0 / bpm
+    bar = beat * 4
+    bars = 12
+    buf = [0.0] * int(bar * bars * SR)
+
+    roots = [50, 57, 55, 52]  # D3, A3, G3, E3
+    chords = [(0, 3, 7, 10), (0, 4, 7, 11), (0, 3, 7, 12), (0, 4, 7, 11)]
+    for b in range(bars):
+        i = b % 4
+        root = roots[i]
+        start = int(b * bar * SR)
+        for interval in chords[i]:
+            mix_into(buf, pad(note_hz(root + interval), bar * 1.02, detune=0.005), start, 0.14)
+        mix_into(buf, pad(note_hz(root - 12), bar * 0.9, detune=0.003, kind="tri"), start, 0.24)
+        for step, kind in [(0.0, "dha"), (1.0, "na"), (2.0, "tin"), (3.0, "na"), (3.5, "na")]:
+            mix_into(buf, tabla(0.45, kind), start + int(step * beat * SR), 0.42 if kind == "dha" else 0.26)
+        for step in range(6):
+            deg = [0, 3, 5, 7, 10, 12][(step + i) % 6]
+            at = start + int((step * beat / 1.5 + 0.03) * SR)
+            mix_into(buf, pluck(note_hz(root + 12 + deg), beat * 1.6, bright=0.45), at, 0.2)
+
+    # Rain: filtered noise bursts with a slow envelope — a monsoon window, not a hiss.
+    rng = random.Random(11)
+    rain = [0.0] * len(buf)
+    for i in range(0, len(rain), SR // 4):
+        length = SR // 2
+        env = [0.0] * length
+        raw = [rng.uniform(-1, 1) for _ in range(length)]
+        for k in range(length):
+            env[k] = raw[k] * (0.5 - 0.5 * abs((k / length) * 2 - 1))
+        mix_into(rain, highpass(lowpass(env, 4200), 900), i, 0.05)
+    for k in range(len(buf)):
+        buf[k] += rain[k]
+
+    motif = [
+        (3, 0.0, 74, 1.0), (3, 1.5, 72, 1.0), (3, 2.5, 69, 1.5),
+        (4, 0.5, 70, 1.0), (4, 2.0, 74, 1.5),
+        (5, 0.0, 72, 2.0), (5, 2.5, 69, 1.0),
+        (6, 1.0, 67, 1.5), (6, 3.0, 69, 1.0),
+        (7, 0.0, 74, 1.0), (7, 2.0, 77, 1.5),
+        (8, 1.0, 76, 1.0), (8, 2.5, 72, 2.0),
+        (9, 0.0, 69, 3.0),
+    ]
+    for bar_i, off, midi, length in motif:
+        mix_into(buf, pad(note_hz(midi), max(0.3, length * beat), detune=0.0015, kind="tri"),
+                 int((bar_i * bar + off * beat) * SR), 0.15)
+
+    buf = lowpass(buf, 7000)
+    buf = room_reverb(buf, mix=0.3, decay=0.5)
+    write_mp3ish_wav(buf, path, peak=0.79)
+
+
+def track_hindi_night(path: Path):
+    """Late-night study: deep pad, sparse pluck, soft kick — slowed-and-reverbed feel."""
+    bpm = 52
+    beat = 60.0 / bpm
+    bar = beat * 4
+    bars = 10
+    buf = [0.0] * int(bar * bars * SR)
+
+    roots = [45, 41, 48, 43]  # A2, F2, C3, G2 — low and warm
+    chords = [(0, 3, 7, 10), (0, 4, 7, 11), (0, 3, 7, 12), (0, 4, 7, 10)]
+    for b in range(bars):
+        i = b % 4
+        root = roots[i]
+        start = int(b * bar * SR)
+        for interval in chords[i]:
+            mix_into(buf, pad(note_hz(root + interval), bar * 1.08, detune=0.004), start, 0.13)
+        mix_into(buf, pad(note_hz(root - 12), bar, detune=0.002, kind="tri"), start, 0.2)
+        # half-time heartbeat kick, every other bar
+        if b % 2 == 0:
+            mix_into(buf, kick(0.55), start, 0.32)
+            mix_into(buf, kick(0.4), start + int(beat * 2 * SR), 0.2)
+        for step in range(4):
+            mix_into(buf, hat(), start + int(step * beat * SR), 0.08)
+        for step in range(4):
+            deg = [0, 3, 7, 10][(step + i * 2) % 4]
+            mix_into(buf, pluck(note_hz(root + 24 + deg), beat * 2.0, bright=0.3),
+                     start + int((step * beat + 0.05) * SR), 0.14)
+
+    motif = [
+        (2, 0.0, 69, 2.0), (2, 2.5, 67, 1.5),
+        (4, 1.0, 64, 1.5), (4, 3.0, 67, 1.0),
+        (5, 0.0, 69, 2.5), (5, 2.5, 72, 1.5),
+        (6, 1.5, 70, 2.0), (6, 3.0, 67, 1.0),
+        (7, 0.0, 64, 3.0),
+    ]
+    for bar_i, off, midi, length in motif:
+        mix_into(buf, pad(note_hz(midi), max(0.4, length * beat), detune=0.001, kind="tri"),
+                 int((bar_i * bar + off * beat) * SR), 0.14)
+
+    buf = lowpass(buf, 4600)          # the "slowed" blanket
+    buf = room_reverb(buf, mix=0.42, decay=0.7)  # and the reverb tail
+    write_mp3ish_wav(buf, path, peak=0.76)
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     random.seed(20261108)
     print("writing focus beds…")
     track_hindi(OUT / "focus-hindi-lofi.wav")
+    random.seed(21)
+    track_hindi_morning(OUT / "focus-hindi-morning.wav")
+    random.seed(33)
+    track_hindi_rain(OUT / "focus-hindi-rain.wav")
+    random.seed(45)
+    track_hindi_night(OUT / "focus-hindi-night.wav")
     random.seed(7)
     track_english(OUT / "focus-english-study.wav")
 

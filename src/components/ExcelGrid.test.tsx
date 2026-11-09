@@ -10,9 +10,11 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExcelGrid } from "./ExcelGrid";
+import { resetSettings, setSetting } from "../lib/settings";
 
 beforeEach(() => {
   localStorage.clear();
+  resetSettings();
   (URL as unknown as { createObjectURL: () => string }).createObjectURL = vi.fn(() => "blob:sheet");
   (URL as unknown as { revokeObjectURL: () => void }).revokeObjectURL = vi.fn();
   globalThis.fetch = vi.fn(async () => new Response("[]", { headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
@@ -833,5 +835,83 @@ describe("virtual keyboard memory", () => {
     mountPad("t-pad-memory-4");
     fireEvent.click(screen.getAllByRole("button", { name: /Keyboard/i })[0]);
     expect(localStorage.getItem("excel-academy:keyboard")).toBe("1");
+  });
+});
+
+/**
+ * The cell-editing contract, as the students described it:
+ *  - "cell me automatic copy rehta hai" — tapping a cell must never open it
+ *    with the *previous* cell's text;
+ *  - "formula dobara dalna padta hai" — a long formula must survive every
+ *    keystroke, instead of collapsing to its last character;
+ *  - "formula cell ke saath dikhe" — the live formula bubble sits beside the
+ *    cell that is being edited.
+ */
+describe("typing in a cell", () => {
+  const mount = (template: string) =>
+    render(
+      <ExcelGrid
+        template={template}
+        title="Typing"
+        sheets={[{ name: "S", cells: { A1: "Student", B2: "10", C3: "38" } }]}
+        rows={6}
+        cols={4}
+      />,
+    );
+
+  /** The <td> for an address — the grid also renders row/column headers. */
+  const cell = (address: string) =>
+    document.querySelector(`td[data-address="${address}"]`) as HTMLElement;
+
+  it("opens the tapped cell with its own text, never the previous cell's", () => {
+    mount("t-stale");
+    fireEvent.mouseDown(cell("A1")); // A1 = "Student"
+    expect((screen.getByLabelText("Edit cell A1") as HTMLInputElement).value).toBe("Student");
+
+    fireEvent.mouseDown(cell("C3")); // C3 = "38"
+    const editor = screen.getByLabelText("Edit cell C3") as HTMLInputElement;
+    expect(editor.value).toBe("38");
+  });
+
+  it("keeps a long formula intact through every keystroke", () => {
+    mount("t-long");
+    fireEvent.mouseDown(cell("A1"));
+    const editor = screen.getByLabelText("Edit cell A1") as HTMLInputElement;
+
+    // Type the formula one character at a time, like a student would.
+    let typed = "";
+    for (const char of "=AVERAGE(B2:C3)") {
+      typed += char;
+      fireEvent.change(editor, { target: { value: typed } });
+    }
+    expect((screen.getByLabelText("Edit cell A1") as HTMLInputElement).value).toBe("=AVERAGE(B2:C3)");
+    fireEvent.keyDown(screen.getByLabelText("Edit cell A1"), { key: "Enter" });
+    // 10 and 38 → 24
+    expect(screen.getAllByText("24").length).toBeGreaterThan(0);
+  });
+
+  it("shows the live formula and its result beside the cell being edited", () => {
+    mount("t-bubble");
+    fireEvent.mouseDown(cell("A1"));
+    fireEvent.change(screen.getByLabelText("Edit cell A1"), { target: { value: "=10+20" } });
+    const bubble = document.querySelector("[data-formula-bubble]");
+    expect(bubble).toBeTruthy();
+    expect(bubble?.textContent).toContain("=10+20");
+    expect(bubble?.textContent).toContain("30");
+  });
+
+  it("hides the bubble and the pad when Settings turns them off", () => {
+    setSetting("formulaPreview", false);
+    mount("t-gates");
+    fireEvent.mouseDown(cell("A1"));
+    fireEvent.change(screen.getByLabelText("Edit cell A1"), { target: { value: "=1+1" } });
+    expect(document.querySelector("[data-formula-bubble]")).toBeNull();
+    cleanup();
+
+    // The keyboard switch is the master gate, even on a touch device.
+    setSetting("virtualKeyboard", false);
+    localStorage.setItem("excel-academy:keyboard", "1");
+    mount("t-gates-2");
+    expect(screen.queryByRole("group", { name: /Virtual Excel keyboard/i })).toBeNull();
   });
 });

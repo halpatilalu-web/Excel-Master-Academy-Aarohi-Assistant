@@ -39,7 +39,7 @@ import { Button, Card, Pill } from "./ui";
 import type { Scalar } from "../lib/excel/formula/core";
 import type { CellValue } from "../lib/excel/sheetTools";
 import { isErr } from "../lib/excel/formula/core";
-import { knownFunctions } from "../lib/excel/formula/engine";
+import { Workbook, knownFunctions } from "../lib/excel/formula/engine";
 import { buildXlsx, parseXlsx, type ExportSheet } from "../lib/excel/xlsx";
 import {
   ERROR_HELP,
@@ -57,6 +57,9 @@ import { CATALOG_BY_NAME, CATALOG_NAMES } from "../data/formulaCatalog";
 import { inferFlashFill } from "../lib/excel/flashfill";
 import { dataBars, removeDuplicates, sortRows, usedRange } from "../lib/excel/dataTools";
 import { VirtualKeyboard } from "./VirtualKeyboard";
+import { FormulaBubble } from "./excel/FormulaBubble";
+import { FloatingKeyboard } from "./FloatingKeyboard";
+import { useSetting } from "../lib/settings";
 import { Ribbon, type RibbonCommand, type RibbonTab } from "./Ribbon";
 import { DataForm } from "./DataForm";
 import { fillSeries } from "../lib/excel/series";
@@ -245,11 +248,15 @@ export function ExcelGrid({
    */
   const [editFrom, setEditFrom] = useState<"cell" | "bar" | null>(null);
   /**
-   * True when the editor was opened by a click/tap. Excel rule: picking a cell
-   * and typing *replaces* what is in it, so the text starts selected; F2, Enter
-   * and double-click edit in place with the caret at the end.
+   * Set when the editor was opened by a click/tap: Excel's rule is that picking
+   * a cell and typing *replaces* what is in it, so the text starts selected.
+   * It is a ref, consumed once by the editor's mount, because a state flag kept
+   * re-selecting the text on every render — and the next keystroke then wiped
+   * the whole draft, which is why long formulas collapsed to one character.
    */
-  const [editSelectAll, setEditSelectAll] = useState(false);
+  const replaceOnTypeRef = useRef(false);
+  /** The address being edited — the preview bubble and commit both read it. */
+  const [editAddress, setEditAddress] = useState<string | null>(null);
   /** Timestamp of the last touch tap, to swallow the emulated mouse events. */
   const lastTouchRef = useRef(0);
   const [draft, setDraft] = useState("");
@@ -296,10 +303,27 @@ export function ExcelGrid({
   }, [active]);
   /* ---- pro-editor extras: fill handle, flash fill, split view, widths ---- */
   const [fillTo, setFillTo] = useState<string | null>(null);
+  /**
+   * Cell-drag selection (mouse). Press on a cell and drag across the sheet and
+   * the range should extend, exactly like Excel — it used to do nothing at all,
+   * so students could not select A1:C3 for SUM without Shift-clicking.
+   * A flag is read in `onMouseEnter` because the pointer capture keeps the
+   * events on the cell the drag started in.
+   */
+  const dragSelectRef = useRef(false);
   // On a touch-first device there is no physical keyboard, so the on-screen pad
   // opens with the sheet; on a laptop it stays folded (there is a real one).
   // Whatever the student chooses is remembered, so a student who prefers the
   // phone's own keyboard is not fought on every reload.
+  /**
+   * The Settings switch is a *master gate*: if it is off, the pad never appears
+   * — even on a phone — and the toolbar button says so instead of pretending.
+   */
+  const [keyboardAllowed] = useSetting("virtualKeyboard");
+  const [formulaPreview] = useSetting("formulaPreview");
+  const [gridlinesSetting] = useSetting("gridlines");
+  // Settings ▸ gridlines follows the stored switch until the ribbon overrides it.
+  useEffect(() => setGridlines(gridlinesSetting), [gridlinesSetting]);
   const [showKeyboard, setShowKeyboard] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -311,6 +335,8 @@ export function ExcelGrid({
     }
     return window.matchMedia?.("(pointer: coarse)").matches === true;
   });
+  /** The pad is on screen only if the switch allows it *and* the student wants it. */
+  const keyboardOpen = keyboardAllowed && showKeyboard;
   const toggleKeyboard = useCallback((next?: boolean) => {
     setShowKeyboard((current) => {
       const value = next ?? !current;
@@ -415,6 +441,40 @@ export function ExcelGrid({
     });
     return out;
   }, [engine, sheet, activeSheet, rows, cols]);
+
+  /**
+   * A throwaway book that holds the sheet *plus the formula being typed*, so the
+   * bubble beside the cell can show the live result before Enter is pressed.
+   * The real sheet is untouched — this is a preview, not a commit.
+   */
+  const livePreview = useMemo<Record<string, Scalar>>(() => {
+    if (!editing || !editAddress || !sheet || !draft.startsWith("=")) return {};
+    try {
+      const preview = new Workbook({
+        sheets: [{ name: "Preview", cells: { ...sheet.cells, [editAddress]: draft } }],
+        names: engine.definedNames(),
+      });
+      const parsed = splitAddress(editAddress);
+      if (!parsed) return {};
+      return { [editAddress]: preview.value("Preview", parsed.row, parsed.col) };
+    } catch {
+      return {};
+    }
+  }, [draft, editAddress, editing, engine, sheet]);
+
+  // A drag-select ends wherever the button is released — inside the grid, on a
+  // scrollbar, or outside the sheet entirely.
+  useEffect(() => {
+    const release = () => {
+      dragSelectRef.current = false;
+    };
+    window.addEventListener("mouseup", release);
+    window.addEventListener("pointercancel", release);
+    return () => {
+      window.removeEventListener("mouseup", release);
+      window.removeEventListener("pointercancel", release);
+    };
+  }, []);
 
   useEffect(() => {
     if (onCellsChange && sheet) onCellsChange(sheet.cells);
@@ -524,11 +584,12 @@ export function ExcelGrid({
       if (opts.edit) {
         setDraft(sheet?.cells[address] ?? "");
         setEditFrom("cell");
-        setEditSelectAll(Boolean(opts.replace));
+        setEditAddress(address);
+        replaceOnTypeRef.current = Boolean(opts.replace);
         setEditing(true);
       } else {
         setEditFrom(null);
-        setEditSelectAll(false);
+        replaceOnTypeRef.current = false;
         setEditing(false);
       }
     },
@@ -536,16 +597,24 @@ export function ExcelGrid({
   );
 
   /**
-   * Start editing the active cell from the keyboard, a tap or the formula bar.
+   * Start editing a cell from the keyboard, a tap or the formula bar.
+   *
+   * `address` is explicit because a tap on a phone arrives 1–2 frames after
+   * `setActive`: reading `active` here handed the student the *previous* cell's
+   * text (tap A1 "Student", then tap C4 and C4 opened with "Student" in it).
    * `from` decides who keeps the caret: the cell input, or the formula bar.
    */
   const beginEdit = useCallback(
-    (initial?: string, from: "cell" | "bar" = "cell", replace = false) => {
-      setDraft(initial ?? sheet?.cells[active] ?? "");
+    (initial?: string, from: "cell" | "bar" = "cell", replace = false, address: string = active) => {
+      setActive(address);
+      setDraft(initial ?? sheet?.cells[address] ?? "");
       setEditFrom(from);
-      setEditSelectAll(replace);
+      setEditAddress(address);
+      replaceOnTypeRef.current = replace;
       setEditing(true);
-      setStatus(`Editing ${active} — Enter dabao ya bahar tap karo.`);
+      // `address`, not `active`: on a tap the state update has not landed yet,
+      // so the status line named the *previous* cell.
+      setStatus(`Editing ${address} — Enter dabao ya bahar tap karo.`);
     },
     [active, sheet],
   );
@@ -1408,24 +1477,17 @@ export function ExcelGrid({
       }
       if (code === "enter") {
         if (editing) commitEdit();
-        else {
-          setEditing(true);
-          setDraft(rawActive);
-        }
+        else beginEdit();
         return;
       }
       if (code === "space") {
-        if (editing && editSelectAll) {
-          setEditSelectAll(false);
+        if (editing && replaceOnTypeRef.current) {
+          replaceOnTypeRef.current = false;
           setDraft(" ");
           return;
         }
         if (editing) setDraft((d) => `${d} `);
-        else {
-          setEditFrom("cell");
-          setEditing(true);
-          setDraft(" ");
-        }
+        else beginEdit(" ");
         return;
       }
       if (code === "backspace") {
@@ -1448,13 +1510,13 @@ export function ExcelGrid({
         return;
       }
       if (code.startsWith("digit-") || code.startsWith("op-") || code.startsWith("type-") || ascii) {
-        if (editing && editSelectAll) {
+        if (editing && replaceOnTypeRef.current) {
           // The text was selected by the click that opened the editor, so the
           // first character replaces the old value — Excel's "type over" rule.
           // The on-screen pad hits this path too, where there is no real
           // selection to overwrite.
           setEditFrom("cell");
-          setEditSelectAll(false);
+          replaceOnTypeRef.current = false;
           setDraft(key);
         } else if (editing) {
           setEditFrom("cell");
@@ -1476,7 +1538,6 @@ export function ExcelGrid({
       commit,
       copySelection,
       draft,
-      editSelectAll,
       editing,
       engine,
       move,
@@ -2471,6 +2532,7 @@ export function ExcelGrid({
                 const position = element.selectionStart;
                 setDraft(element.value);
                 setEditFrom("bar");
+                setEditAddress(active);
                 setEditing(true);
                 if (position !== null) {
                   requestAnimationFrame(() => {
@@ -2584,12 +2646,17 @@ export function ExcelGrid({
               the lab and the desktop window (where the quick-access row folds). */}
           <button
             type="button"
-            aria-label={showKeyboard ? "Hide virtual keyboard" : "Show virtual keyboard (A–Z, 0–9, symbols)"}
-            aria-pressed={showKeyboard}
-            title="Virtual Excel keyboard — A–Z, 0–9 aur har symbol"
+            aria-label={keyboardOpen ? "Hide virtual keyboard" : "Show virtual keyboard (A–Z, 0–9, symbols)"}
+            aria-pressed={keyboardOpen}
+            disabled={!keyboardAllowed}
+            title={
+              keyboardAllowed
+                ? "Virtual Excel keyboard — A–Z, 0–9 aur har symbol"
+                : "Virtual keyboard Settings me OFF hai — waha se ON karo."
+            }
             onClick={() => toggleKeyboard()}
             className={`p-1.5 rounded-lg shrink-0 text-(--color-accent-dark) ${
-              showKeyboard ? "neu-pressed-sm" : "border border-(--color-border) bg-(--color-surface)"
+              keyboardOpen ? "neu-pressed-sm" : "border border-(--color-border) bg-(--color-surface)"
             }`}
           >
             <Keyboard size={14} />
@@ -2611,7 +2678,7 @@ export function ExcelGrid({
             { id: "quick-filter", label: `Filter${filter ? ` (${filter.filters.length})` : ""}`, icon: <FilterIcon size={13} />, onClick: openFilter },
             { id: "quick-form", label: "Data Form", icon: <ClipboardList size={13} />, onClick: () => setShowForm(true) },
             { id: "quick-format", label: "Format Cells", icon: <Palette size={13} />, onClick: () => setDialog("format") },
-            { id: "quick-keyboard", label: showKeyboard ? "Hide keyboard" : "Keyboard", icon: <Keyboard size={13} />, ariaPressed: showKeyboard, onClick: () => toggleKeyboard() },
+            { id: "quick-keyboard", label: keyboardOpen ? "Hide keyboard" : "Keyboard", icon: <Keyboard size={13} />, ariaPressed: keyboardOpen, onClick: () => toggleKeyboard() },
             { id: "quick-validate", label: "Validate", icon: <ShieldCheck size={13} />, onClick: () => setDialog("validation") },
             { id: "quick-spell", label: "Spelling", icon: <Check size={13} />, onClick: () => setPanel("spell") },
             { id: "quick-note", label: "Note", icon: <Plus size={13} />, onClick: () => setPanel("notes") },
@@ -2759,14 +2826,10 @@ export function ExcelGrid({
           </div>
         </div>
 
-        {showKeyboard && (
-          <div
-            className="px-2.5 py-2 bg-(--color-surface) border-b border-(--color-border) no-print"
-            // Keep the caret in the sheet while the student taps the pad.
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+        {keyboardOpen && (
+          <FloatingKeyboard onClose={() => toggleKeyboard(false)}>
             <VirtualKeyboard onKey={(def) => runCommand(def)} onClose={() => toggleKeyboard(false)} />
-          </div>
+          </FloatingKeyboard>
         )}
 
         {find?.open && (
@@ -2989,6 +3052,10 @@ export function ExcelGrid({
                             selectCell(address, { extend: true });
                             return;
                           }
+                          // Clear any old range and remember that a drag started
+                          // here; onMouseEnter on another cell extends it.
+                          dragSelectRef.current = true;
+                          setRangeText("");
                           if (painter) {
                             setActive(address);
                             patchFormat(painter, "cell");
@@ -3001,17 +3068,26 @@ export function ExcelGrid({
                           // moment the student touches it.
                           selectCell(address, { edit: true, replace: true });
                         }}
+                        onMouseEnter={() => {
+                          if (!dragSelectRef.current || address === active) return;
+                          const start = splitAddress(active);
+                          const end = splitAddress(address);
+                          if (!start || !end) return;
+                          const first = `${colName(Math.min(start.col, end.col))}${Math.min(start.row, end.row) + 1}`;
+                          const last = `${colName(Math.max(start.col, end.col))}${Math.max(start.row, end.row) + 1}`;
+                          setRangeText(`${first}:${last}`);
+                        }}
                         onDoubleClick={() => {
-                          setActive(address);
-                          beginEdit();
+                          // Edit in place with the caret at the end (Excel's F2),
+                          // not "type over".
+                          beginEdit(undefined, "cell", false, address);
                         }}
                         onPointerUp={(event) => {
                           // Phones have no hover and no double-tap habit: a single
                           // tap on a cell starts editing, which is what students
                           // expect when they tap a cell and then type.
                           if (event.pointerType === "touch" || event.pointerType === "pen") {
-                            setActive(address);
-                            beginEdit(undefined, "cell", true);
+                            beginEdit(undefined, "cell", true, address);
                           }
                         }}
                         title={
@@ -3048,36 +3124,46 @@ export function ExcelGrid({
                           />
                         )}
                         {isActive && editing && editFrom !== "bar" ? (
-                          <input
-                            autoFocus
-                            ref={(element) => {
-                              if (!element) return;
-                              // Focus once, when the editor mounts from a cell
-                              // interaction. Re-focusing on every render stole
-                              // the caret back from the formula bar.
-                              if (document.activeElement !== element) element.focus({ preventScroll: true });
-                              // Click-and-type replaces the old value, like
-                              // Excel. The selection has to be applied after the
-                              // browser has placed its own caret, so it waits a
-                              // frame (autoFocus may also have just run).
-                              if (editSelectAll) {
+                          <>
+                            <input
+                              autoFocus
+                              ref={(element) => {
+                                if (!element) return;
+                                // Focus once, when the editor mounts from a cell
+                                // interaction. Re-focusing on every render stole
+                                // the caret back from the formula bar.
+                                if (document.activeElement !== element) element.focus({ preventScroll: true });
+                                // Click-and-type replaces the old value, like
+                                // Excel — exactly once, on the render that
+                                // follows the mount. Re-selecting on every render
+                                // made each keystroke replace the whole draft.
+                                if (!replaceOnTypeRef.current) return;
+                                replaceOnTypeRef.current = false;
                                 requestAnimationFrame(() => {
                                   if (document.activeElement === element) element.select();
                                 });
-                              }
-                            }}
-                            aria-label={`Edit cell ${address}`}
-                            inputMode={rawActive.startsWith("=") ? "text" : undefined}
-                            enterKeyHint="done"
-                            value={draft}
-                            onChange={(event) => setDraft(event.target.value)}
-                            onBlur={() => {
-                              commit(address, draft);
-                              setEditing(false);
-                            }}
-                            onKeyDown={onKeyDown}
-                            className="w-full px-2 py-1 bg-transparent font-mono text-xs sm:text-sm outline-none"
-                          />
+                              }}
+                              aria-label={`Edit cell ${address}`}
+                              inputMode={rawActive.startsWith("=") ? "text" : undefined}
+                              enterKeyHint="done"
+                              value={draft}
+                              onChange={(event) => {
+                                // Typing is the student taking over: never
+                                // re-select behind their back.
+                                replaceOnTypeRef.current = false;
+                                setDraft(event.target.value);
+                              }}
+                              onBlur={() => {
+                                commit(address, draft);
+                                setEditing(false);
+                              }}
+                              onKeyDown={onKeyDown}
+                              className="w-full px-2 py-1 bg-transparent font-mono text-xs sm:text-sm outline-none"
+                            />
+                            {formulaPreview && draft.startsWith("=") && (
+                              <FormulaBubble draft={draft} result={livePreview?.[address] ?? null} address={address} />
+                            )}
+                          </>
                         ) : (
                           <div className="px-2 py-1 min-h-[26px] flex items-center justify-between gap-1">
                             <span className={`${format?.wrap ? "whitespace-pre-wrap" : "truncate"} ${showFormulas && raw.startsWith("=") ? "font-mono text-[10px] text-(--color-accent-dark)" : ""}`} style={textStyle}>

@@ -42,8 +42,27 @@ export function useDark() {
   return [dark, () => setDark((d) => !d)] as const;
 }
 
-export const soundOn = () => get("ema_sound", "0") === "1";
-export const setSound = (on: boolean) => set("ema_sound", on ? "1" : "0");
+/**
+ * Sound lives in the shared settings store so the Settings app can switch it
+ * on and off from one board (the old single key had no UI at all).
+ */
+export const soundOn = () => {
+  try {
+    const raw = localStorage.getItem("excel-academy:settings");
+    if (raw) return JSON.parse(raw).sound === true;
+  } catch {
+    /* fall through to the old key */
+  }
+  return get("ema_sound", "0") === "1";
+};
+export const setSound = (on: boolean) =>
+  set("excel-academy:settings", JSON.stringify({ ...((() => {
+    try {
+      return JSON.parse(localStorage.getItem("excel-academy:settings") ?? "{}");
+    } catch {
+      return {};
+    }
+  })()), sound: on }));
 
 /**
  * One shared AudioContext. Creating a context per beep leaked them until the
