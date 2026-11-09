@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getSettings, setSetting } from "./settings";
 
 const get = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const set = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
@@ -46,23 +47,15 @@ export function useDark() {
  * Sound lives in the shared settings store so the Settings app can switch it
  * on and off from one board (the old single key had no UI at all).
  */
-export const soundOn = () => {
-  try {
-    const raw = localStorage.getItem("excel-academy:settings");
-    if (raw) return JSON.parse(raw).sound === true;
-  } catch {
-    /* fall through to the old key */
-  }
-  return get("ema_sound", "0") === "1";
-};
-export const setSound = (on: boolean) =>
-  set("excel-academy:settings", JSON.stringify({ ...((() => {
-    try {
-      return JSON.parse(localStorage.getItem("excel-academy:settings") ?? "{}");
-    } catch {
-      return {};
-    }
-  })()), sound: on }));
+/**
+ * Sound reads and writes the shared settings store directly.
+ *
+ * It used to poke at the raw localStorage key, which meant the Settings panel's
+ * switch never re-rendered when the streak widget toggled sound (and vice
+ * versa): two switches, one stored value, both visibly disagreeing.
+ */
+export const soundOn = () => getSettings().sound;
+export const setSound = (on: boolean) => setSetting("sound", on);
 
 /**
  * One shared AudioContext. Creating a context per beep leaked them until the

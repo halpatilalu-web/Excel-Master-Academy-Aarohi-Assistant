@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useOverlayBack } from "../lib/useOverlayBack";
 import { motion } from "motion/react";
 import { Coffee, Download, LogOut, Menu, Moon, Search, Settings, Sun, X, type LucideIcon } from "lucide-react";
 import { Avatar } from "./Avatar";
@@ -60,6 +61,10 @@ export function Layout<K extends string>({
 
   /** The settings sheet. Local: it is a sheet over the page, not a route. */
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Android Back closes the things on top before it leaves the page.
+  useOverlayBack(mobileOpen, () => setMobileOpen(false));
+  useOverlayBack(settingsOpen, () => setSettingsOpen(false));
 
   const groups: { title: string | null; items: NavItem<K>[] }[] = [];
   for (const item of nav) {

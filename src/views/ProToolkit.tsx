@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { copyText as copyTextToClipboard } from "../lib/clipboard";
 import {
   AlertTriangle,
   Bot,
@@ -572,10 +573,14 @@ export function ProToolkit({
   // 5. Interview QA state
   const [qaCat, setQaCat] = useState<string>("All");
 
-  const copyText = (key: string, val: string) => {
-    navigator.clipboard?.writeText(val);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(""), 1600);
+  const copySnippet = (key: string, val: string) => {
+    // Same rule as everywhere else: the checkmark means "it is on your
+    // clipboard", not "the button was pressed".
+    void copyTextToClipboard(val).then((done) => {
+      if (!done) return;
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(""), 1600);
+    });
   };
 
   const applyPreset = (p: PromptPreset) => {
@@ -806,7 +811,7 @@ export function ProToolkit({
                     <Button
                       variant="ghost"
                       className="!text-white hover:!bg-white/10 !py-1.5 !px-3 !text-xs"
-                      onClick={() => copyText("prompt", generatedPrompt)}
+                      onClick={() => copySnippet("prompt", generatedPrompt)}
                     >
                       {copiedKey === "prompt" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                       {copiedKey === "prompt" ? "Copied!" : "Copy Prompt"}
@@ -834,7 +839,7 @@ export function ProToolkit({
                     />
                   </div>
                   <button
-                    onClick={() => copyText("preset-code", selectedPreset.instantCode)}
+                    onClick={() => copySnippet("preset-code", selectedPreset.instantCode)}
                     className="text-xs font-semibold text-(--color-accent-dark) hover:underline inline-flex items-center gap-1"
                   >
                     {copiedKey === "preset-code" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -951,7 +956,7 @@ export function ProToolkit({
                 {activePalette.swatches.map((sw) => (
                   <button
                     key={sw.role}
-                    onClick={() => copyText(sw.hex, `${sw.hex} | ${sw.rgb}`)}
+                    onClick={() => copySnippet(sw.hex, `${sw.hex} | ${sw.rgb}`)}
                     className="p-2.5 rounded-xl neu-btn bg-(--color-surface-2) hover:bg-(--color-accent-soft) text-left transition"
                   >
                     <div className="flex items-center gap-2">
@@ -1133,7 +1138,7 @@ export function ProToolkit({
                   <Bilingual en="Exact Fix / Safe Formula" hi="सही और सुरक्षित फॉर्मूला" />
                 </div>
                 <button
-                  onClick={() => copyText("err-fix", activeError.fixedFormula)}
+                  onClick={() => copySnippet("err-fix", activeError.fixedFormula)}
                   className="text-xs font-bold text-(--color-accent-dark) hover:underline inline-flex items-center gap-1"
                 >
                   {copiedKey === "err-fix" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}

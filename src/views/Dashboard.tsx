@@ -20,12 +20,12 @@ import {
   Wand2,
 } from "lucide-react";
 import { DonutChart } from "../components/charts";
-import { DesktopPromo } from "./Windows";
 import { Excel3DHeroCube } from "../components/Excel3DModel";
 import { StreakBadges } from "../components/StreakBadges";
 import { Button, Card, ProgressBar } from "../components/ui";
 import { CHAPTERS, LEVEL_STYLE, type Level } from "../data/chapters";
 import { DIPLOMA_MODULES } from "../data/diplomaModules";
+import { DesktopPromo as DesktopPromoLazy } from "../components/DesktopPromo";
 import { FORMULAS } from "../data/formulas";
 import { LABS } from "../data/labs";
 import { SAMPLE_PAPERS } from "../data/samplePapers";
@@ -305,7 +305,7 @@ export function Dashboard({
       </section>
 
       {/* ==================== 2. FREE EXCEL PROMISE — the differentiator ==================== */}
-      <DesktopPromo onOpen={() => go("windows")} />
+      <DesktopPromoLazy onOpen={() => go("windows")} />
 
       <section className="grid sm:grid-cols-2 gap-3">
         <button

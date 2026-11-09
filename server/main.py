@@ -45,6 +45,9 @@ _EXTRA_ORIGINS = {
 
 _LOOPBACK = {"localhost", "127.0.0.1", "::1", "[::1]"}
 
+# Probes that must stay readable cross-origin (load balancers, uptime monitors).
+_LIVENESS_PATHS = {"/api/health"}
+
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
@@ -61,12 +64,20 @@ app = FastAPI(title="app-server", lifespan=_lifespan, docs_url=None, redoc_url=N
 # authenticates with `Authorization: Bearer`, never a cookie, so a wildcard
 # origin WITHOUT credentials is safe — the browser will not attach the session
 # cookie cross-site, and a bearer token has to be added on purpose.
+# When the app is served from another host (a CDN, an APK shell), the deployment
+# names that host in APP_ALLOWED_ORIGINS — so the browser only accepts responses
+# meant for it instead of "*". With no such setting the wildcard is kept, because
+# the same-origin web app never sends a cross-origin request at all and a mobile
+# client authenticates with a bearer token (never a cookie), so a wildcard
+# without credentials grants a browser nothing it could not already read.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=sorted(_EXTRA_ORIGINS) if _EXTRA_ORIGINS else ["*"],
+    allow_origin_regex=None,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    max_age=600,
 )
 
 
@@ -139,10 +150,25 @@ def _csrf_blocked(request) -> bool:
 async def _safety_headers_and_csrf(request, call_next):
     if _csrf_blocked(request):
         return JSONResponse({"detail": "cross-origin request blocked"}, status_code=403)
+    # This middleware is registered before the CSP/SPA handler below, so the
+    # headers set here are the ones that survive for /api/* responses. The SPA
+    # document keeps its own (stricter) CSP with the API + Razorpay origins it
+    # actually needs.
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "same-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(self), geolocation=()")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+    if request.url.path.startswith("/api/"):
+        # Defence in depth for the JSON API: even if a future route echoed user
+        # text into a response the browser tried to sniff, it is not markup.
+        response.headers.setdefault("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+        if request.url.path in _LIVENESS_PATHS:
+            # A health probe must be readable by Render/Docker/uptime checks that
+            # are not the SPA; no user data is involved.
+            response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
     if request.url.path.startswith("/api/"):
         # Per-user data: never let a proxy or the bfcache replay it.
         response.headers.setdefault("Cache-Control", "no-store")

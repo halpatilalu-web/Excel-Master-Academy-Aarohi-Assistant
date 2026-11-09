@@ -11,7 +11,7 @@ export function Avatar({ name, email, picture, size = 32 }: { name?: string; ema
   const style = { width: size, height: size, fontSize: Math.round(size * 0.42) };
   if (picture && !broken) {
     return (
-      <img
+      <img loading="lazy" decoding="async"
         src={picture}
         alt={label}
         referrerPolicy="no-referrer"

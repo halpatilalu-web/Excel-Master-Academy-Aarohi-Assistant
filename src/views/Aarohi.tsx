@@ -185,7 +185,7 @@ export function Aarohi() {
     <div className="max-w-3xl space-y-4">
       <Card className="!p-4">
         <div className="flex flex-col sm:flex-row gap-4">
-          <img
+          <img loading="lazy" decoding="async"
             src={avatar.src}
             alt={avatar.alt}
             className="w-full sm:w-40 aspect-square object-cover rounded-3xl neu-btn shadow-sm"
@@ -249,7 +249,7 @@ export function Aarohi() {
                         : "border-(--color-border) hover:bg-(--color-accent-soft)"
                     }`}
                   >
-                    <img src={item.src} alt="" aria-hidden="true" className="h-9 w-9 rounded-full object-cover" />
+                    <img loading="lazy" decoding="async" src={item.src} alt="" aria-hidden="true" className="h-9 w-9 rounded-full object-cover" />
                     {item.label}
                   </button>
                 ))}
@@ -264,7 +264,7 @@ export function Aarohi() {
           {msgs.map((message, index) => (
             <div key={index} className={`flex gap-2 ${message.from === "me" ? "justify-end" : "items-end"}`}>
               {message.from === "bot" && (
-                <img
+                <img loading="lazy" decoding="async"
                   src={avatar.src}
                   alt=""
                   aria-hidden="true"
@@ -295,7 +295,7 @@ export function Aarohi() {
           ))}
           {typing && (
             <div className="flex items-center gap-2 text-xs text-(--color-muted)">
-              <img src={avatar.src} alt="" aria-hidden="true" className="h-7 w-7 rounded-full object-cover" />
+              <img loading="lazy" decoding="async" src={avatar.src} alt="" aria-hidden="true" className="h-7 w-7 rounded-full object-cover" />
               Aarohi soch kar jawab likh rahi hai…
             </div>
           )}

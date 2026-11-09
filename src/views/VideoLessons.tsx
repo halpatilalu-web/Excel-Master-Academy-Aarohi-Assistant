@@ -713,7 +713,7 @@ export function VideoLessons({
                       : "border-(--color-border) bg-(--color-surface) hover:bg-(--color-accent-soft)/50"
                   }`}
                 >
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={item.thumbnail}
                     alt={item.titleEn}
                     className="w-20 h-14 rounded-xl object-cover shrink-0 neu-btn"
@@ -741,7 +741,7 @@ export function VideoLessons({
                 onClick={() => setZoomedImg(art)}
                 className="group relative overflow-hidden block"
               >
-                <img
+                <img loading="lazy" decoding="async"
                   src={art.src}
                   alt={art.titleEn}
                   className="w-full aspect-video object-cover group-hover:scale-105 transition duration-300"
@@ -779,7 +779,7 @@ export function VideoLessons({
               onClick={(e) => e.stopPropagation()}
               className="max-w-3xl w-full bg-(--color-surface) rounded-2xl overflow-hidden shadow-2xl neu-btn"
             >
-              <img src={zoomedImg.src} alt={zoomedImg.titleEn} className="w-full max-h-[65vh] object-cover" />
+              <img loading="lazy" decoding="async" src={zoomedImg.src} alt={zoomedImg.titleEn} className="w-full max-h-[65vh] object-cover" />
               <div className="p-5 flex items-start justify-between gap-4">
                 <div className="space-y-2">
                   <h3 className="font-display font-extrabold text-xl">{zoomedImg.titleEn}</h3>

@@ -4,13 +4,16 @@ import { Flame, Volume2, VolumeX } from "lucide-react";
 import { CHAPTERS } from "../data/chapters";
 import { useExams, useProgress } from "../lib/academy";
 import { beep, saveBadges, seenBadges, setSound, soundOn, touchStreak } from "../lib/prefs";
+import { useSetting } from "../lib/settings";
 import { Card } from "./ui";
 
 export function StreakBadges() {
   const { items: prog } = useProgress();
   const { items: exams } = useExams();
   const [streak] = useState(touchStreak);
-  const [sound, setS] = useState(soundOn);
+  // Read the shared settings store, so this switch and the one in Settings are
+  // the same switch (they used to disagree until a reload).
+  const [sound, setSoundSetting] = useSetting("sound");
   const [toast, setToast] = useState<string | null>(null);
   const completedChapters = useMemo(() => new Set(prog.map((p) => p.chapter)).size, [prog]);
   const badges = useMemo(
@@ -52,7 +55,7 @@ export function StreakBadges() {
           aria-label="Sound toggle"
           onClick={() => {
             setSound(!sound);
-            setS(!sound);
+            setSoundSetting(!sound);
           }}
           className="p-1.5 rounded-lg hover:bg-(--color-accent-soft) text-(--color-muted) cursor-pointer"
         >

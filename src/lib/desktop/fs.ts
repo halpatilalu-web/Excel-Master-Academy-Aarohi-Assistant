@@ -8,6 +8,7 @@
  * persist to the student's own store, so a document written in Word is still
  * there after a reload.
  */
+import { saveFile } from "../saveFile";
 import { createStore } from "../store";
 
 export type DocKind = "sheet" | "doc" | "slides" | "image" | "text";
@@ -141,13 +142,11 @@ export async function deleteDesktopFile(id: string, store: FileStore): Promise<v
   await store.remove(id);
 }
 
-/** Bytes for a file download, so work can leave the desktop as a real file. */
-export function downloadText(name: string, text: string, mime = "text/plain"): void {
-  const blob = new Blob([text], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(url);
+/**
+ * Bytes for a file download, so work can leave the desktop as a real file.
+ * Share-sheet first, plain download second — see `lib/saveFile.ts` for why the
+ * APK needs both.
+ */
+export function downloadText(name: string, text: string, mime = "text/plain"): Promise<boolean> {
+  return saveFile(name, [text], mime, text.length < 40_000 ? text : undefined).then((result) => result.ok);
 }

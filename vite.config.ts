@@ -15,9 +15,23 @@ export default defineConfig({
         // One 519 kB bundle meant a cheap Android phone downloaded the whole
         // course before showing the dashboard. Split the two big vendors out so
         // they cache across deploys and the first paint is smaller.
-        manualChunks: {
-          react: ["react", "react-dom"],
-          motion: ["motion", "motion/react"],
+        /**
+         * Vendor splitting only — react, motion and fflate are shared by every
+         * screen, so they cache across deploys instead of being re-downloaded
+         * with each build.
+         *
+         * Feature code is deliberately NOT forced into named chunks here: the
+         * Excel workbook is already behind `lazy()` in App.tsx, so Rollup keeps
+         * it in its own route chunk and the dashboard never downloads it. (An
+         * explicit `excel` group was tried and it made things *worse* — the
+         * dashboard pulled 1.6 MB because the chunk became a shared dependency.)
+         */
+        manualChunks(id: string) {
+          if (!id.includes("node_modules")) return undefined;
+          if (/[\\/]node_modules[\\/]\.pnpm[\\/][^\\/]*react(-dom)?@/.test(id) || /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return "react";
+          if (/[\\/]node_modules[\\/][^\\/]*(motion|framer-motion)/.test(id)) return "motion";
+          if (/[\\/]node_modules[\\/]\.pnpm[\\/][^\\/]*fflate/.test(id)) return "vendor";
+          return undefined;
         },
       },
     },

@@ -3,6 +3,31 @@
   "installCommand": "corepack enable && corepack pnpm install --frozen-lockfile",
   "buildCommand": "corepack pnpm build",
   "outputDirectory": "dist",
+  "headers": [
+    {
+      "comment": "Vite hashes these file names, so a given URL never changes content. Cache for a year instead of re-validating on every visit — this is the single biggest repeat-visit win on a slow phone.",
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "comment": "The service worker must always be revalidated, otherwise a fixed offline shell could be pinned for a year.",
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "same-origin" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(self), geolocation=()" }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/((?!api/|assets/|ai-gallery/|.*\\..*).*)",

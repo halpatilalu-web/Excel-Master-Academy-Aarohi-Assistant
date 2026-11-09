@@ -34,6 +34,8 @@ import {
   Wand2,
   X,
 } from "lucide-react";
+import { copyText } from "../lib/clipboard";
+import { SAVE_FAILED_TEXT, saveFile } from "../lib/saveFile";
 import { Bilingual } from "../lib/lang";
 import { Button, Card, Pill } from "./ui";
 import type { Scalar } from "../lib/excel/formula/core";
@@ -1518,12 +1520,12 @@ export function ExcelGrid({
         return isErr(value) ? value.err : value === null || value === undefined ? "" : String(value);
       }).join("\t");
     }).join("\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      setStatus("Copied the block as tab-separated text — paste straight into Excel.");
-    } catch {
-      setStatus("Clipboard blocked by the browser. Use Ctrl+C on a selected cell instead.");
-    }
+    const done = await copyText(text);
+    setStatus(
+      done
+        ? "Copied the block as tab-separated text — paste straight into Excel."
+        : "Clipboard blocked by the browser. Use Ctrl+C on a selected cell instead.",
+    );
   }, [active, activeSheet, cols, engine, rows]);
 
   /**
@@ -2021,7 +2023,7 @@ export function ExcelGrid({
 
   /* ------------------------------- files ------------------------------ */
 
-  const download = () => {
+  const download = async () => {
     const exportSheets: ExportSheet[] = sheets.map((s) => {
       const formatsForSheet: Record<string, string> = {};
       Object.entries(formats[s.name] ?? {}).forEach(([addr, fmt]) => {
@@ -2042,13 +2044,12 @@ export function ExcelGrid({
     const blob = new Blob([bytes as unknown as BlobPart], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${template}-${new Date().toISOString().slice(0, 10)}.xlsx`;
-    link.click();
-    URL.revokeObjectURL(url);
-    setStatus("Downloaded a real .xlsx — open it in desktop Excel to keep working with every formula.");
+    const result = await saveFile(`${template}-${new Date().toISOString().slice(0, 10)}.xlsx`, [blob], blob.type);
+    setStatus(
+      result.ok
+        ? "Downloaded a real .xlsx — open it in desktop Excel to keep working with every formula."
+        : SAVE_FAILED_TEXT,
+    );
   };
 
   const importFile = async (file: File) => {
@@ -3576,9 +3577,20 @@ export function ExcelGrid({
         {/* Status bar */}
         <div className="px-3 py-2 bg-(--color-surface) border-t border-(--color-border) flex flex-wrap items-center justify-between gap-2 text-[11px] text-(--color-muted)">
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1" role="status" aria-live="polite">
               <Save size={12} /> {wb.saving ? "Saving…" : wb.savedAt ? `Saved ${new Date(wb.savedAt).toLocaleTimeString()}` : "Autosaves to your account"}
             </span>
+            {/*
+              A save that failed must say so here — in the same status line, with
+              the same styling. Before this, autosave failures were swallowed and
+              the bar kept claiming "Saved", which is how a whole session of work
+              could disappear without a word.
+            */}
+            {wb.saveError && !wb.saving && (
+              <span className="text-(--color-danger)" role="alert">
+                Save nahi hua — internet check karke ek cell dobara edit karo
+              </span>
+            )}
             <span>{knownFunctions().length} functions available</span>
             <span className="hidden sm:inline">Enter = edit · Tab = next cell · Ctrl+Z undo · Ctrl+B bold · paste a block from Excel</span>
           </div>

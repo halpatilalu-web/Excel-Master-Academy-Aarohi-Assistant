@@ -143,7 +143,7 @@ export function FloatingAssistant({
             {/* Header */}
             <div className="px-4 py-3 bg-gradient-to-r from-(--color-accent) to-(--color-accent-dark) text-white flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
-                <img
+                <img loading="lazy" decoding="async"
                   src="/aarohi-avatar-desk.jpg"
                   alt="Aarohi AI"
                   className="w-9 h-9 rounded-full object-cover border-2 border-(--color-accent) shrink-0"
@@ -205,7 +205,7 @@ export function FloatingAssistant({
                   className={`flex gap-2 ${m.from === "me" ? "justify-end" : "items-start"}`}
                 >
                   {m.from === "bot" && (
-                    <img
+                    <img loading="lazy" decoding="async"
                       src="/aarohi-avatar-desk.jpg"
                       alt=""
                       aria-hidden="true"
