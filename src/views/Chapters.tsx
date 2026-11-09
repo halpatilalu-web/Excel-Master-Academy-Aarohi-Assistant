@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { copyText } from "../lib/clipboard";
 import {
   ArrowLeft,
   Box,
@@ -258,9 +259,11 @@ function Lesson({
             <button
               type="button"
               onClick={() => {
-                void navigator.clipboard?.writeText(c.formula!.f);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1200);
+                void copyText(c.formula!.f).then((done) => {
+                  if (!done) return;
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1200);
+                });
               }}
               className="inline-flex items-center gap-1 text-xs font-semibold text-(--color-accent-dark) hover:underline"
             >
@@ -548,7 +551,7 @@ export function Chapters({
             return (
               <Card key={mod.id} className="!p-0 overflow-hidden">
                 <div className="grid md:grid-cols-4 border-b border-(--color-border)">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={mod.image}
                     alt={mod.titleEn}
                     className="w-full h-36 md:h-full object-cover"

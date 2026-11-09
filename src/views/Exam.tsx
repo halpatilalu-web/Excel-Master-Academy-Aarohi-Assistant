@@ -34,6 +34,56 @@ function uniqueQuestions(): ExamQ[] {
   return [...seen.values()];
 }
 
+/**
+ * The running attempt, kept in `sessionStorage`.
+ *
+ * Why: an exam is a timed, one-shot event, and the app is also shipped as an
+ * Android APK. A WebView can be killed in the background, a phone can ring, the
+ * student can hit Back — and before this, all that survived was nothing: the
+ * answers were in React state only and the countdown restarted from 20:00. The
+ * attempt now reloads exactly where it was, timer included, and cannot be lost
+ * by accident. `sessionStorage` (not `localStorage`) so a *closed* tab still
+ * discards the attempt, and the paper cannot be reopened days later.
+ */
+interface SavedAttempt {
+  qs: Q[];
+  ans: number[];
+  index: number;
+  endAt: number;
+  /** Which paper it was, for the resume prompt. */
+  mode: string;
+}
+
+const ATTEMPT_KEY = "excel-academy:exam-attempt-v1";
+
+function readAttempt(): SavedAttempt | null {
+  try {
+    const raw = sessionStorage.getItem(ATTEMPT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SavedAttempt>;
+    if (!Array.isArray(parsed.qs) || !parsed.qs.length || !Array.isArray(parsed.ans)) return null;
+    if (typeof parsed.endAt !== "number") return null;
+    return {
+      qs: parsed.qs as Q[],
+      ans: parsed.ans,
+      index: typeof parsed.index === "number" ? parsed.index : 0,
+      endAt: parsed.endAt,
+      mode: typeof parsed.mode === "string" ? parsed.mode : "final",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeAttempt(attempt: SavedAttempt | null): void {
+  try {
+    if (!attempt) sessionStorage.removeItem(ATTEMPT_KEY);
+    else sessionStorage.setItem(ATTEMPT_KEY, JSON.stringify(attempt));
+  } catch {
+    /* private mode / quota: the exam still works, it just cannot be resumed */
+  }
+}
+
 function build(): Q[] {
   const bank = uniqueQuestions();
   const selected: ExamQ[] = [];
@@ -355,7 +405,50 @@ export function Exam() {
 
   const total = qs?.length ?? QUESTION_COUNT;
 
+  // An attempt that was interrupted (phone call, backgrounded APK, accidental
+  // reload) comes back exactly as it was — same paper, same answers, same
+  // deadline. Expired attempts are dropped instead of resumed.
+  useEffect(() => {
+    const saved = readAttempt();
+    if (!saved) return;
+    if (saved.endAt <= Date.now()) {
+      writeAttempt(null);
+      return;
+    }
+    setQs(saved.qs);
+    setAns(saved.ans);
+    setIndex(Math.min(saved.index, Math.max(0, saved.qs.length - 1)));
+    setRes(null);
+    setSaveError(null);
+    finishedRef.current = false;
+    endAtRef.current = saved.endAt;
+    setLeft(Math.max(0, Math.ceil((saved.endAt - Date.now()) / 1000)));
+  }, []);
+
+  /** Persist the running attempt (answers, position, deadline). */
+  useEffect(() => {
+    if (!qs || res) return;
+    writeAttempt({ qs, ans, index, endAt: endAtRef.current, mode });
+  }, [qs, ans, index, mode, res]);
+
+  /**
+   * Losing a marked paper by tapping Back or closing the tab is silent data
+   * loss, so the browser asks first. Only while the attempt is live.
+   */
+  useEffect(() => {
+    if (!qs || res) return;
+    const guard = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Older WebViews need returnValue to be set; modern browsers show their
+      // own wording and ignore it.
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [qs, res]);
+
   function start() {
+    writeAttempt(null); // a fresh paper never inherits an old attempt
     const built = build();
     setQs(built);
     setAns(Array(built.length).fill(-1));
@@ -386,6 +479,7 @@ export function Exam() {
     const seconds = Math.min(DURATION_SECONDS, Math.max(0, DURATION_SECONDS - remaining));
     const pct = Math.round((score / qs.length) * 100);
 
+    writeAttempt(null); // finished: nothing left to resume
     setRes({ score, byLevel, seconds });
     add({
       score,
@@ -400,14 +494,32 @@ export function Exam() {
     });
   }, [add, ans, qs]);
 
+  /**
+   * The countdown is derived from `endAt`, never decremented.
+   *
+   * A backgrounded Android WebView (or a browser tab that is not visible)
+   * throttles timers to about once a minute, so a counter that ticks "minus one
+   * second" falls behind and the student silently gets free time. Re-reading the
+   * clock on every tick, and immediately on `visibilitychange`/`focus`, keeps
+   * the deadline honest: time spent in the background is time spent.
+   */
   useEffect(() => {
     if (!qs || res) return;
-    const tick = () => {
+    const sync = () => {
       setLeft(Math.max(0, Math.ceil((endAtRef.current - Date.now()) / 1000)));
     };
-    tick();
-    const timer = setInterval(tick, 250);
-    return () => clearInterval(timer);
+    sync();
+    const timer = setInterval(sync, 500);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, [qs, res]);
 
   useEffect(() => {
@@ -610,6 +722,8 @@ export function Exam() {
               Question {index + 1}/{total}
             </span>
             <span
+              role="timer"
+              aria-label={`Time left ${mmss(Math.max(0, left))}`}
               className={`flex items-center gap-1.5 font-mono font-bold ${
                 left < 120 ? "text-red-600" : ""
               }`}

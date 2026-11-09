@@ -13,8 +13,11 @@
  * because it and StreakBadges both called the hook. Writes are optimistic and
  * roll back on failure; `id`, `_created`, `_updated` are managed by the server.
  */
+import { saveFile, SAVE_FAILED_TEXT } from "./saveFile";
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "./api";
+
+export { ApiError };
 
 export interface Doc {
   id: string;
@@ -171,7 +174,6 @@ export function createStore<T extends Doc>(collection: string) {
         const current = stateOf<T>(key).items.find((doc) => doc.id === id);
         if (!current) throw new Error(`no ${collection} document with id ${id}`);
         const merged = { ...current, ...patch, id } as T;
-        setState<T>(key, { items: stateOf<T>(key).items.map((doc) => (doc.id === id ? merged : merged && doc)) });
         setState<T>(key, { items: stateOf<T>(key).items.map((doc) => (doc.id === id ? merged : doc)) });
         try {
           const saved = await api.put<T>(`${base}/${encodeURIComponent(id)}`, merged);
@@ -251,12 +253,8 @@ export async function exportJSON(): Promise<void> {
     };
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `backup-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const result = await saveFile(`backup-${new Date().toISOString().slice(0, 10)}.json`, [blob], "application/json");
+  if (!result.ok) throw new Error(SAVE_FAILED_TEXT);
 }
 
 export const todayISO = (): string => new Date().toISOString().slice(0, 10);

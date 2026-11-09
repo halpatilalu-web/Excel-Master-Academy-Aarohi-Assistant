@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="hi-IN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Excel Master Academy — offline</title>
+    <meta name="theme-color" content="#ebe6f7" />
+    <style>
+      /* Same canvas/accent values as the app, so being offline does not look
+         like a different product. This page is only ever seen without a
+         network, so it ships its own tiny stylesheet instead of the bundle. */
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: #ebe6f7;
+        font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: #2c1d54;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: #1b1430; color: #ece3ff; }
+        .card { background: #241a3f !important; }
+        .muted { color: #b9a9e0 !important; }
+      }
+      .card {
+        max-width: 380px;
+        width: 100%;
+        background: #f1edfb;
+        border-radius: 24px;
+        padding: 28px 24px;
+        box-shadow: 8px 8px 20px #d6cdea, -8px -8px 20px #ffffff;
+        text-align: center;
+      }
+      .mark {
+        width: 48px; height: 48px; margin: 0 auto 16px;
+        border-radius: 16px; display: grid; place-items: center;
+        background: #6d28d9; color: #fff;
+        font-weight: 800; font-size: 20px;
+      }
+      h1 { font-size: 18px; margin: 0 0 8px; }
+      p { font-size: 13px; line-height: 1.6; margin: 0 0 8px; }
+      .muted { color: #6b5f8c; }
+      button {
+        margin-top: 16px; width: 100%; padding: 12px 16px;
+        border: 0; border-radius: 14px; cursor: pointer;
+        background: #6d28d9; color: #fff; font-weight: 700; font-size: 14px;
+        font-family: inherit;
+      }
+      button:active { transform: translateY(1px); }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="mark" aria-hidden="true">E</div>
+      <h1>Internet nahi hai / You are offline</h1>
+      <p>
+        Aapka saved kaam is device par safe hai. Internet aane par page dobara load karo —
+        progress, exam attempts aur workbook sab wapas mil jayenge.
+      </p>
+      <p class="muted">
+        Your saved work is still on this device. When the connection comes back, reload and
+        everything — progress, exam attempts and your workbook — returns.
+      </p>
+      <button type="button" onclick="location.reload()">Dobara try karo / Retry</button>
+    </main>
+  </body>
+</html>

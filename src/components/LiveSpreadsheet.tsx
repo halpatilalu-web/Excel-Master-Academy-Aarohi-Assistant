@@ -1,3 +1,4 @@
+import { saveFile, SAVE_FAILED_TEXT } from "../lib/saveFile";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
@@ -34,13 +35,9 @@ export function downloadPracticeXlsx(title: string, cells: Record<string, string
   const blob = new Blob([bytes as unknown as BlobPart], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = xlsxName(template);
-  link.title = title;
-  link.click();
-  URL.revokeObjectURL(url);
+  void saveFile(xlsxName(template), [blob], blob.type).then((result) => {
+    if (!result.ok) console.warn(`[export] ${title}: ${SAVE_FAILED_TEXT}`);
+  });
 }
 
 export type PracticeSheetId =

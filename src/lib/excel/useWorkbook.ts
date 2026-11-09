@@ -8,7 +8,7 @@
  * the full formula engine on every keystroke.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createStore } from "../store";
+import { ApiError, createStore } from "../store";
 import type { CfRule, NamedRange, ValidationRule } from "./sheetTools";
 import {
   Workbook,
@@ -137,6 +137,14 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  /**
+   * The id this book owns, mirrored into state so the save closure can read the
+   * *current* id. A ref set inside an async save is not seen by an effect from
+   * the same commit — reading it there produced a stale `null` and the next
+   * save POSTed a second row instead of PUTting the first.
+   */
+  const [knownId, setKnownId] = useState<string | null>(null);
 
   // Hydrate from the saved copy once the store has loaded.
   useEffect(() => {
@@ -146,6 +154,7 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
       setSheets(saved.sheets);
       setActiveSheet(saved.activeSheet ?? saved.sheets[0].name);
       docId.current = saved.id;
+      setKnownId(saved.id);
       setSavedAt(saved.updatedAt);
     }
   }, [loading, saved]);
@@ -168,28 +177,69 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
     names: saved?.names,
   });
 
+  /**
+   * Save the book: create the first time, UPDATE every time after that.
+   *
+   * This used to call `add()` unconditionally. The first save created the
+   * document and remembered its id; the second save then POSTed that same id
+   * again, the server answered 409, and the `catch` swallowed it — so only the
+   * first edit of a session ever reached the server, and the student's later
+   * work silently vanished on reload. Saving now updates the row it owns, and
+   * only falls back to creating when the row is genuinely gone (404, e.g. the
+   * account was deleted or the local copy was never uploaded).
+   */
   const persist = useCallback(
     (nextSheets: SheetData[], nextActive: string) => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
-        const payload: WorkbookDoc = {
-          id: docId.current ?? "",
-          template,
-          title,
-          sheets: nextSheets,
-          activeSheet: nextActive,
-          updatedAt: new Date().toISOString(),
-          formats: formatsRef.current,
-          ...rulesRef.current,
-        };
+        const stamp = new Date().toISOString();
         setSaving(true);
         const write = async () => {
+          const payload = {
+            template,
+            title,
+            sheets: nextSheets,
+            activeSheet: nextActive,
+            updatedAt: stamp,
+            formats: formatsRef.current,
+            ...rulesRef.current,
+          };
+          // Create vs update is decided by "have we successfully saved this
+          // book before?", tracked in a ref. Asking the store's item list would
+          // be tempting but wrong: the optimistic `add()` drops the created row
+          // when its refresh comes back empty, and then the next save would
+          // create a duplicate instead of updating.
+          const known = Boolean(knownId);
           try {
-            const record = await add(payload);
-            if (record?.id) docId.current = record.id;
-            setSavedAt(new Date().toISOString());
-          } catch {
-            /* the store already keeps an offline copy */
+            if (known) {
+              try {
+                await update(docId.current as string, payload as Partial<WorkbookDoc>);
+              } catch (error) {
+                const gone = error instanceof ApiError && (error.status === 404 || error.status === 400 || error.status === 409);
+                if (!gone) throw error;
+                docId.current = null;
+                setKnownId(null);
+                const record = await add(payload as WorkbookDoc);
+                if (record?.id) {
+                  docId.current = record.id;
+                  setKnownId(record.id);
+                }
+              }
+            } else {
+              docId.current = null;
+              setKnownId(null);
+              const record = await add(payload as WorkbookDoc);
+              if (record?.id) {
+                docId.current = record.id;
+                setKnownId(record.id);
+              }
+            }
+            setSavedAt(stamp);
+            setSaveError(null);
+          } catch (error) {
+            // Never pretend it saved: the grid shows this next to the autosave
+            // note, and the store's local copy still holds the work.
+            setSaveError(error instanceof Error ? error.message : "save failed");
           } finally {
             setSaving(false);
           }
@@ -197,7 +247,7 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
         void write();
       }, 900);
     },
-    [add, template, title],
+    [add, update, knownId, template, title],
   );
 
   /** Editing a cell: raw text in, everything downstream recalculates. */
@@ -342,6 +392,7 @@ export function useWorkbook({ template, title, initialSheets, restore = true }: 
     saveRules,
     saving,
     savedAt,
+    saveError,
     dirty,
     loading,
     docId: docId.current,

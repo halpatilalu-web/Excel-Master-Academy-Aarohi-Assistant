@@ -1,0 +1,1275 @@
+/**
+ * Per-chapter rich lesson content (notes, steps, sample tables).
+ *
+ * Split out of `diplomaModules.ts` so the dashboard — which only needs the
+ * nine module cards — no longer pulls ~75 kB of chapter content into the
+ * first paint. `diplomaModules.ts` re-exports these, so no caller changes.
+ */
+export interface DiplomaModule {
+  id: string;
+  code: string;
+  emoji: string;
+  titleEn: string;
+  titleHi: string;
+  descEn: string;
+  descHi: string;
+  image: string;
+  color: string;
+  chapters: number[];
+  skills: string[];
+  videoId: string;
+  model3dId: string;
+  sheetId: string;
+}
+
+export interface ChapterRichMeta {
+  emoji: string;
+  moduleId: string;
+  enIntro: string;
+  enPoints: string[];
+  enTip: string;
+  steps: { label: string; detailEn: string; detailHi: string }[];
+  sampleTable: {
+    headers: string[];
+    rows: string[][];
+    captionEn: string;
+    captionHi: string;
+  };
+}
+
+export const CHAPTER_RICH: Record<number, ChapterRichMeta> = {
+  1: {
+    emoji: "🖥️",
+    moduleId: "m1-basic",
+    enIntro: "Microsoft Excel is the world's leading spreadsheet tool used to store, organize, calculate, and visualize data across rows and columns. Start by mastering its core workspace.",
+    enPoints: [
+      "Ribbon: Top command tabs (Home, Insert, Formulas, Data, Review, View) grouped by task",
+      "Formula Bar (fx): Shows and edits the true underlying formula or raw value inside a cell",
+      "Name Box: Displays the active cell address (like A1 or C5) and lets you jump or name ranges",
+      "Status Bar: Bottom bar showing instant Sum, Average, Count, and Zoom controls",
+    ],
+    enTip: "Press Ctrl + S frequently and keep AutoSave enabled so you never lose work!",
+    steps: [
+      { label: "1. Locate Cell", detailEn: "Check Name Box (e.g., B2)", detailHi: "Name Box mein cell pata dekho (B2)" },
+      { label: "2. Inspect fx", detailEn: "View raw value or formula in Formula Bar", detailHi: "Formula Bar mein asli value/formula dekho" },
+      { label: "3. Pick Command", detailEn: "Use Ribbon tabs (Home, Data, Insert)", detailHi: "Ribbon tab se command chuno" },
+      { label: "4. Quick Check", detailEn: "Read instant Sum/Avg on Status Bar", detailHi: "Neeche Status Bar par turant Sum dekho" },
+    ],
+    sampleTable: {
+      headers: ["Part", "Location", "Example"],
+      rows: [
+        ["Name Box", "Top-left above Col A", "B4"],
+        ["Formula Bar", "Right of fx icon", "=SUM(B2:B3)"],
+        ["Status Bar", "Bottom edge", "Average: 450 | Sum: 900"],
+      ],
+      captionEn: "Key Excel interface zones you use every minute.",
+      captionHi: "Excel screen ke mukhya hisse jo har minute kaam aate hain.",
+    },
+  },
+  2: {
+    emoji: "📑",
+    moduleId: "m1-basic",
+    enIntro: "An Excel file is called a Workbook (.xlsx), and each page inside it is a Worksheet. Navigating thousands of rows without touching the mouse makes you 5x faster.",
+    enPoints: [
+      "Add new worksheet: Click the '+' icon next to sheet tabs or press Shift + F11",
+      "Rename & color-code tabs: Double-click to rename, right-click → Tab Color",
+      "Ctrl + Arrow Keys: Jump straight to the edge of a continuous data block",
+      "Ctrl + Home jumps to A1; Ctrl + PageUp / PageDown switches between sheets",
+    ],
+    enTip: "Color-code raw data tabs in Blue, calculation tabs in Yellow, and Dashboards in Green!",
+    steps: [
+      { label: "Shift+F11", detailEn: "Insert new worksheet", detailHi: "Nayi sheet jodo" },
+      { label: "Ctrl+Arrows", detailEn: "Jump across 10,000+ rows", detailHi: "Data ke aakhri kone tak koodo" },
+      { label: "Ctrl+Shift+Arrows", detailEn: "Select entire block instantly", detailHi: "Poora data ek saath select karo" },
+      { label: "Ctrl+PgDn", detailEn: "Move to next worksheet tab", detailHi: "Agli sheet par jao" },
+    ],
+    sampleTable: {
+      headers: ["Shortcut", "Action (English)", "Kaam (Hindi)"],
+      rows: [
+        ["Ctrl + Home", "Go to cell A1", "Seedha A1 cell par jao"],
+        ["Ctrl + ↓", "Jump to last filled row", "Aakhri bhari row par jao"],
+        ["Shift + F11", "Insert new worksheet", "Nayi worksheet banao"],
+      ],
+      captionEn: "Essential workbook navigation shortcuts.",
+      captionHi: "Workbook mein tezi se ghoomne ke shortcuts.",
+    },
+  },
+  3: {
+    emoji: "✍️",
+    moduleId: "m1-basic",
+    enIntro: "Clean data entry and proper number formatting ensure Excel treats numbers as numbers, dates as dates, and presents reports professionally.",
+    enPoints: [
+      "By default, Text aligns Left and Numbers/Dates align Right (instant type check!)",
+      "Ctrl+B (Bold), Ctrl+I (Italic), Ctrl+U (Underline), Ctrl+1 (Format Cells dialog)",
+      "Apply Currency (₹/$), Percentage (%), Comma separator, and ISO Date formats",
+      "Avoid 'Merge & Center' inside raw data tables — use Wrap Text (Alt+H+W) instead",
+    ],
+    enTip: "Press Alt + Enter to add a clean line break inside a single cell!",
+    steps: [
+      { label: "Enter Data", detailEn: "Tab moves right, Enter moves down", detailHi: "Tab daayen, Enter neeche le jata hai" },
+      { label: "Check Align", detailEn: "Right = Number, Left = Text", detailHi: "Right matlab number, Left matlab text" },
+      { label: "Ctrl + 1", detailEn: "Open Format Cells master dialog", detailHi: "Format Cells khol kar ₹ ya % lagao" },
+      { label: "Wrap Text", detailEn: "Fit long headers neatly", detailHi: "Lamba text ek hi cell mein dikhao" },
+    ],
+    sampleTable: {
+      headers: ["Raw Input", "Format Applied", "Displayed As"],
+      rows: [
+        ["45000", "Currency (₹)", "₹45,000.00"],
+        ["0.18", "Percentage", "18.0%"],
+        ["2026-11-04", "Custom dd-mmm-yyyy", "04-Nov-2026"],
+      ],
+      captionEn: "Formatting changes appearance while keeping true math values intact.",
+      captionHi: "Formatting sirf dikhawat badalti hai, andar ka asli number safe rehta hai.",
+    },
+  },
+  4: {
+    emoji: "📐",
+    moduleId: "m1-basic",
+    enIntro: "Manage structure effortlessly by inserting, deleting, resizing, hiding, and freezing rows and columns on large datasets.",
+    enPoints: [
+      "Insert Row/Column: Ctrl + Shift + '+' | Delete Row/Column: Ctrl + '-'",
+      "AutoFit width: Double-click the border between column letters (or Alt + H, O, I)",
+      "Hide/Unhide rows or columns via right-click menu when sharing clean views",
+      "View → Freeze Panes → Freeze Top Row keeps headers visible while scrolling down",
+    ],
+    enTip: "Always Freeze Top Row on sheets with more than 25 rows so you never misread columns!",
+    steps: [
+      { label: "Select Row/Col", detailEn: "Shift+Space (Row) / Ctrl+Space (Col)", detailHi: "Row ya Column poora select karo" },
+      { label: "Ctrl+Shift++", detailEn: "Insert fresh row or column", detailHi: "Nayi row/column jodo" },
+      { label: "AutoFit", detailEn: "Double-click header divider", detailHi: "Header border double-click karo" },
+      { label: "Freeze Top Row", detailEn: "Pin row 1 while scrolling", detailHi: "Header row ko upar lock karo" },
+    ],
+    sampleTable: {
+      headers: ["Task", "Windows Shortcut", "Menu Path"],
+      rows: [
+        ["Select Column", "Ctrl + Space", "Click Column Letter"],
+        ["Select Row", "Shift + Space", "Click Row Number"],
+        ["Freeze Header", "Alt + W, F, R", "View → Freeze Panes"],
+      ],
+      captionEn: "Fast structural operations for clean tables.",
+      captionHi: "Rows aur columns sambhalne ke sabse tez tareeke.",
+    },
+  },
+  5: {
+    emoji: "➕",
+    moduleId: "m1-basic",
+    enIntro: "Every Excel formula starts with an equals sign (=). Master the Big 4 aggregation functions — SUM, AVERAGE, MIN, and MAX — to automate math instantly.",
+    enPoints: [
+      "=SUM(B2:B10) totals all numeric cells in the range",
+      "=AVERAGE(B2:B10) calculates the arithmetic mean (ignoring text/blanks)",
+      "=MIN(B2:B10) and =MAX(B2:B10) return the lowest and highest values",
+      "Shortcut Alt + '=' inserts AutoSum automatically below or beside numbers",
+    ],
+    enTip: "Click cells while writing formulas instead of typing addresses by hand to prevent typos.",
+    steps: [
+      { label: "Type =", detailEn: "Tell Excel a formula begins", detailHi: "Sabse pehle = sign lagao" },
+      { label: "Function Name", detailEn: "Write SUM( or press Tab to autocomplete", detailHi: "SUM likh kar Tab dabao" },
+      { label: "Select Range", detailEn: "Drag across B2:B10", detailHi: "Mouse/keyboard se B2:B10 chuno" },
+      { label: "Press Enter", detailEn: "Dynamic total updates automatically!", detailHi: "Enter dabao — live result taiyaar!" },
+    ],
+    sampleTable: {
+      headers: ["Cell", "Marks", "Formula", "Result"],
+      rows: [
+        ["B2:B4", "70, 80, 90", "=SUM(B2:B4)", "240"],
+        ["B2:B4", "70, 80, 90", "=AVERAGE(B2:B4)", "80"],
+        ["B2:B4", "70, 80, 90", "=MAX(B2:B4)", "90"],
+      ],
+      captionEn: "Core math functions update live whenever any input cell changes.",
+      captionHi: "Koi bhi number badalte hi SUM/AVERAGE khud update ho jata hai.",
+    },
+  },
+  6: {
+    emoji: "🔒",
+    moduleId: "m1-basic",
+    enIntro: "Understanding Relative (A1), Absolute ($A$1), and Mixed ($A1 / A$1) cell references is the #1 secret to writing one formula and copying it across 1,000 cells accurately.",
+    enPoints: [
+      "Relative (A1): Adjusts row & column automatically when dragged down or across",
+      "Absolute ($A$1): Locked! Never moves when copied — ideal for Tax %, Discount %, or Lookup Table",
+      "Mixed ($A1 or A$1): Locks ONLY the column ($A1) or ONLY the row (A$1) for matrix tables",
+      "Press F4 while editing a cell reference to cycle: A1 → $A$1 → A$1 → $A1",
+    ],
+    enTip: "Think of the '$' sign as a padlock — whichever letter or number has '$' in front of it stays frozen!",
+    steps: [
+      { label: "Relative B2", detailEn: "Moves to B3, B4 as you drag down", detailHi: "Drag karne par B3, B4 banta hai" },
+      { label: "Press F4", detailEn: "Adds dollar locks: $E$1", detailHi: "F4 dabate hi $E$1 lock lagta hai" },
+      { label: "Mixed $A2*B$1", detailEn: "One formula fills a 10x10 matrix", detailHi: "Ek formula poori table bhar deta hai" },
+    ],
+    sampleTable: {
+      headers: ["Reference", "Col Locked?", "Row Locked?", "Best Use Case"],
+      rows: [
+        ["A1", "No", "No", "Row-by-row price × qty"],
+        ["$A$1", "Yes 🔒", "Yes 🔒", "Fixed 18% GST cell or VLOOKUP table"],
+        ["$A2", "Yes 🔒", "No", "Conditional formatting full row"],
+      ],
+      captionEn: "The F4 dollar-sign cheat table.",
+      captionHi: "$ sign (F4) kab aur kahan lagayein.",
+    },
+  },
+  7: {
+    emoji: "⚡",
+    moduleId: "m2-cleaning",
+    enIntro: "Stop repetitive typing! Let Excel detect patterns automatically using Autofill series and the magical Flash Fill (Ctrl + E) engine.",
+    enPoints: [
+      "Fill Handle: Drag the tiny green square at the bottom-right corner of a cell",
+      "Auto-generates dates, months (Jan, Feb…), weekdays (Mon, Tue…), and number steps",
+      "Flash Fill (Ctrl + E): Type 1–2 examples (e.g., First Name from Full Name) and Excel fills the rest!",
+      "Ctrl + D copies from cell above; Ctrl + R copies from cell to the left",
+    ],
+    enTip: "Flash Fill is static (one-time); use formulas when source names might change later.",
+    steps: [
+      { label: "Type Sample", detailEn: "Type 'Ravi' beside 'Ravi Sharma'", detailHi: "B2 mein ek udaharan 'Ravi' likho" },
+      { label: "Press Ctrl+E", detailEn: "Excel learns the pattern instantly", detailHi: "Agli row mein Ctrl+E dabao" },
+      { label: "Verify Rows", detailEn: "100+ rows filled in 0.5 seconds!", detailHi: "Saare naam chutki mein alag!" },
+    ],
+    sampleTable: {
+      headers: ["Col A (Full Name)", "Col B (You Type B2)", "Ctrl + E Result"],
+      rows: [
+        ["Aarav Patel", "Aarav", "Aarav (Example)"],
+        ["Diya Verma", "—", "Diya (Auto!)"],
+        ["Rohan Mehta", "—", "Rohan (Auto!)"],
+      ],
+      captionEn: "Flash Fill extracts, combines, or reformats text by example.",
+      captionHi: "Flash Fill aapka pattern dekh kar baaki rows khud bhar deta hai.",
+    },
+  },
+  8: {
+    emoji: "🔽",
+    moduleId: "m2-cleaning",
+    enIntro: "Sorting arranges records in meaningful order (highest sales first, A–Z names), while Filtering temporarily hides rows you don't need right now.",
+    enPoints: [
+      "Sort A→Z, Z→A, Largest to Smallest, or Multi-Level Custom Sort (e.g., Region then Sales)",
+      "Toggle Filter dropdowns instantly with Ctrl + Shift + L",
+      "Filter by Text ('Contains'), Numbers ('Top 10'), Dates ('This Quarter'), or Cell Color",
+      "Data → Remove Duplicates permanently deletes exact duplicate records",
+    ],
+    enTip: "Click a single cell inside your table before sorting — never highlight just ONE column or rows will scramble!",
+    steps: [
+      { label: "Click Inside Data", detailEn: "Select any 1 cell inside table", detailHi: "Table ke kisi ek cell par click karo" },
+      { label: "Ctrl+Shift+L", detailEn: "Filter arrows appear on headers", detailHi: "Headers par Filter button on karo" },
+      { label: "Choose Criteria", detailEn: "Pick City = Delhi & Sales > 5000", detailHi: "Apni shart tick karo" },
+    ],
+    sampleTable: {
+      headers: ["Tool", "Shortcut / Tab", "What Happens?"],
+      rows: [
+        ["AutoFilter", "Ctrl + Shift + L", "Shows matching rows, hides rest safely"],
+        ["Custom Sort", "Alt + D + S", "Sorts by Dept A→Z, then Salary High→Low"],
+        ["Remove Duplicates", "Data Tab", "Deletes repeated rows permanently"],
+      ],
+      captionEn: "Sorting, filtering, and deduplicating data safely.",
+      captionHi: "Sort, Filter aur Remove Duplicates ka sahi upyog.",
+    },
+  },
+  9: {
+    emoji: "🌈",
+    moduleId: "m3-rules",
+    enIntro: "Conditional Formatting makes cells change background color, font color, bars, or icons automatically based on live values — turning dull numbers into visual heatmaps.",
+    enPoints: [
+      "Home → Conditional Formatting → Highlight Cells Rules (Greater Than, Less Than, Duplicate Values)",
+      "Top/Bottom Rules: Highlight Top 10 items or Above Average performers",
+      "Data Bars & Color Scales: In-cell bar graphs and Red-Yellow-Green heat gradients",
+      "Icon Sets: Traffic lights (🟢🟡🔴) and directional arrows (⬆️➡️⬇️)",
+    ],
+    enTip: "Don't overuse colors on every column — highlight only actionable exceptions like Overdue or <33 Marks!",
+    steps: [
+      { label: "Select Range", detailEn: "Highlight cells C2:C50", detailHi: "Marks ya Sales cells chuno" },
+      { label: "Home → CF", detailEn: "Pick Highlight Rules / Data Bars", detailHi: "Conditional Formatting kholo" },
+      { label: "Set Condition", detailEn: "Less than 33 → Light Red Fill", detailHi: "< 33 par Red colour set karo" },
+    ],
+    sampleTable: {
+      headers: ["Rule Type", "Best For", "Visual Effect"],
+      rows: [
+        ["Highlight Cells", "Exceptions (<33, Duplicate)", "Red/Green cell badge"],
+        ["Data Bars", "Comparing Sales volume", "Horizontal bar inside cell"],
+        ["Color Scales", "Region × Month Heatmap", "Smooth Green-Yellow-Red shade"],
+      ],
+      captionEn: "Visual rules update automatically when cell numbers change.",
+      captionHi: "Value badalte hi cell ka rang apne aap badal jata hai.",
+    },
+  },
+  10: {
+    emoji: "🖨️",
+    moduleId: "m1-basic",
+    enIntro: "Nothing ruins a great spreadsheet faster than a 50-page broken printout! Master Page Setup so wide reports print cleanly on paper or PDF.",
+    enPoints: [
+      "Page Layout → Orientation (Landscape for wide tables) & Paper Size (A4)",
+      "Set Print Area so scratchpad notes on the side don't get printed",
+      "Print Titles → 'Rows to repeat at top' ($1:$1) repeats headers on every printed page",
+      "Scale to Fit: 'Fit All Columns on One Page' prevents awkward orphan columns",
+    ],
+    enTip: "Always check Ctrl + P (Print Preview) and Page Break Preview before exporting to PDF!",
+    steps: [
+      { label: "Landscape", detailEn: "Switch wide sheets to Landscape", detailHi: "Chaudi sheet ko Landscape karo" },
+      { label: "Print Titles", detailEn: "Repeat Row $1:$1 on every page", detailHi: "Har page par Row 1 header repeat karo" },
+      { label: "Fit 1 Page Wide", detailEn: "Keep all columns together", detailHi: "Saare columns 1 page chaurai mein lao" },
+    ],
+    sampleTable: {
+      headers: ["Problem", "Exact Fix in Excel"],
+      rows: [
+        ["Last column prints on separate page", "Scaling → Fit All Columns on One Page"],
+        ["Page 2 has no column headings", "Page Layout → Print Titles → $1:$1"],
+        ["Extra side notes are printing", "Select table → Print Area → Set Print Area"],
+      ],
+      captionEn: "Three golden fixes for professional PDF and paper printing.",
+      captionHi: "Print aur PDF nikalte waqt aane wali 3 badi dikkaton ka ilaj.",
+    },
+  },
+  11: {
+    emoji: "🔀",
+    moduleId: "m4-formulas",
+    enIntro: "The IF function gives Excel decision-making power: it checks a logical condition and returns one result when TRUE and another when FALSE.",
+    enPoints: [
+      "Syntax: =IF(logical_test, value_if_true, value_if_false)",
+      "Comparison operators: = (equal), <> (not equal), >, <, >=, <=",
+      "Wrap text outputs in double quotes (\"Pass\"), but NEVER put quotes around numbers!",
+    ],
+    enTip: "Putting quotes around numbers like \"500\" turns them into text and breaks SUM() downstream!",
+    steps: [
+      { label: "Test", detailEn: "Check B2 >= 33", detailHi: "Shart check karo: B2 >= 33" },
+      { label: "If TRUE", detailEn: "Return \"Pass\"", detailHi: "Sahi hone par \"Pass\"" },
+      { label: "If FALSE", detailEn: "Return \"Fail\"", detailHi: "Galat hone par \"Fail\"" },
+    ],
+    sampleTable: {
+      headers: ["Student", "Marks (B)", "Formula", "Output"],
+      rows: [
+        ["Aarav", "76", '=IF(B2>=33,"Pass","Fail")', "Pass"],
+        ["Kabir", "28", '=IF(B3>=33,"Pass","Fail")', "Fail"],
+      ],
+      captionEn: "IF evaluates each row independently.",
+      captionHi: "IF har row ki shart check karke Pass ya Fail deta hai.",
+    },
+  },
+  12: {
+    emoji: "🪜",
+    moduleId: "m4-formulas",
+    enIntro: "When there are 3 or more outcomes (like Grades A, B, C, F or Tax Slabs), use IFS (modern Excel) or Nested IFs in strict top-down order.",
+    enPoints: [
+      "Modern IFS: =IFS(B2>=80,\"A\", B2>=60,\"B\", B2>=33,\"C\", TRUE,\"F\")",
+      "Classic Nested IF places a second IF inside the false_value slot",
+      "Order matters! Always test from highest threshold to lowest (80 → 60 → 33)",
+      "End IFS with TRUE as a catch-all default so unmatched values don't return #N/A",
+    ],
+    enTip: "If you have more than 5 tiers (like commission slabs), an approximate XLOOKUP/VLOOKUP table is even cleaner than Nested IF!",
+    steps: [
+      { label: "Check >=80", detailEn: "First match wins → 'A'", detailHi: "80+ ho to 'A' dekar ruk jao" },
+      { label: "Check >=60", detailEn: "Else if 60..79 → 'B'", detailHi: "Warna 60+ check karo → 'B'" },
+      { label: "Catch-all TRUE", detailEn: "Fallback → 'F'", detailHi: "Baaki sab ke liye TRUE, 'F'" },
+    ],
+    sampleTable: {
+      headers: ["Score", "First True Rule", "Returned Grade"],
+      rows: [
+        ["88", "B2>=80", "A"],
+        ["64", "B2>=60", "B"],
+        ["29", "TRUE (Default)", "F"],
+      ],
+      captionEn: "IFS checks conditions left-to-right and stops at the first TRUE condition.",
+      captionHi: "IFS pehli sahi shart milte hi result de deta hai.",
+    },
+  },
+  13: {
+    emoji: "🤝",
+    moduleId: "m4-formulas",
+    enIntro: "Combine multiple conditions inside IF using boolean logic helpers: AND (every condition must be true), OR (at least one true), and NOT (reverses true/false).",
+    enPoints: [
+      "=AND(cond1, cond2): Returns TRUE only when ALL arguments are TRUE",
+      "=OR(cond1, cond2): Returns TRUE when ANY ONE argument is TRUE",
+      "=NOT(cond): Flips TRUE to FALSE and FALSE to TRUE",
+      "Common combo: =IF(AND(Sales>=50000, Attendance>=90%), \"Bonus\", \"No Bonus\")",
+    ],
+    enTip: "Test your AND(...) or OR(...) alone in a cell first to see TRUE/FALSE, then wrap =IF(..., \"Yes\", \"No\") around it!",
+    steps: [
+      { label: "AND()", detailEn: "All rules must pass", detailHi: "Saari shartein sahi honi chahiye" },
+      { label: "OR()", detailEn: "Any 1 rule passing is enough", detailHi: "Koi ek shart bhi sahi ho to chalega" },
+      { label: "Wrap in IF()", detailEn: "Turn TRUE/FALSE into custom text/math", detailHi: "IF ke andar rakh kar manchaha result pao" },
+    ],
+    sampleTable: {
+      headers: ["Theory", "Practical", "AND(>=33, >=33)", "OR(>=33, >=33)"],
+      rows: [
+        ["45", "50", "TRUE (Pass)", "TRUE"],
+        ["60", "25", "FALSE (Fail)", "TRUE"],
+      ],
+      captionEn: "How AND vs OR behave on the same two subject scores.",
+      captionHi: "Ek hi marks par AND aur OR ka farq dekho.",
+    },
+  },
+  14: {
+    emoji: "🔢",
+    moduleId: "m4-formulas",
+    enIntro: "Counting records accurately is vital for attendance registers, survey responses, and order logs. Choose the right COUNT family function for each job.",
+    enPoints: [
+      "COUNT(range): Counts ONLY numeric cells (dates & numbers)",
+      "COUNTA(range): Counts ALL non-empty cells (numbers + text)",
+      "COUNTBLANK(range): Counts empty cells to spot missing data",
+      "COUNTIF (1 rule) & COUNTIFS (multiple rules, e.g., City='Delhi' AND Status='Paid')",
+    ],
+    enTip: "Use wildcards in COUNTIF: \"*kumar*\" counts every cell containing the word 'kumar' anywhere!",
+    steps: [
+      { label: "Numbers Only?", detailEn: "Use COUNT()", detailHi: "Sirf number ginne hain → COUNT" },
+      { label: "Any Filled Cell?", detailEn: "Use COUNTA()", detailHi: "Bhare hue sab cells → COUNTA" },
+      { label: "With Rules?", detailEn: "Use COUNTIF / COUNTIFS", detailHi: "Shart ke saath ginna → COUNTIFS" },
+    ],
+    sampleTable: {
+      headers: ["Function", "Formula Example", "What It Counts"],
+      rows: [
+        ["COUNTA", "=COUNTA(A2:A100)", "Total non-blank employee names"],
+        ["COUNTIF", '=COUNTIF(D2:D100,"P")', "Total Present ('P') days"],
+        ["COUNTIFS", '=COUNTIFS(B:B,"IT",C:C,">50000")', "IT staff earning above 50k"],
+      ],
+      captionEn: "Pick the exact counting function for your data type and rules.",
+      captionHi: "Zaroorat ke hisaab se sahi COUNT function chuno.",
+    },
+  },
+  15: {
+    emoji: "💰",
+    moduleId: "m4-formulas",
+    enIntro: "SUMIF and SUMIFS calculate conditional totals — like total revenue for 'North' region in 'January' for 'Laptops' — without manually filtering rows.",
+    enPoints: [
+      "SUMIF(criteria_range, criteria, [sum_range]) — for a single condition",
+      "SUMIFS(sum_range, criteria_range1, criteria1, criteria_range2, criteria2...) — for 1 or more conditions",
+      "CRITICAL: In SUMIFS, the sum_range comes FIRST! (Opposite of SUMIF)",
+      "Wrap operators in quotes and join cell refs with &: \">=\" & G1",
+    ],
+    enTip: "Pro analysts use SUMIFS even for a single condition so adding a 2nd filter later takes 5 seconds!",
+    steps: [
+      { label: "1. Sum Range", detailEn: "Column to add (D2:D500)", detailHi: "Sabse pehle jodne wala column D2:D500" },
+      { label: "2. Filter 1", detailEn: "B2:B500, \"North\"", detailHi: "Pehli shart: Region = North" },
+      { label: "3. Filter 2", detailEn: "C2:C500, \"Pen\"", detailHi: "Doosri shart: Product = Pen" },
+    ],
+    sampleTable: {
+      headers: ["Region (B)", "Item (C)", "Sales (D)", "=SUMIFS(D:D,B:B,\"North\",C:C,\"Pen\")"],
+      rows: [
+        ["North", "Pen", "1,200", "Included ✓"],
+        ["South", "Pen", "900", "Skipped (South)"],
+        ["North", "Pen", "800", "Included ✓ → Total = 2,000"],
+      ],
+      captionEn: "SUMIFS adds only rows where every criteria pair matches.",
+      captionHi: "Jab saari shartein match hoti hain tabhi woh row total mein judti hai.",
+    },
+  },
+  16: {
+    emoji: "🔤",
+    moduleId: "m2-cleaning",
+    enIntro: "Text functions let you slice product codes, standardize capitalization, strip extra spaces, and merge columns cleanly.",
+    enPoints: [
+      "LEFT(text, n), RIGHT(text, n), MID(text, start, n) extract substrings; LEN() counts characters",
+      "UPPER(), LOWER(), PROPER() fix letter casing instantly",
+      "TRIM() removes leading, trailing, and repeated spaces between words",
+      "TEXTJOIN(\" \", TRUE, A2:C2) joins cells with a delimiter while skipping blanks!",
+    ],
+    enTip: "Always run TRIM() when VLOOKUP fails with #N/A on seemingly identical names — trailing spaces are invisible culprits!",
+    steps: [
+      { label: "TRIM()", detailEn: "Strip extra spaces", detailHi: "Faltu space hatao" },
+      { label: "PROPER()", detailEn: "Title Case names", detailHi: "Pehla akshar capital karo" },
+      { label: "LEFT/MID/RIGHT", detailEn: "Extract PIN / SKU parts", detailHi: "Code ke tukde nikalo" },
+      { label: "TEXTJOIN()", detailEn: "Combine cleanly with separator", detailHi: "Space ya comma se jodo" },
+    ],
+    sampleTable: {
+      headers: ["Input (A2)", "Formula", "Clean Output"],
+      rows: [
+        ['"  ravi   sharma "', "=PROPER(TRIM(A2))", '"Ravi Sharma"'],
+        ['"GJ-380001"', "=RIGHT(A2,6)", '"380001"'],
+        ['"Asha", "", "Rao"', '=TEXTJOIN(" ",TRUE,A2:C2)', '"Asha Rao"'],
+      ],
+      captionEn: "Everyday text cleaning & extraction formulas.",
+      captionHi: "Rozmarra ke sabse kaam ke Text functions.",
+    },
+  },
+  17: {
+    emoji: "📅",
+    moduleId: "m4-formulas",
+    enIntro: "Excel stores dates as sequential serial numbers (1 = 1 Jan 1900) and times as decimals, letting you add days, calculate age, find month-end, and count business days.",
+    enPoints: [
+      "TODAY() gives current date (dynamic); Ctrl + ; inserts static date",
+      "YEAR(d), MONTH(d), DAY(d), TEXT(d, \"mmmm\") extract parts of a date",
+      "DATEDIF(start, end, \"Y\") calculates completed years (age / tenure)",
+      "EOMONTH(d, 0) finds month-end invoice due dates; NETWORKDAYS counts Mon–Fri workdays",
+    ],
+    enTip: "In India where Saturday may be working or custom holidays apply, use NETWORKDAYS.INTL(start, end, weekend_code, holidays)!",
+    steps: [
+      { label: "TODAY()", detailEn: "Live current system date", detailHi: "Aaj ki live tarikh" },
+      { label: "DATEDIF", detailEn: "Exact years/months gap", detailHi: "Do tarikhon ka exact farq" },
+      { label: "EOMONTH", detailEn: "Last day of billing month", detailHi: "Mahine ki aakhri tarikh" },
+      { label: "NETWORKDAYS", detailEn: "Working days excluding weekends/holidays", detailHi: "Chhutti hata kar kaam ke din" },
+    ],
+    sampleTable: {
+      headers: ["Goal", "Formula", "Sample Result"],
+      rows: [
+        ["Employee Age", '=DATEDIF(B2,TODAY(),"Y")', "26 Years"],
+        ["Month-End Date", "=EOMONTH(B2,0)", "30-Nov-2026"],
+        ["Weekday Name", '=TEXT(B2,"dddd")', "Wednesday"],
+      ],
+      captionEn: "Essential HR, Payroll, and Finance date formulas.",
+      captionHi: "HR, Payroll aur Billing mein roz kaam aane wale Date formulas.",
+    },
+  },
+  18: {
+    emoji: "🔍",
+    moduleId: "m5-lookups",
+    enIntro: "VLOOKUP (Vertical Lookup) searches for an ID down the FIRST column of a table and fetches a corresponding value from the Nth column to the right.",
+    enPoints: [
+      "Syntax: =VLOOKUP(lookup_value, table_array, col_index_num, [range_lookup])",
+      "Rule #1: Your lookup_value MUST sit in the leftmost column of table_array",
+      "Rule #2: Lock table_array with F4 ($F$2:$H$100) before dragging down!",
+      "Rule #3: Set the 4th argument to 0 (FALSE) for Exact Match",
+    ],
+    enTip: "Wrap with =IFERROR(VLOOKUP(...), \"Not Found\") so missing IDs look clean on management reports.",
+    steps: [
+      { label: "1. What?", detailEn: "Lookup ID (A2)", detailHi: "Kya dhundhna hai? (A2)" },
+      { label: "2. Where?", detailEn: "Locked table ($F$2:$H$100)", detailHi: "Kahan? ($F$2:$H$100)" },
+      { label: "3. Which Col?", detailEn: "Column number (3)", detailHi: "Kaun sa column? (3)" },
+      { label: "4. Exact (0)", detailEn: "Always put 0 for exact match", detailHi: "Exact match ke liye 0" },
+    ],
+    sampleTable: {
+      headers: ["Arg #", "Argument", "Example", "Meaning"],
+      rows: [
+        ["1", "lookup_value", "A2 (103)", "ID to find"],
+        ["2", "table_array", "$F$2:$H$100", "Master table (F4 locked)"],
+        ["3", "col_index_num", "3", "3rd column of selection"],
+        ["4", "range_lookup", "0 / FALSE", "Exact match only"],
+      ],
+      captionEn: "Complete anatomy of a bulletproof VLOOKUP.",
+      captionHi: "VLOOKUP ke chaaron hisson ka matlab.",
+    },
+  },
+  19: {
+    emoji: "🚀",
+    moduleId: "m5-lookups",
+    enIntro: "HLOOKUP searches horizontally across rows, while modern XLOOKUP replaces both VLOOKUP and HLOOKUP with simpler syntax, left-lookup power, and built-in error handling!",
+    enPoints: [
+      "HLOOKUP(lookup, table, row_index, 0) searches across the top row",
+      "XLOOKUP(lookup, lookup_array, return_array, [if_not_found], [match_mode], [search_mode])",
+      "Looks Left or Right, Up or Down — no column counting and won't break if columns are inserted!",
+      "Built-in 4th argument handles missing values without needing IFERROR",
+    ],
+    enTip: "In Excel 2021 / Microsoft 365 / Excel Web, make XLOOKUP your default lookup function!",
+    steps: [
+      { label: "Lookup Value", detailEn: "Cell A2", detailHi: "Dhundhne wali ID (A2)" },
+      { label: "Lookup Column", detailEn: "Select ID column only ($F$2:$F$100)", detailHi: "Sirf ID wala column chuno" },
+      { label: "Return Column", detailEn: "Select Result column ($D$2:$D$100 — even left!)", detailHi: "Result wala column (left bhi chalega!)" },
+      { label: "If Not Found", detailEn: "\"Missing\" built right in!", detailHi: "Na milne ka message seedha likho" },
+    ],
+    sampleTable: {
+      headers: ["Feature", "VLOOKUP", "XLOOKUP"],
+      rows: [
+        ["Look to the Left?", "❌ No", "✅ Yes!"],
+        ["Breaks if column inserted?", "⚠️ Yes (hardcoded col #)", "✅ Safe!"],
+        ["Built-in Not Found text?", "❌ Needs IFERROR", "✅ 4th Argument"],
+      ],
+      captionEn: "Why XLOOKUP is a game-changer over classic VLOOKUP.",
+      captionHi: "VLOOKUP ke muqable XLOOKUP kyun lajawab hai.",
+    },
+  },
+  20: {
+    emoji: "🎯",
+    moduleId: "m5-lookups",
+    enIntro: "INDEX + MATCH works in EVERY version of Excel (even Excel 2007–2019!) and performs left-lookups and dynamic 2D matrix lookups effortlessly.",
+    enPoints: [
+      "MATCH(lookup_value, lookup_range, 0) returns the relative ROW/COL POSITION (e.g., 4)",
+      "INDEX(return_range, position) fetches the actual VALUE sitting at that position",
+      "Combined: =INDEX(ReturnCol, MATCH(LookupVal, LookupCol, 0))",
+      "Immune to inserted/deleted columns and faster on huge workbooks",
+    ],
+    enTip: "Memory trick: INDEX = 'Where is the answer?', MATCH = 'Which row number is my ID on?'",
+    steps: [
+      { label: "MATCH()", detailEn: "Finds row position → e.g. Row 4", detailHi: "MATCH batata hai ID kis number par hai (4)" },
+      { label: "INDEX()", detailEn: "Picks 4th item from Salary column", detailHi: "INDEX us 4th jagah se Salary utha lata hai" },
+    ],
+    sampleTable: {
+      headers: ["Step", "Formula", "Evaluates To"],
+      rows: [
+        ["1. Find Position", '=MATCH("E104", F2:F10, 0)', "4 (4th item in F2:F10)"],
+        ["2. Fetch Value", "=INDEX(D2:D10, 4)", "₹62,000"],
+        ["Combined", '=INDEX(D2:D10, MATCH("E104",F2:F10,0))', "₹62,000"],
+      ],
+      captionEn: "How MATCH hands the row number to INDEX.",
+      captionHi: "MATCH position dhundhta hai aur INDEX value le aata hai.",
+    },
+  },
+  21: {
+    emoji: "✅",
+    moduleId: "m3-rules",
+    enIntro: "Garbage In, Garbage Out! Data Validation restricts what users can type into cells — preventing spelling mistakes, negative quantities, or invalid dates.",
+    enPoints: [
+      "Data → Data Validation → Allow: List creates clean clickable dropdown menus",
+      "Restrict numbers (Whole Number between 1 and 100), Dates, or Text Length (10-digit phone)",
+      "Input Message shows a helpful yellow tooltip when a user clicks the cell",
+      "Error Alert stops invalid entries with a clear custom explanation",
+    ],
+    enTip: "Press Alt + Down Arrow to open any cell's dropdown list directly from the keyboard!",
+    steps: [
+      { label: "Select Cells", detailEn: "Highlight Status column E2:E50", detailHi: "Jahan dropdown chahiye woh cells chuno" },
+      { label: "Data Validation", detailEn: "Data tab → Allow: List", detailHi: "Data Validation → Allow mein List chuno" },
+      { label: "Enter Source", detailEn: "Paid, Pending, Cancelled (or range)", detailHi: "Options likho ya Named Range do" },
+    ],
+    sampleTable: {
+      headers: ["Allow Type", "Example Rule", "Prevents"],
+      rows: [
+        ["List", "North, South, East, West", "Typos like 'Nroth' or 'noth'"],
+        ["Whole Number", "Between 0 and 100", "Marks typed as 950 or -5"],
+        ["Text Length", "Equal to 10", "9-digit or 11-digit mobile numbers"],
+      ],
+      captionEn: "Data Validation keeps team workbooks 100% standardized.",
+      captionHi: "Galat spelling aur galat numbers ko entry ke waqt hi roko.",
+    },
+  },
+  22: {
+    emoji: "📈",
+    moduleId: "m6-pivot-dash",
+    enIntro: "Charts turn rows of numbers into instant visual stories. Choosing the right chart type for your business question is the mark of a true analyst.",
+    enPoints: [
+      "Column / Bar Chart: Best for comparing categories (e.g., Sales by Region)",
+      "Line Chart: Best for trends over time (Monthly revenue, daily attendance)",
+      "Pie / Doughnut Chart: Parts of a whole (keep to 3–5 slices maximum!)",
+      "Press Alt + F1 for an instant embedded chart, or F11 for a dedicated chart sheet",
+    ],
+    enTip: "Remove visual clutter (heavy gridlines, 3D tilt distortion) and add direct Data Labels for crisp readability!",
+    steps: [
+      { label: "Select Table", detailEn: "Include headers + numbers", detailHi: "Headers ke saath data select karo" },
+      { label: "Alt + F1", detailEn: "Create instant chart on sheet", detailHi: "Alt+F1 se turant chart banao" },
+      { label: "Refine (+)", detailEn: "Add Title & Data Labels, clean gridlines", detailHi: "+ button se Title aur Data Labels lagao" },
+    ],
+    sampleTable: {
+      headers: ["Business Question", "Recommended Chart", "Avoid"],
+      rows: [
+        ["How did sales trend Jan–Dec?", "Line Chart 📈", "Pie Chart"],
+        ["Which of 8 branches sold most?", "Sorted Bar Chart 📊", "Doughnut"],
+        ["Share of 3 payment modes?", "Doughnut / Pie 🍩", "Scatter"],
+      ],
+      captionEn: "Match every chart to the story you need to tell.",
+      captionHi: "Har sawal ke liye sahi Chart ka chunav.",
+    },
+  },
+  23: {
+    emoji: "🌪️",
+    moduleId: "m6-pivot-dash",
+    enIntro: "Pivot Tables are Excel's most famous superpower — summarize 100,000 rows by Region, Product, and Month in 10 seconds with zero formulas!",
+    enPoints: [
+      "Insert → PivotTable (ensure source table has no blank headers or merged cells)",
+      "Drag fields into 4 quadrants: Filters, Columns, Rows, and Values",
+      "Right-click Values → Summarize By (Sum, Count, Average) or Show Values As (% of Grand Total)",
+      "Right-click any Date cell → Group by Months, Quarters, and Years; press Alt + F5 to Refresh",
+    ],
+    enTip: "Convert raw data into an Excel Table (Ctrl + T) BEFORE inserting a Pivot Table so new rows are always included on Refresh!",
+    steps: [
+      { label: "Ctrl + T", detailEn: "Format source as Excel Table", detailHi: "Raw data ko Ctrl+T Table banao" },
+      { label: "Insert Pivot", detailEn: "Insert → PivotTable → New Sheet", detailHi: "Insert → PivotTable chuno" },
+      { label: "Drag Fields", detailEn: "City → Rows, Sales → Values", detailHi: "Rows aur Values mein fields drag karo" },
+      { label: "Alt + F5", detailEn: "Refresh anytime data updates", detailHi: "Data badalne par Alt+F5 dabao" },
+    ],
+    sampleTable: {
+      headers: ["Pivot Area", "What Goes Here?", "Example"],
+      rows: [
+        ["Rows", "Categories listed down", "Region / Salesperson"],
+        ["Columns", "Cross-headers across top", "Quarter (Q1, Q2, Q3, Q4)"],
+        ["Values", "Numbers to aggregate", "Sum of Revenue, Count of Orders"],
+        ["Filters", "Top-level report filter", "Financial Year (2026)"],
+      ],
+      captionEn: "The 4 building blocks of every Pivot Table.",
+      captionHi: "Pivot Table ke 4 khane (quadrants) ka kaam.",
+    },
+  },
+  24: {
+    emoji: "🎛️",
+    moduleId: "m6-pivot-dash",
+    enIntro: "Pivot Charts, visual Slicer buttons, and interactive Date Timelines transform static Pivot Tables into clickable app-like dashboards.",
+    enPoints: [
+      "PivotChart stays live-linked to its Pivot Table",
+      "Insert Slicer creates clickable filter buttons (Hold Ctrl for multi-select!)",
+      "Insert Timeline gives a sleek visual slider for Days, Months, Quarters, or Years",
+      "Right-click Slicer → Report Connections links ONE slicer to MULTIPLE Pivot Tables & Charts!",
+    ],
+    enTip: "Set Slicer Columns = 2 or 3 in the Slicer ribbon tab to create compact horizontal filter bars!",
+    steps: [
+      { label: "PivotChart", detailEn: "Create visual linked to Pivot", detailHi: "Pivot par chart lagao" },
+      { label: "Insert Slicer", detailEn: "Add Region & Category buttons", detailHi: "Clickable Slicer buttons jodo" },
+      { label: "Report Connections", detailEn: "Connect 1 slicer to all 4 pivots!", detailHi: "1 Slicer se saare charts control karo" },
+    ],
+    sampleTable: {
+      headers: ["Interactive Control", "Works On", "Key Superpower"],
+      rows: [
+        ["Slicer", "Any text/category field", "Clickable buttons + Report Connections"],
+        ["Timeline", "Valid Date columns only", "Drag across Months / Quarters / Years"],
+      ],
+      captionEn: "Slicers and Timelines make reports usable by any manager.",
+      captionHi: "Slicer aur Timeline se bina formula jaane koi bhi report filter kar sakta hai.",
+    },
+  },
+  25: {
+    emoji: "🏷️",
+    moduleId: "m5-lookups",
+    enIntro: "Excel Tables (Ctrl + T) and Named Ranges make your formulas self-expanding, self-documenting, and rock-solid.",
+    enPoints: [
+      "Ctrl + T converts a range into a structured Excel Table (always name it, e.g., tblSales)",
+      "Structured references read like English: =SUM(tblSales[Amount]) instead of =SUM(D2:D847)",
+      "New rows pasted at the bottom automatically inherit formulas, formatting, and chart/pivot links",
+      "Formulas → Define Name lets you name constants like TaxRate = 0.18",
+    ],
+    enTip: "Turn on 'Total Row' (Ctrl + Shift + T) in Table Design for instant filter-aware SUBTOTAL dropdowns!",
+    steps: [
+      { label: "Ctrl + T", detailEn: "Convert raw grid to Table", detailHi: "Range ko Ctrl+T se Table banao" },
+      { label: "Rename Table", detailEn: "Table Design → tblSales", detailHi: "Table ka saaf naam rakho: tblSales" },
+      { label: "Auto-Expand", detailEn: "Add row → formulas & pivots grow!", detailHi: "Nayi row jodte hi sab khud badhega" },
+    ],
+    sampleTable: {
+      headers: ["Old Range Formula", "Modern Table Formula", "Benefit"],
+      rows: [
+        ["=SUM(D2:D500)", "=SUM(tblSales[Amount])", "Readable & auto-expands past row 500"],
+        ["=B2*$H$1", "= [@Price] * GST_Rate", "Crystal-clear business logic"],
+      ],
+      captionEn: "Structured references eliminate broken range bugs.",
+      captionHi: "Table aur Named Range se formula padhna aur sambhalna behad aasaan.",
+    },
+  },
+  26: {
+    emoji: "⚙️",
+    moduleId: "m7-powerquery",
+    enIntro: "Power Query (Get & Transform Data) is Excel's built-in ETL engine. Clean messy data ONCE — Power Query records every step and replays it on new files with one click!",
+    enPoints: [
+      "Data → Get Data → From File (CSV, Workbook, PDF, Folder) or From Table/Range",
+      "Every action (Remove Columns, Split, Trim, Change Type) is saved in 'Applied Steps'",
+      "Zero impact on original source file — non-destructive transformation",
+      "Close & Load outputs a clean green Excel Table; click Data → Refresh All next month!",
+    ],
+    enTip: "Power Query handles millions of rows smoothly because transformations happen in its dedicated engine!",
+    steps: [
+      { label: "1. Extract", detailEn: "Data → Get Data → From CSV/Folder", detailHi: "File ya Folder se data pull karo" },
+      { label: "2. Transform", detailEn: "Clean, Split, Filter in Query Editor", detailHi: "Query Editor mein steps set karo" },
+      { label: "3. Load", detailEn: "Close & Load to Table / Pivot", detailHi: "Clean Table mein Load karo" },
+      { label: "4. Refresh", detailEn: "Next month: 1 click Refresh All!", detailHi: "Agle mahine sirf Refresh dabao!" },
+    ],
+    sampleTable: {
+      headers: ["Manual Monthly Work", "With Power Query"],
+      rows: [
+        ["45 mins deleting columns, fixing spaces & dates", "3 seconds — Right-click → Refresh!"],
+        ["Easy to make copy-paste human errors", "100% repeatable Applied Steps"],
+      ],
+      captionEn: "Power Query saves hours of repetitive weekly/monthly report prep.",
+      captionHi: "Har hafte/mahine ki report banane ke ghante bachao.",
+    },
+  },
+  27: {
+    emoji: "🔮",
+    moduleId: "m4-formulas",
+    enIntro: "What-If Analysis reverses the direction of calculation: instead of asking 'What result do these inputs give?', ask 'What input do I need to hit my target?'",
+    enPoints: [
+      "Data → What-If Analysis → Goal Seek finds the exact single input needed to reach a target output",
+      "Scenario Manager compares Best Case, Realistic Case, and Worst Case budgets",
+      "Data Tables test dozens of interest rates and tenures simultaneously",
+      "Works beautifully with financial functions like =PMT(rate/12, months, -loan)",
+    ],
+    enTip: "In Goal Seek, 'Set cell' MUST contain a formula, while 'By changing cell' MUST contain a raw typed input number!",
+    steps: [
+      { label: "Write Formula", detailEn: "B5 has =PMT(B2/12, B3, -B1)", detailHi: "Pehle EMI ya Profit ka formula lagao" },
+      { label: "Open Goal Seek", detailEn: "Data → What-If → Goal Seek", detailHi: "Data → What-If → Goal Seek kholo" },
+      { label: "Set Target", detailEn: "Set B5 to 12000 by changing B1 (Loan)", detailHi: "Target EMI likho aur Loan cell chuno" },
+    ],
+    sampleTable: {
+      headers: ["Goal Seek Field", "What You Enter", "Example"],
+      rows: [
+        ["Set cell", "Formula cell", "B5 (EMI cell)"],
+        ["To value", "Desired target number", "12000"],
+        ["By changing cell", "Input variable cell", "B1 (Loan Principal → ₹5,93,000)"],
+      ],
+      captionEn: "Back-solving loan affordability and break-even sales in 1 second.",
+      captionHi: "Target result se ulta input nikalne ka jaadu.",
+    },
+  },
+  28: {
+    emoji: "🌊",
+    moduleId: "m5-lookups",
+    enIntro: "Dynamic Array functions (Excel 2021 / 365) type a formula in ONE cell and automatically 'spill' multiple rows and columns of live results!",
+    enPoints: [
+      "=FILTER(A2:D100, C2:C100=\"Delhi\", \"None\") returns all matching rows dynamically!",
+      "=UNIQUE(B2:B100) extracts a live deduplicated list of cities or products",
+      "=SORT(range, sort_index, -1) sorts results dynamically without touching raw data",
+      "Reference an entire spilled array anywhere using the hash symbol: A2#",
+    ],
+    enTip: "If you see #SPILL!, check below/right of the formula cell and clear any stray text blocking the output area!",
+    steps: [
+      { label: "Write in 1 Cell", detailEn: "Type =FILTER(...) in F2 only", detailHi: "Sirf F2 cell mein formula likho" },
+      { label: "Blue Spill Border", detailEn: "Results spill automatically!", detailHi: "Poori list khud neeche spill hogi" },
+      { label: "Use F2#", detailEn: "Feed dynamic list into charts/dropdowns", detailHi: "F2# likh kar poori dynamic range use karo" },
+    ],
+    sampleTable: {
+      headers: ["Dynamic Function", "Formula", "What Spills Out"],
+      rows: [
+        ["UNIQUE", "=UNIQUE(tblSales[City])", "Distinct list of cities"],
+        ["SORT + UNIQUE", "=SORT(UNIQUE(tblSales[City]))", "Alphabetical unique dropdown source"],
+        ["FILTER", '=FILTER(A2:D50, B2:B50="West")', "Complete live mini-report for West"],
+      ],
+      captionEn: "One formula replaces complex helper columns and manual filtering.",
+      captionHi: "Ek hi formula se poori live filtered table ban jati hai.",
+    },
+  },
+  29: {
+    emoji: "🏆",
+    moduleId: "m6-pivot-dash",
+    enIntro: "An Executive Dashboard brings KPIs, trends, comparisons, and interactive slicers onto ONE clean screen so decision-makers grasp business health in 5 seconds.",
+    enPoints: [
+      "3-Sheet Architecture: Sheet 1 = Raw Data (Table), Sheet 2 = Pivot/Calc Engine, Sheet 3 = Dashboard",
+      "Top Row = 4–5 Big KPI Cards (Total Revenue, Growth %, Profit, Orders)",
+      "Middle = 3–4 focused visuals (Trend Line, Category Bar, Share Doughnut, Waterfall)",
+      "View → uncheck Gridlines & Headings; use 1 accent color + neutral grays for clean polish",
+    ],
+    enTip: "Follow the 5-Second Rule: a first-time viewer should spot the main KPI and trend within 5 seconds!",
+    steps: [
+      { label: "1. Data Sheet", detailEn: "Clean Ctrl+T Table", detailHi: "Alag sheet mein clean Table rakho" },
+      { label: "2. Calc/Pivot Sheet", detailEn: "Build Pivots & KPI formulas", detailHi: "Beech ki sheet mein saare Pivots banao" },
+      { label: "3. Visual Canvas", detailEn: "Arrange KPIs + Charts + Slicers on 1 screen", detailHi: "Dashboard sheet par KPI, Charts, Slicers sajao" },
+    ],
+    sampleTable: {
+      headers: ["Dashboard Zone", "Position", "Contents"],
+      rows: [
+        ["Header + Slicers", "Top / Left Rail", "Report Title, Date Timeline, Region Slicer"],
+        ["KPI Strip", "Upper Row", "₹ Revenue, % Margin, Orders, YoY Delta"],
+        ["Visual Grid", "Main Body", "Monthly Combo + Regional Bar + Product Share"],
+      ],
+      captionEn: "Blueprint of a world-class 1-page Excel Dashboard.",
+      captionHi: "Professional 1-page Excel Dashboard ka naksha.",
+    },
+  },
+  30: {
+    emoji: "⏺️",
+    moduleId: "m8-vba",
+    enIntro: "Before writing a single line of code, Excel's Macro Recorder watches your mouse & keyboard steps and turns them into a reusable one-click button!",
+    enPoints: [
+      "Enable Developer tab (File → Options → Customize Ribbon → check Developer)",
+      "View / Developer → Record Macro → give a no-space name (e.g., FormatMonthlyReport)",
+      "Save macro-enabled workbooks strictly as .xlsm (saving as .xlsx strips macros!)",
+      "Assign your macro to a rounded Rectangle shape button on the sheet",
+    ],
+    enTip: "Never enable macros in suspicious email attachments — only run macros from trusted sources!",
+    steps: [
+      { label: "Record Macro", detailEn: "Start recorder & name macro", detailHi: "Record Macro dabaya aur naam diya" },
+      { label: "Perform Steps", detailEn: "Format headers, add borders, autofit", detailHi: "Apna formatting kaam ek baar karo" },
+      { label: "Stop & Save .xlsm", detailEn: "Stop recording & save as .xlsm", detailHi: "Stop karo aur .xlsm mein save karo" },
+    ],
+    sampleTable: {
+      headers: ["Extension", "Stores Macros?", "When to Use"],
+      rows: [
+        [".xlsx", "❌ No (strips VBA)", "Standard everyday workbooks"],
+        [".xlsm", "✅ Yes", "Automated macro/VBA workbooks"],
+        [".xlsb", "✅ Yes (Binary)", "Very large 50MB+ financial models"],
+      ],
+      captionEn: "Always pick .xlsm or .xlsb when saving recorded macros.",
+      captionHi: "Macro bachane ke liye file ko .xlsm mein save karna zaroori hai.",
+    },
+  },
+  31: {
+    emoji: "💻",
+    moduleId: "m8-vba",
+    enIntro: "VBA (Visual Basic for Applications) unlocks unlimited automation inside Excel — loops, custom dialogs, multi-sheet processing, and custom functions.",
+    enPoints: [
+      "Press Alt + F11 to open the VBA Editor → Insert → Module",
+      "Procedures live inside Sub MacroName() ... End Sub blocks; press F5 to run or F8 to step line-by-line",
+      "Read/write cells: Range(\"A1\").Value = \"Done\" or Cells(row, col).Value",
+      "Use Dim to declare variables, For...Next for loops, and MsgBox / InputBox for user prompts",
+    ],
+    enTip: "Add 'Option Explicit' at the very top of every module so VBA catches misspelled variable names immediately!",
+    steps: [
+      { label: "Alt + F11", detailEn: "Launch VBA Editor", detailHi: "Alt+F11 se VBA Editor kholo" },
+      { label: "Insert Module", detailEn: "Create clean code module", detailHi: "Insert → Module chuno" },
+      { label: "Write Sub", detailEn: "Sub Greet() ... End Sub", detailHi: "Sub ke andar code likho" },
+      { label: "F8 / F5", detailEn: "Debug step-by-step (F8) or Run (F5)", detailHi: "F8 se check karo, F5 se chalao" },
+    ],
+    sampleTable: {
+      headers: ["VBA Statement", "What It Does in Excel"],
+      rows: [
+        ['Range("B2").Value = 500', "Writes 500 into cell B2"],
+        ['Range("A1:D1").Font.Bold = True', "Makes header A1:D1 bold"],
+        ['MsgBox "Report Ready!"', "Pops up an alert dialog box"],
+      ],
+      captionEn: "Simple, readable VBA lines anyone can understand.",
+      captionHi: "Aasaan VBA lines jo seedha Excel cells se baat karti hain.",
+    },
+  },
+  32: {
+    emoji: "🛡️",
+    moduleId: "m8-vba",
+    enIntro: "Protect months of formula engineering from accidental deletion! Lock formula cells while leaving input cells editable, and encrypt confidential workbooks.",
+    enPoints: [
+      "By default ALL cells are 'Locked', which activates ONLY when Review → Protect Sheet is turned on",
+      "Workflow: Select input cells → Ctrl+1 → Protection → uncheck Locked → then Protect Sheet!",
+      "Check 'Hidden' under Protection to hide proprietary formulas from appearing in the Formula Bar",
+      "File → Info → Protect Workbook → Encrypt with Password secures the entire file with AES encryption",
+    ],
+    enTip: "Store workbook encryption passwords in a password manager — Excel AES encryption has no 'Forgot Password' backdoor!",
+    steps: [
+      { label: "Unlock Inputs", detailEn: "Select input cells → uncheck Locked", detailHi: "Input cells ko Ctrl+1 se Unlock karo" },
+      { label: "Protect Sheet", detailEn: "Review → Protect Sheet (locks formulas!)", detailHi: "Protect Sheet on karo — formulas safe!" },
+      { label: "Encrypt File", detailEn: "File → Info → Encrypt with Password", detailHi: "Confidential file par password lagao" },
+    ],
+    sampleTable: {
+      headers: ["Protection Level", "Where in Excel", "Protects Against"],
+      rows: [
+        ["Protect Sheet", "Review Tab", "Users overwriting formulas on sheet"],
+        ["Protect Workbook Structure", "Review Tab", "Deleting, renaming, or unhiding sheets"],
+        ["Encrypt with Password", "File → Info", "Opening the file without password"],
+      ],
+      captionEn: "Three distinct layers of Excel security.",
+      captionHi: "Excel suraksha ke teen alag-alag star.",
+    },
+  },
+  33: {
+    emoji: "🧼",
+    moduleId: "m2-cleaning",
+    enIntro: "Real-world CRM, ERP, and web-scraped exports are full of extra spaces, invisible line breaks, text-formatted numbers, and combined columns. Master the full Data Cleaning toolkit!",
+    enPoints: [
+      "CLEAN(A2) strips non-printable ASCII characters (like line breaks from web/ERP exports)",
+      "Golden Cleaning Combo: =PROPER(TRIM(CLEAN(A2))) standardizes messy names in one shot",
+      "Data → Text to Columns splits 'Name | City | Phone' by Delimiter (comma, pipe, space) or Fixed Width",
+      "Modern Excel 365: =TEXTSPLIT(A2, \",\") splits text dynamically; =IFERROR(..., \"\") silences errors cleanly",
+    ],
+    enTip: "Numbers stuck as Left-aligned Text? Select the column → Data → Text to Columns → Finish (instant conversion to real numbers!).",
+    steps: [
+      { label: "1. CLEAN+TRIM", detailEn: "Remove hidden chars & extra spaces", detailHi: "Chhupe kachre aur extra space hatao" },
+      { label: "2. Split Columns", detailEn: "Text to Columns / TEXTSPLIT", detailHi: "Jude hue data ko alag columns mein baanto" },
+      { label: "3. Fix Types", detailEn: "Convert text-numbers & ISO dates", detailHi: "Text bane numbers ko asli number banao" },
+      { label: "4. Deduplicate", detailEn: "Remove Duplicates & handle blanks", detailHi: "Duplicates aur errors saaf karo" },
+    ],
+    sampleTable: {
+      headers: ["Dirty Raw Cell", "Cleaning Formula / Tool", "Sparkling Clean Result"],
+      rows: [
+        ['"  ankit\n  verma  "', "=PROPER(TRIM(CLEAN(A2)))", '"Ankit Verma"'],
+        ['"EMP99|Pune|45000"', '=TEXTSPLIT(A2,"|")', "EMP99  |  Pune  |  45000"],
+        ["#N/A", '=IFNA(VLOOKUP(...),"Pending")', '"Pending"'],
+      ],
+      captionEn: "Before-and-after Data Cleaning transformations.",
+      captionHi: "Gande raw data se saaf-suthre data tak ka safar.",
+    },
+  },
+  34: {
+    emoji: "🎯",
+    moduleId: "m3-rules",
+    enIntro: "Go beyond single-cell colors! Formula-driven Conditional Formatting lets you highlight an ENTIRE row across columns A to G whenever Status = 'Overdue' or Stock < Reorder Level.",
+    enPoints: [
+      "Select entire data rows (e.g., A2:F50) → Conditional Formatting → New Rule → 'Use a formula...'",
+      "Write rule for the TOP-LEFT row of selection using a column-locked mixed reference: =$E2=\"Overdue\"",
+      "Custom duplicate highlighter: =COUNTIF($A$2:$A$50, $A2)>1",
+      "Use 'Show Bar Only' in Data Bars to build sleek in-cell KPI progress bars!",
+    ],
+    enTip: "Remember: Lock the column with '$' (=$E2), NEVER lock the row (=$E$2), or every row will copy Row 2's color!",
+    steps: [
+      { label: "Select A2:F50", detailEn: "Select all columns of data rows (no header)", detailHi: "Bina header ke A2:F50 poori table chuno" },
+      { label: "Formula Rule", detailEn: "Enter =$E2=\"Pending\"", detailHi: "Formula likho: =$E2=\"Pending\"" },
+      { label: "Pick Fill Color", detailEn: "Soft amber fill → entire row highlights!", detailHi: "Colour chuno — poori row highlight hogi!" },
+    ],
+    sampleTable: {
+      headers: ["Goal", "Selection", "Exact Formula Rule"],
+      rows: [
+        ["Highlight entire Pending row", "A2:F100", '=$E2="Pending"'],
+        ["Highlight low-stock items", "A2:E100", "=$C2<=$D2"],
+        ["Zebra striping (alternate rows)", "A2:F100", "=MOD(ROW(),2)=0"],
+      ],
+      captionEn: "Master formula rules for smart automated visual tables.",
+      captionHi: "Formula lagakar poori row ko automatic colour karne ke niyam.",
+    },
+  },
+  35: {
+    emoji: "🛡️",
+    moduleId: "m3-rules",
+    enIntro: "Build intelligent data-entry forms where selecting 'Gujarat' in Column A automatically updates Column B's dropdown to show ONLY 'Ahmedabad, Surat, Vadodara'!",
+    enPoints: [
+      "Step 1: Create Named Ranges matching each State name (Gujarat, Maharashtra, Delhi)",
+      "Step 2: In City Data Validation → Allow: List → Source: =INDIRECT(A2)",
+      "Custom Formula Validation: =COUNTIF($A$2:$A$100, A2)=1 blocks duplicate Invoice/Employee IDs",
+      "Data Validation → Circle Invalid Data spots pre-existing bad values pasted into the sheet",
+    ],
+    enTip: "If State names contain spaces like 'Uttar Pradesh', use =INDIRECT(SUBSTITUTE(A2,\" \",\"_\")) to match Named Ranges!",
+    steps: [
+      { label: "Named Ranges", detailEn: "Name city lists: Gujarat, Delhi", detailHi: "Har State ki cities ka Named Range banao" },
+      { label: "Parent Dropdown", detailEn: "Col A List: Gujarat, Delhi", detailHi: "Col A mein State dropdown lagao" },
+      { label: "=INDIRECT(A2)", detailEn: "Col B List dynamically switches!", detailHi: "Col B mein =INDIRECT(A2) likho!" },
+    ],
+    sampleTable: {
+      headers: ["Validation Need", "Allow Mode", "Formula / Source"],
+      rows: [
+        ["Cascading City Dropdown", "List", "=INDIRECT(A2)"],
+        ["Block Duplicate EmpID", "Custom", "=COUNTIF($A$2:$A$200,A2)=1"],
+        ["10-Digit Numeric Phone", "Custom", "=AND(ISNUMBER(C2),LEN(C2)=10)"],
+      ],
+      captionEn: "Enterprise-grade form controls right inside Excel.",
+      captionHi: "Bina software banaye Excel mein smart error-proof form.",
+    },
+  },
+  36: {
+    emoji: "⚡",
+    moduleId: "m5-lookups",
+    enIntro: "What if Employee Name repeats every month and you need Salary for 'Rohan' AND 'March'? Master Multi-Criteria Boolean XLOOKUP and Two-Way Matrix INDEX-MATCH!",
+    enPoints: [
+      "Multi-Criteria XLOOKUP: =XLOOKUP(1, (A2:A100=F2)*(B2:B100=G2), D2:D100, \"Not Found\")",
+      "How it works: TRUE*TRUE = 1, everything else = 0, so XLOOKUP finds 1 where ALL conditions match!",
+      "Find LAST matching entry (latest payment): set 6th argument search_mode to -1",
+      "2-Way Matrix Lookup: =INDEX(B2:M20, MATCH(Item,A2:A20,0), MATCH(Month,B1:M1,0))",
+    ],
+    enTip: "Two-way INDEX-MATCH-MATCH is indispensable when monthly columns (Jan..Dec) change dynamically via a dropdown!",
+    steps: [
+      { label: "(ColA=F2)", detailEn: "Produces array of TRUE/FALSE", detailHi: "Pehli shart TRUE/FALSE banati hai" },
+      { label: "* (ColB=G2)", detailEn: "Multiplying turns dual-TRUE into 1", detailHi: "Guna karne par dono TRUE milkar 1 banta hai" },
+      { label: "XLOOKUP(1,...)", detailEn: "Finds exact row where both match!", detailHi: "XLOOKUP 1 dhundh kar sahi jawab deta hai" },
+    ],
+    sampleTable: {
+      headers: ["Advanced Scenario", "Pro Formula Pattern"],
+      rows: [
+        ["Match Emp + Month", "=XLOOKUP(1,(A:A=F2)*(B:B=G2),D:D)"],
+        ["Latest Order of Customer", '=XLOOKUP(F2,A:A,D:D,"None",0,-1)'],
+        ["Row + Column Matrix", "=INDEX(B2:E10,MATCH(G2,A2:A10,0),MATCH(H1,B1:E1,0))"],
+      ],
+      captionEn: "Interview-winning lookup formulas used by senior MIS analysts.",
+      captionHi: "MIS Analyst interviews mein poochhe jane wale top Lookup formulas.",
+    },
+  },
+  37: {
+    emoji: "🔄",
+    moduleId: "m7-powerquery",
+    enIntro: "Unlock Power Query's deepest capabilities: combine 50 monthly files from a folder automatically, Unpivot wide crosstab sheets into Pivot-ready rows, and Merge tables like SQL joins!",
+    enPoints: [
+      "From Folder: Drop 'April.csv' into the folder → hit Refresh → April automatically joins the report!",
+      "Unpivot Other Columns: Converts wide 'Jan | Feb | Mar | Apr' columns into clean 'Month | Amount' rows",
+      "Merge Queries replaces tens of thousands of slow VLOOKUP formulas (supports Left Outer, Inner, Left Anti joins!)",
+      "Left Anti Join instantly finds 'Invoices in System A missing from System B' (reconciliation magic!)",
+    ],
+    enTip: "Bank/GST reconciliation taking hours with VLOOKUP? Use Power Query Merge → 'Left Anti' to list unmatched invoices in 3 seconds!",
+    steps: [
+      { label: "Wide Crosstab", detailEn: "Product | Jan | Feb | Mar", detailHi: "Chaudi report jisme mahine columns hain" },
+      { label: "Select Key Col", detailEn: "Right-click Product → Unpivot Other Columns", detailHi: "Product chun kar Unpivot Other Columns dabao" },
+      { label: "Tall Database", detailEn: "Product | Month | Value (Pivot-ready!)", detailHi: "Ab Pivot lagane ke liye ekdum perfect format!" },
+    ],
+    sampleTable: {
+      headers: ["Power Query Feature", "Replaces", "Real Office Use Case"],
+      rows: [
+        ["From Folder", "Copy-pasting 12 monthly files", "Annual consolidated MIS"],
+        ["Unpivot Columns", "Manual transpose & restructuring", "Fixing wide attendance/budget sheets"],
+        ["Merge (Left Anti)", "Complex ISNA(VLOOKUP) checks", "GSTR-2B vs Purchase Register matching"],
+      ],
+      captionEn: "Why Power Query is the #1 productivity booster in modern Excel.",
+      captionHi: "Accounting, GST aur MIS ka sabse bada time-saver tool.",
+    },
+  },
+  38: {
+    emoji: "🧠",
+    moduleId: "m5-lookups",
+    enIntro: "Modern Excel 365 introduces programming-grade clarity to formulas with LET variables, custom LAMBDA functions, VSTACK sheet consolidation, and SUMPRODUCT array math.",
+    enPoints: [
+      "LET(var1, val1, calculation) stores intermediate calculations in named variables — faster & 10x easier to read",
+      "LAMBDA(price, gst, price*(1+gst)) creates your own custom named function in Name Manager (zero VBA!)",
+      "VSTACK(Jan!A2:D20, Feb!A2:D20) stacks multiple sheets into one live master table",
+      "SUMPRODUCT((B2:B50=\"North\")*(C2:C50*D2:D50)) calculates conditional Price × Qty without helper columns!",
+    ],
+    enTip: "Use TEXTBEFORE and TEXTAFTER in Excel 365 instead of complex nested FIND/MID formulas!",
+    steps: [
+      { label: "Define Vars", detailEn: "LET(qty, B2, rate, C2, ...)", detailHi: "LET mein values ko aasaan naam do" },
+      { label: "Compute Once", detailEn: "Avoid repeating slow lookups twice", detailHi: "Bada calculation sirf 1 baar hota hai" },
+      { label: "Save as LAMBDA", detailEn: "Reuse as =CalcGST(B2) anywhere!", detailHi: "LAMBDA se apna custom formula banao!" },
+    ],
+    sampleTable: {
+      headers: ["Function", "One-Line Superpower", "Example"],
+      rows: [
+        ["LET", "Variables inside a formula", "=LET(x,SUM(A:A), IF(x>100,x,0))"],
+        ["VSTACK", "Append multiple ranges vertically", "=VSTACK(Branch1!A2:C9,Branch2!A2:C9)"],
+        ["SUMPRODUCT", "Weighted average / array math", "=SUMPRODUCT(Qty,Price)/SUM(Qty)"],
+      ],
+      captionEn: "Next-generation Excel formulas for power users.",
+      captionHi: "Modern Excel ke sabse smart aur fast functions.",
+    },
+  },
+  39: {
+    emoji: "🤖",
+    moduleId: "m8-vba",
+    enIntro: "Combine VBA loops, conditions, worksheet events, and PDF export to build real office automation tools — like generating 25 branch PDF statements with a single button click!",
+    enPoints: [
+      "For i = 2 To lastRow ... Next i loops dynamically using Cells(Rows.Count, 1).End(xlUp).Row",
+      "For Each ws In ThisWorkbook.Worksheets loops across every sheet in a workbook automatically",
+      "ActiveSheet.ExportAsFixedFormat xlTypePDF saves crisp invoices/dashboards directly to PDF",
+      "Speed boost: wrap macros with Application.ScreenUpdating = False ... True",
+    ],
+    enTip: "Always test new VBA loops on a duplicate copy of your workbook since VBA actions clear the Undo stack!",
+    steps: [
+      { label: "Find Last Row", detailEn: "lr = Cells(Rows.Count,1).End(xlUp).Row", detailHi: "Data ki aakhri row automatic pata karo" },
+      { label: "Loop Rows/Sheets", detailEn: "For i = 2 To lr ... Next i", detailHi: "Loop chala kar har row/city process karo" },
+      { label: "Export PDF", detailEn: "ExportAsFixedFormat xlTypePDF", detailHi: "Har report automatic PDF ban kar save!" },
+    ],
+    sampleTable: {
+      headers: ["VBA Idiom", "Exact Code Snippet", "Purpose"],
+      rows: [
+        ["Dynamic Last Row", "Cells(Rows.Count, 1).End(xlUp).Row", "Works whether sheet has 10 or 10,000 rows"],
+        ["Freeze Flicker", "Application.ScreenUpdating = False", "Makes macro run 10x faster"],
+        ["Export PDF", "ActiveSheet.ExportAsFixedFormat xlTypePDF", "One-click PDF invoice/report"],
+      ],
+      captionEn: "Production-ready VBA patterns used in real corporate automation.",
+      captionHi: "Asli office automation projects mein lagne wale VBA patterns.",
+    },
+  },
+  40: {
+    emoji: "🎓",
+    moduleId: "m8-vba",
+    enIntro: "Congratulations on reaching the Diploma Capstone! Bring together Data Cleaning, Excel Tables, XLOOKUP, Conditional Formatting, Data Validation, Pivot Tables, Slicers, Charts, and VBA into one portfolio-grade Executive MIS.",
+    enPoints: [
+      "Architecture: 01_Raw_Import → 02_Master_Lookups → 03_Pivot_Engine → 04_Executive_Dashboard",
+      "Clean messy records with TRIM/CLEAN or Power Query and store inside structured Ctrl+T Tables",
+      "Enrich transactions using XLOOKUP / INDEX-MATCH from Product & Employee Master tables",
+      "Build 4 KPI Cards + Combo Trend + Region Bar + Category Doughnut + connected Slicers + PDF Export Macro",
+    ],
+    enTip: "Save your completed Capstone workbook — showing a live interactive Excel Dashboard in job interviews sets you apart immediately!",
+    steps: [
+      { label: "1. Clean & Table", detailEn: "Power Query + Ctrl+T tblSales", detailHi: "Data saaf karke Ctrl+T Table banao" },
+      { label: "2. Enrich & Validate", detailEn: "XLOOKUP Masters + Dropdown rules", detailHi: "XLOOKUP aur Data Validation jodo" },
+      { label: "3. Pivot + Visuals", detailEn: "KPIs, Charts & Slicers on 1 page", detailHi: "Pivot, KPI Cards, Charts aur Slicer lagao" },
+      { label: "4. Protect & Present", detailEn: "Lock formulas & export Executive PDF", detailHi: "Formulas lock karo aur PDF report nikalo" },
+    ],
+    sampleTable: {
+      headers: ["Capstone Layer", "Tools Applied", "Deliverable"],
+      rows: [
+        ["Data Layer", "Power Query, TRIM, Ctrl+T", "Clean self-expanding tblTransactions"],
+        ["Logic Layer", "XLOOKUP, SUMIFS, IFS", "Automated Margin, Region & KPI metrics"],
+        ["Presentation Layer", "PivotCharts, Slicers, CF, VBA PDF", "1-Page Interactive Executive Dashboard"],
+      ],
+      captionEn: "Your complete Basic-to-Advanced Excel Diploma Capstone blueprint.",
+      captionHi: "Poore Diploma course ki skills ek shandar project mein!",
+    },
+  },
+  41: {
+    emoji: "🎨",
+    moduleId: "m9-accounts-pro",
+    enIntro: "Great Excel reports aren't rainbows — they follow professional Color Theory! Using 2–3 intentional shades with strong contrast makes executive tables and charts effortless to read.",
+    enPoints: [
+      "Simplicity Rule: Limit every report to 1 primary brand color + 1 accent + neutral gray/white backgrounds",
+      "High Contrast: Pair dark headers (#1B4F72 Navy / #145A32 Emerald) with crisp white bold text",
+      "Color Harmonies: Complementary (Blue + Orange for comparisons), Analogous (Blue + Teal), Monochromatic (single-hue shades)",
+      "Custom HEX/RGB: Home → Fill Color → More Colors → Custom lets you paste exact corporate HEX or RGB codes",
+    ],
+    enTip: "Reserve bright Red and Amber strictly for negative variances or low-stock alerts — never as decorative table headers!",
+    steps: [
+      { label: "1. Neutral Base", detailEn: "Use #FFFFFF / #F4F6F8 canvas", detailHi: "Halka safed/grey background rakho" },
+      { label: "2. Brand Header", detailEn: "Apply Navy/Emerald/Teal header", detailHi: "Header mein गहरा corporate rang lagao" },
+      { label: "3. Harmony Charts", detailEn: "Pick Monochromatic or Complementary", detailHi: "Chart mein milte-julte shades chuno" },
+      { label: "4. Purposeful Alert", detailEn: "Highlight only KPIs needing action", detailHi: "Sirf zaroori KPI alert ko laal/hara karo" },
+    ],
+    sampleTable: {
+      headers: ["Corporate Palette", "Primary HEX", "Secondary / Neutral", "Best For"],
+      rows: [
+        ["Minimal Executive", "#1B4F72 (Navy)", "#E5E8E8 + #FFFFFF", "Boardroom Financial MIS"],
+        ["Classic Accounting", "#145A32 (Dark Green)", "#F5EEF8 / #F9F6EE + #1C2833", "P&L, Audit & Tax Reports"],
+        ["Modern Analytics", "#2C3E50 (Charcoal)", "#0E9AA7 (Teal) + #EAEDED", "Tech, Ops & Sales Dashboards"],
+      ],
+      captionEn: "Three ready-to-use corporate color palettes for Excel reports.",
+      captionHi: "Excel reports ke liye 3 readymade corporate color palettes.",
+    },
+  },
+  42: {
+    emoji: "🚑",
+    moduleId: "m9-accounts-pro",
+    enIntro: "Every Excel analyst encounters formula errors. Knowing all 12 Excel error codes — from classic #DIV/0! and #NULL! to modern #SPILL!, #CALC!, #CONNECT!, and #BLOCKED! — turns panic into a 5-second fix.",
+    enPoints: [
+      "Classic 6: #DIV/0! (divide by 0), #N/A (not found), #VALUE! (text+number), #REF! (deleted cell), #NAME? (typo), #NUM! (invalid math like SQRT(-16))",
+      "Range & Width: #NULL! (space instead of ':' or ',' e.g. =SUM(A1 A10)), ####### (column too narrow or negative date)",
+      "Modern 365 4: #SPILL! (blocked spill range), #CALC! (empty FILTER or unsupported nested array), #CONNECT! (broken external/linked data), #BLOCKED! (Trust Center block)",
+      "Formula Auditing: Formulas → Trace Precedents, Trace Dependents, and Evaluate Formula reveal the exact broken link",
+    ],
+    enTip: "Use IFNA() for lookups so genuine #NAME? or #REF! bugs aren't hidden accidentally, and IFERROR() for division/math!",
+    steps: [
+      { label: "1. Read Code", detailEn: "Identify which of the 12 errors appeared", detailHi: "Error code pehchano (#NULL!, #SPILL! aadi)" },
+      { label: "2. Trace Arrows", detailEn: "Click Formulas → Trace Precedents", detailHi: "Trace Precedents se input cells dekho" },
+      { label: "3. Evaluate", detailEn: "Step through calculation in slow motion", detailHi: "Evaluate Formula se galti pakdo" },
+      { label: "4. Guard Formula", detailEn: "Wrap clean logic in IFERROR / IFNA", detailHi: "IFERROR ya IFNA se surakshit karo" },
+    ],
+    sampleTable: {
+      headers: ["Error Code", "Broken Formula / Cause", "Instant Fix"],
+      rows: [
+        ["#NULL!", "=SUM(A1 A10) (missing colon)", "Change space to colon: =SUM(A1:A10)"],
+        ["#CALC!", '=FILTER(A2:B10, A2:A10="Mars")', 'Add if_empty: =FILTER(A2:B10, A2:A10="Mars", "None")'],
+        ["#CONNECT! / #BLOCKED!", "Broken query or Trust Center block", "Check Data → Connections or File → Trust Center"],
+      ],
+      captionEn: "Diagnostic guide for tricky modern and range-separator Excel errors.",
+      captionHi: "Naye aur tricky Excel errors ka turant ilaj.",
+    },
+  },
+  43: {
+    emoji: "🗄️",
+    moduleId: "m9-accounts-pro",
+    enIntro: "Excel's Database functions (DSUM, DAVERAGE, DCOUNT, DGET) let users type complex multi-column AND/OR filter rules straight into a visible Criteria Range on the sheet, while IS* and TYPE functions audit sheet quality.",
+    enPoints: [
+      "Database syntax: =DSUM(database, field, criteria) where field can be column name \"Sales\" or column index",
+      "Criteria Box: Same row = AND logic; new row underneath = OR logic — super readable for auditors!",
+      "DGET(database, field, criteria): Extracts a single record and throws #NUM! if duplicate IDs exist (built-in duplicate detector!)",
+      "Audit Functions: ISFORMULA(cell), ISNUMBER(cell), ISTEXT(cell), TYPE(value), and ERROR.TYPE(cell)",
+    ],
+    enTip: "Never leave a blank row inside your DSUM Criteria Range — a blank criteria row matches EVERY row in the entire database!",
+    steps: [
+      { label: "1. Copy Headers", detailEn: "Paste exact column headers to G1:H1", detailHi: "Exact headers copy karke G1:H1 mein rakho" },
+      { label: "2. Write Rule", detailEn: 'Type "West" under Region, ">5000" under Sales', detailHi: "Header ke neeche shart likho" },
+      { label: "3. Run DSUM", detailEn: '=DSUM(A1:E500, "Sales", G1:H2)', detailHi: "DSUM ya DGET formula lagao" },
+      { label: "4. Audit Cells", detailEn: "Check formulas with ISFORMULA / TYPE", detailHi: "ISFORMULA se sheet audit karo" },
+    ],
+    sampleTable: {
+      headers: ["Function", "Purpose", "Example"],
+      rows: [
+        ["DSUM", "Sum matching criteria table", '=DSUM(A1:E200, "Revenue", G1:H2)'],
+        ["DGET", "Unique single lookup (alerts duplicates)", '=DGET(A1:E200, "Salary", G1:G2)'],
+        ["ISFORMULA / TYPE", "Check formula presence & data type", "=ISFORMULA(D2) → TRUE"],
+      ],
+      captionEn: "Database & Auditor functions favored by financial controllers.",
+      captionHi: "Accounts aur Audit teams ke pasandeeda Database aur Info functions.",
+    },
+  },
+  44: {
+    emoji: "🧾",
+    moduleId: "m9-accounts-pro",
+    enIntro: "Master the 4 spreadsheets every Indian company and CA/Accounts office uses daily: GST Tax Invoice (CGST/SGST/IGST), Employee Payroll (PF/ESIC/TDS), Attendance Tracker, and Loan Amortization!",
+    enPoints: [
+      "GST Logic: Intra-State (Buyer State = Seller State) splits 18% into 9% CGST + 9% SGST; Inter-State charges 18% IGST",
+      "Reverse GST from MRP: Base Price = Inclusive_Amount / (1 + GST_Rate); Tax = Inclusive_Amount - Base Price",
+      "Salary Register: Gross = Basic + HRA + DA + Allowance; Net In-Hand = Gross - PF(12% of Basic) - Professional Tax - TDS",
+      "Loan Schedule: PMT (total monthly EMI), IPMT (interest portion), PPMT (principal portion), CUMIPMT (cumulative interest)",
+    ],
+    enTip: "Always round GST tax lines to 2 decimals with =ROUND(amount, 2) so invoice totals never mismatch by 1 paisa on the GST portal!",
+    steps: [
+      { label: "1. Taxable Value", detailEn: "Qty * Unit Rate - Discount", detailHi: "Qty * Rate - Discount nikalo" },
+      { label: "2. State Check", detailEn: "IF BuyerState=HomeState → CGST+SGST else IGST", detailHi: "State match karke CGST/SGST ya IGST lagao" },
+      { label: "3. Round Tax", detailEn: "Wrap tax cells in ROUND(..., 2)", detailHi: "ROUND(...,2) se paise sahi rakho" },
+      { label: "4. Grand Total", detailEn: "Taxable + CGST + SGST + IGST", detailHi: "Kul Invoice value jodo" },
+    ],
+    sampleTable: {
+      headers: ["Accounts Sheet", "Key Formula", "Office Use"],
+      rows: [
+        ["GST Invoice", '=IF(C2=$G$1, ROUND(D2*9%,2), 0)', "Auto-switch CGST/SGST vs IGST"],
+        ["Reverse GST", "=E2 / (1 + 18%)", "Extract taxable base from MRP"],
+        ["Attendance Pay", '=COUNTIF(B2:AF2,"P") + COUNTIF(B2:AF2,"HD")*0.5', "Payable days calculation"],
+      ],
+      captionEn: "Essential Indian accounting & HR formulas ready for office work.",
+      captionHi: "Har Indian office aur CA firm mein kaam aane wale ready formulas.",
+    },
+  },
+  45: {
+    emoji: "🚀",
+    moduleId: "m9-accounts-pro",
+    enIntro: "Combine your Excel Diploma expertise with structured AI Prompt Engineering! Learn the exact 5-part prompt blueprint to generate complex formulas, Power Query M steps, and Outlook/Pivot VBA scripts in seconds.",
+    enPoints: [
+      "5-Part AI Prompt Blueprint: Workbook Name + Sheet Name + Exact Data Range & Column Headers + Task Logic + Output Location",
+      "Example Formula Prompt: Deduplicate HR_Records!A1:G500 keeping only the latest date per Employee ID via MAXIFS + FILTER",
+      "Example VBA Prompts: Highlight entire row red when Stock < 10, auto-build Revenue/Expense Pivot, or send 3-day Outlook email alerts",
+      "Interview Mastery: Present portfolio dashboards using STAR format (Situation → Dirty Data Task → Excel Pipeline → Hours Saved)",
+    ],
+    enTip: "Open the 'Pro Toolkit' tab in this Academy to generate custom AI Prompts interactively and run them live with Aarohi AI!",
+    steps: [
+      { label: "1. Context", detailEn: "Name workbook, sheet & exact range A1:G500", detailHi: "Workbook, Sheet aur exact Range batao" },
+      { label: "2. Columns", detailEn: "Specify which column holds ID, Date, Amount", detailHi: "Har column mein kya data hai likho" },
+      { label: "3. Logic & Output", detailEn: "State rule + target cell/sheet + edge cases", detailHi: "Niyam aur output cell saaf batao" },
+      { label: "4. Verify F8", detailEn: "Test generated formula/macro on sample rows", detailHi: "Sample data par F8 se check karke chalao" },
+    ],
+    sampleTable: {
+      headers: ["Automation Goal", "Best Tool", "Key Technique"],
+      rows: [
+        ["Keep Latest Record per ID", "Dynamic Formula", "FILTER + MAXIFS + SORT"],
+        ["Low-Stock Red Row Alert", "VBA Macro", "cell.EntireRow.Interior.Color = RGB(255,0,0)"],
+        ["3-Day Deadline Emails", "VBA + Outlook", 'CreateObject("Outlook.Application") loop'],
+      ],
+      captionEn: "Real-world Excel AI automation blueprints from your Diploma toolkit.",
+      captionHi: "AI Prompt se banne wale 3 shandar office automations.",
+    },
+  },
+};
+
+
+export function getChapterRich(chapterNumber: number): ChapterRichMeta {
+  return CHAPTER_RICH[chapterNumber] ?? CHAPTER_RICH[1];
+}

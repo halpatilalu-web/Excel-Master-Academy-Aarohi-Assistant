@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Search, Star } from "lucide-react";
+import { copyText } from "../lib/clipboard";
 import { CHAPTERS } from "../data/chapters";
 import { FORMULAS, FORMULA_CATS, FORMULA_COMPARISONS } from "../data/formulas";
 import { SHORTCUTS, SHORTCUT_CATS, shortcutCatLabel } from "../data/shortcuts";
@@ -15,7 +16,15 @@ function CopyBtn({ text }: { text: string }) {
     <button
       aria-label="Copy"
       className="p-1.5 rounded-lg text-(--color-muted) hover:bg-(--color-accent-soft) shrink-0"
-      onClick={() => { void navigator.clipboard?.writeText(text); setOk(true); setTimeout(() => setOk(false), 1200); }}
+      onClick={() => {
+        // Only show the tick when the text really reached the clipboard: the
+        // Android WebView has no clipboard API, and a false ✓ loses the formula.
+        void copyText(text).then((done) => {
+          if (!done) return;
+          setOk(true);
+          setTimeout(() => setOk(false), 1200);
+        });
+      }}
     >
       {ok ? <Check size={15} /> : <Copy size={15} />}
     </button>

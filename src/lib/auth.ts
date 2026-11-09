@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "./api";
 import { finishPopupLogin, onPopupLoginDone } from "./orvis";
+import { isNetworkFailure, rememberUser, rememberedUser } from "./offline";
 import { adoptUser, resetUserLocalState } from "./prefs";
 import { clearStoreCache } from "./store";
 
@@ -21,6 +22,10 @@ function getOrCreateLocalGuest(): User {
   } catch {
     /* ignore */
   }
+  // A student who already has an account on this device must never be silently
+  // replaced by a brand-new local guest just because the network was down.
+  const remembered = rememberedUser();
+  if (remembered) return remembered;
   const u: User = {
     id: `local-${Math.random().toString(36).slice(2, 10)}`,
     email: "guest-local@guest.local",
@@ -64,14 +69,19 @@ export function useAuth() {
   const refresh = useCallback(async () => {
     try {
       const next = await api.get<User>("/api/auth/me", { timeoutMs: 4000 });
+      rememberUser(next);
       adopt(next);
       setUser(next);
     } catch (err) {
-      if (isBackendUnavailable(err)) {
-        const localUser = getOrCreateLocalGuest();
-        adopt(localUser);
-        setUser(localUser);
+      // "Cannot reach the server" is not "you are signed out". Keep the account
+      // this device already knows, so an offline start shows the student's own
+      // dashboard (from the local copy) instead of an empty guest one.
+      if (isNetworkFailure(err) || isBackendUnavailable(err)) {
+        const offlineUser = rememberedUser() ?? getOrCreateLocalGuest();
+        adopt(offlineUser);
+        setUser(offlineUser);
       } else {
+        rememberUser(null);
         adopt(null);
         setUser(null);
       }
@@ -93,6 +103,7 @@ export function useAuth() {
   }, [refresh]);
 
   const signedIn = (u: User) => {
+    rememberUser(u);
     adopt(u);
     setUser(u);
     window.dispatchEvent(new Event("auth:signed-in")); // stores re-fetch
@@ -115,6 +126,7 @@ export function useAuth() {
     } finally {
       // Whatever happens server-side, this browser must forget the student.
       clearStoreCache();
+      rememberUser(null);
       adoptUser(null);
       resetUserLocalState();
       setUser(null);
@@ -156,6 +168,7 @@ export function useAuth() {
       /* ignore */
     }
     clearStoreCache();
+    rememberUser(null);
     adoptUser(null);
     resetUserLocalState();
     setUser(null);

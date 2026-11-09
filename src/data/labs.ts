@@ -1,3 +1,5 @@
+import { saveFile } from "../lib/saveFile";
+
 export interface Lab {
   id: string;
   chapter: number;
@@ -190,12 +192,13 @@ export function datasetCSV(l: Lab) {
   return lines.join("\n");
 }
 
-export function downloadText(name: string, text: string) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(a.href);
+/**
+ * Save a CSV the student asked for. Goes through the shared saver so the APK's
+ * WebView (which drops plain `<a download>` clicks) gets a real share sheet and
+ * a clear failure instead of a silent nothing.
+ */
+export function downloadText(name: string, text: string): Promise<boolean> {
+  return saveFile(name, [text], "text/csv;charset=utf-8").then((result) => result.ok);
 }
 
 const xmlEscape = (v: string | number) =>

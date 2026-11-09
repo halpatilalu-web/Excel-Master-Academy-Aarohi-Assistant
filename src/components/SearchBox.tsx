@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useOverlayBack } from "../lib/useOverlayBack";
 import { AnimatePresence, motion } from "motion/react";
 import { Search } from "lucide-react";
 import { CHAPTERS } from "../data/chapters";
@@ -15,6 +16,7 @@ export type Hit = {
 
 export function SearchBox({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (h: Hit) => void }) {
   const [q, setQ] = useState("");
+  useOverlayBack(open, onClose);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => { if (open) { setQ(""); setTimeout(() => ref.current?.focus(), 50); } }, [open]);
   useEffect(() => { const f = (e: KeyboardEvent) => e.key === "Escape" && onClose(); addEventListener("keydown", f); return () => removeEventListener("keydown", f); }, [onClose]);

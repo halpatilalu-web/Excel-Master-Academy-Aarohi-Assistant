@@ -9,7 +9,7 @@
 import { useMemo, useState } from "react";
 import { BadgeCheck, Filter, Info, Sparkles, Table2 } from "lucide-react";
 import { Card, Pill } from "../components/ui";
-import { DesktopPromo } from "./Windows";
+import { DesktopPromo } from "../components/DesktopPromo";
 import { Bilingual } from "../lib/lang";
 import { FREE_FEATURES, FREE_GROUPS, STATUS_STYLE, type FreeStatus } from "../data/freeFeatures";
 import { knownFunctions } from "../lib/excel/formula/engine";
