@@ -97,10 +97,10 @@ export function SettingsPanel({ onClose, compact = false }: { onClose?: () => vo
           return (
             <li
               key={row.key}
-              className="flex items-start justify-between gap-3 rounded-xl bg-(--color-surface) px-2.5 py-2 shadow-(--neu-raised-sm)"
+              className="flex items-start gap-2 rounded-xl bg-(--color-surface) px-2 py-2 shadow-(--neu-raised-sm)"
             >
               <div className="min-w-0">
-                <p className="flex items-center gap-1.5 text-[12px] font-bold text-(--color-ink)">
+                <p className="flex items-center gap-1.5 text-[12px] font-bold leading-tight text-(--color-ink)">
                   <span className="text-(--color-accent-dark)" aria-hidden>
                     {row.icon}
                   </span>
@@ -117,7 +117,7 @@ export function SettingsPanel({ onClose, compact = false }: { onClose?: () => vo
                 aria-checked={on}
                 aria-label={`${row.label}: ${on ? "on" : "off"}`}
                 onClick={() => update(row.key, !on)}
-                className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors duration-300 ${
+                className={`relative mt-0.5 h-6 w-11 shrink-0 grow-0 rounded-full transition-colors duration-300 ${
                   on ? "bg-(--color-accent)" : "bg-(--color-border-strong)"
                 }`}
               >
