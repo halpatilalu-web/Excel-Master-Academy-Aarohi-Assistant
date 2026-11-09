@@ -40,6 +40,7 @@ import { ExplorerApp, PaintApp, PowerPointApp, WordApp } from "./OfficeApps";
 import type { DesktopFile, DocKind } from "../../lib/desktop/fs";
 import { downloadText, saveDesktopFile, useDesktopFiles } from "../../lib/desktop/fs";
 import { Bilingual } from "../../lib/lang";
+import { SettingsPanel } from "../SettingsPanel";
 
 export type AppId = "excel" | "word" | "powerpoint" | "paint" | "explorer" | "powerbi" | "notes" | "calc" | "calendar" | "settings";
 
@@ -303,31 +304,52 @@ export function Desktop({ onExit }: { onExit: () => void }) {
               <div
                 className="h-9 flex items-center justify-between px-1.5 text-white shrink-0 cursor-move select-none"
                 style={{ backgroundColor: meta.colour }}
-                onMouseDown={(event) => {
-                  if (win.max) return;
+                onPointerDown={(event) => {
+                  // Never start a drag on the window buttons.
+                  if ((event.target as HTMLElement).closest("button")) return;
+                  event.preventDefault();
+                  focusApp(win.id);
                   const startX = event.clientX;
                   const startY = event.clientY;
-                  const originX = win.x;
-                  const originY = win.y;
-                  const move = (moveEvent: MouseEvent) => {
+                  // A maximised window has no free position, so dragging one
+                  // *restores* it first (Windows snaps it back to a floating
+                  // size and carries on dragging) — before this, dragging the
+                  // title bar in full-screen mode did nothing at all.
+                  const originX = win.max ? Math.max(0, startX - (win.w || 900) / 2) : win.x;
+                  const originY = win.max ? 0 : win.y;
+                  if (win.max) {
+                    setWindows((current) =>
+                      current.map((item) => (item.id === win.id ? { ...item, max: false, x: originX, y: originY } : item)),
+                    );
+                  }
+                  (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+                  const move = (moveEvent: PointerEvent) => {
                     setWindows((current) =>
                       current.map((item) =>
                         item.id === win.id
                           ? {
                               ...item,
-                              x: Math.max(-item.w + 120, Math.min(window.innerWidth - 120, originX + moveEvent.clientX - startX)),
-                              y: Math.max(0, Math.min(window.innerHeight - 90, originY + moveEvent.clientY - startY)),
+                              // Keep a grab-handle of the window on screen at all
+                              // times, so it can never be dragged out of reach.
+                              x: Math.max(-item.w + 160, Math.min(window.innerWidth - 160, originX + moveEvent.clientX - startX)),
+                              y: Math.max(0, Math.min(window.innerHeight - 120, originY + moveEvent.clientY - startY)),
                             }
                           : item,
                       ),
                     );
                   };
                   const up = () => {
-                    window.removeEventListener("mousemove", move);
-                    window.removeEventListener("mouseup", up);
+                    window.removeEventListener("pointermove", move);
+                    window.removeEventListener("pointerup", up);
+                    window.removeEventListener("pointercancel", up);
                   };
-                  window.addEventListener("mousemove", move);
-                  window.addEventListener("mouseup", up);
+                  window.addEventListener("pointermove", move);
+                  window.addEventListener("pointerup", up);
+                  window.addEventListener("pointercancel", up);
+                }}
+                onDoubleClick={() => {
+                  // Windows: double-click the title bar to maximise / restore.
+                  toggleMax(win.id);
                 }}
               >
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold truncate">
@@ -1080,7 +1102,7 @@ function PowerBiApp({ files: allFiles, onStatus }: { files: DesktopFile[]; onSta
 
 function SettingsApp({ wallpaperId, onWallpaper }: { wallpaperId: string; onWallpaper: (id: string) => void }) {
   return (
-    <div className="h-full p-3 space-y-3 bg-(--color-surface)">
+    <div className="h-full space-y-3 overflow-y-auto bg-(--color-surface) p-3 pb-8">
       <div>
         <div className="text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Personalisation</div>
         <div className="flex flex-wrap gap-2 mt-1.5">
@@ -1098,6 +1120,12 @@ function SettingsApp({ wallpaperId, onWallpaper }: { wallpaperId: string; onWall
           ))}
         </div>
       </div>
+      {/* The same switch board the rest of the app uses, so desktop Excel and
+          the site can never disagree about what is on. */}
+      <div className="rounded-xl bg-(--color-canvas) p-2.5">
+        <SettingsPanel />
+      </div>
+
       <Bilingual
         en="This desktop runs the course's own apps in the browser: Excel with the full 400-formula engine and ribbon, Word with styles and .doc export, PowerPoint with a real slide show, Paint with PNG export, File Explorer over your saved files, plus Notepad, Calculator, Calendar, Power BI-style charts and these settings. Nothing needs a Microsoft licence."
         hi="Yeh desktop course ke apne apps browser mein chalata hai: Excel (400 formulas + poora ribbon), Word (styles + .doc export), PowerPoint (asli slide show), Paint (PNG), File Explorer, Notepad, Calculator, Calendar, Power BI-style charts aur settings. Kisi Microsoft licence ki zaroorat nahi."

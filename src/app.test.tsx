@@ -191,9 +191,12 @@ describe("premium soft-UI shell", () => {
     expect(created).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: /open focus mode music/i }));
     expect(screen.getByRole("dialog", { name: /focus mode/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Hindi Lofi/i })).toBeTruthy();
+    // The playlist is a real list of beds, not one hard-wired mood.
+    expect(screen.getByRole("button", { name: /Dheere Dheere — Hindi Lofi/i })).toBeTruthy();
     const panel = screen.getByRole("dialog", { name: /focus mode/i });
-    expect(within(panel).getByRole("button", { name: /English Study/i })).toBeTruthy();
+    expect(within(panel).getByRole("button", { name: /Quiet Desk — English Study/i })).toBeTruthy();
+    // …with a lyric line and a way to turn it off.
+    expect(within(panel).getByRole("button", { name: /turn lyrics off/i })).toBeTruthy();
     vi.unstubAllGlobals();
   });
 });

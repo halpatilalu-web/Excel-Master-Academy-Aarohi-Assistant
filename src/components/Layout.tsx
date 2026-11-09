@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { motion } from "motion/react";
-import { Coffee, Download, LogOut, Menu, Moon, Search, Sun, X, type LucideIcon } from "lucide-react";
+import { Coffee, Download, LogOut, Menu, Moon, Search, Settings, Sun, X, type LucideIcon } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { BottomNav, PHONE_PRIMARY, type BottomNavItem } from "./BottomNav";
 import { LangSwitcher } from "../lib/lang";
 import { exportJSON } from "../lib/store";
+import { SettingsPanel } from "./SettingsPanel";
 
 export interface NavItem<K extends string = string> {
   key: K;
@@ -56,6 +57,9 @@ export function Layout<K extends string>({
       setExportError(error instanceof Error ? error.message : "Export failed");
     }
   }
+
+  /** The settings sheet. Local: it is a sheet over the page, not a route. */
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const groups: { title: string | null; items: NavItem<K>[] }[] = [];
   for (const item of nav) {
@@ -276,6 +280,19 @@ export function Layout<K extends string>({
               </button>
             )}
 
+            <button
+              type="button"
+              aria-label={settingsOpen ? "Close settings" : "Open settings"}
+              aria-expanded={settingsOpen}
+              title="Settings — features ON/OFF"
+              onClick={() => setSettingsOpen((value) => !value)}
+              className={`p-2 rounded-xl transition ${
+                settingsOpen ? "neu-pressed-sm text-(--color-accent-dark)" : "neu-btn text-(--color-muted) hover:text-(--color-ink)"
+              }`}
+            >
+              <Settings size={15} />
+            </button>
+
             {onToggleDark && (
               <button
                 type="button"
@@ -289,6 +306,23 @@ export function Layout<K extends string>({
             )}
           </div>
         </header>
+
+        {/* Settings sheet: one place for every ON/OFF switch, reachable from
+            every page. It overlays the header instead of pushing the page, so
+            opening it never moves the sheet a student is typing in. */}
+        {settingsOpen && (
+          <>
+            <button
+              type="button"
+              aria-label="Close settings"
+              onClick={() => setSettingsOpen(false)}
+              className="fixed inset-0 z-40 cursor-default bg-black/20 no-print"
+            />
+            <div className="fixed right-3 top-[4.25rem] z-50 w-[min(24rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain rounded-2xl bg-(--color-surface) p-3 pb-4 shadow-(--neu-raised-lg) no-print">
+              <SettingsPanel onClose={() => setSettingsOpen(false)} />
+            </div>
+          </>
+        )}
 
         {/* Phones: one centred column with generous breathing room.
             Desktop: the sidebar stays, the content area widens to a spacious
