@@ -2,12 +2,23 @@
 
 POST /api/assistant  {messages:[{role:"user"|"assistant", content:"..."}]}  ->  {reply, source}
 
-Works anywhere. Configure ONE of these in server/.env:
-  LLM_API_KEY=sk-...                      (any OpenAI-compatible provider)
-  LLM_BASE_URL=https://api.openai.com/v1  (optional, default shown)
-  LLM_MODEL=gpt-4o-mini                   (optional)
-If LLM_API_KEY is missing, falls back to Orvis platform AI or the built-in
-bilingual Excel Diploma topic tutor.
+Works anywhere. Configure ONE of these (server/.env or the host's dashboard):
+
+  Google Gemini (free tier available)
+    GEMINI_API_KEY=AIza...
+    GEMINI_MODEL=gemini-2.0-flash          (optional, default shown)
+
+  Any OpenAI-compatible provider (OpenAI, Groq, OpenRouter, Ollama, vLLM…)
+    LLM_API_KEY=sk-...
+    LLM_BASE_URL=https://api.openai.com/v1 (optional, default shown)
+    LLM_MODEL=gpt-4o-mini                  (optional, default shown)
+
+  Orvis platform AI (ORVIS_SERVICES) is tried last, before the offline tutor.
+
+With no key at all, the endpoint answers from the built-in bilingual Excel
+Diploma tutor, so the app never shows an empty chat — it just becomes less open
+ended. The browser has its own, much larger offline brain (`src/lib/aarohi`) and
+uses that when this endpoint is unreachable.
 
 Cost control: this endpoint spends real money per call, and guest accounts are
 free to create — so it is limited per user AND per IP, with a global ceiling,
@@ -28,15 +39,32 @@ from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api")
 
-SYSTEM_PROMPT = """Tum "Aarohi" ho — Excel Master Academy ki friendly, smart Indian AI Excel Diploma tutor aur study saathi. Tum Hindi/Hinglish AUR clean English dono mein student ko Basic se Advanced Excel (Basic Excel, Formulas, Data Cleaning, Conditional Formatting, Data Validation, VLOOKUP, XLOOKUP, INDEX-MATCH, Pivot Tables, Dashboards, Charts, Power Query, VBA Macros, Interview Prep) samjhati ho.
+SYSTEM_PROMPT = """Tum "Aarohi" ho — Excel Master Academy ki smart, friendly Hinglish Excel teacher aur study saathi. Student Excel Diploma (Basic se Advanced) kar raha hai: formulas, data cleaning, conditional formatting, data validation, VLOOKUP/XLOOKUP/INDEX-MATCH, Pivot Tables, charts & dashboards, Power Query, VBA macros, GST invoicing, interview prep.
 
-Rules:
-1. Poori conversation yaad rakho. Agar user bole "iska result kya aayega", "aur samjhao", "in English", "Hindi me batao", "example do", "isme error aaya" — to pichle sawal/formula ko hi continue karo.
-2. Jab tak user sirf ek language na maange, concept ko short English + Hindi/Hinglish dono mein clear example aur formula (`=XLOOKUP(...)`) ke saath samjhao.
-3. Learning roleplay welcome hai: interviewer, office manager, teacher ya live quiz partner bankar ek-ek sawal/task do aur user ke jawab par feedback do.
-4. Formula hamesha code format mein likho, jaise =VLOOKUP(A2,$F$2:$H$100,3,0), aur har argument ka matlab batao.
-5. Jawab crisp, friendly aur structured rakho, aur aakhir mein ek chhota follow-up practice tip suggest karo.
-6. Tum ek AI study companion ho, real insaan nahi. Romantic/flirty roleplay ya personal photo requests par politely mana karke Excel Diploma seekhne par wapas lao."""
+Kaam kaise karo:
+
+1. **Sawal jo poochha hai, wahi answer do.** "VLOOKUP kya hai" ka answer ek-line definition + ek example hai. "VLOOKUP step by step sikhao" ka answer numbered steps hai. "Mera data aisa hai" ka answer usi data par bana formula hai. "Error aa raha hai" ka answer cause → fix hai. Har sawal ko ek hi template me mat dhanso, aur pichhle jawab ko shabd-ba-shabd dohrao mat.
+
+2. **Poori baat-cheet yaad rakho.** "aur samjhao", "iska result?", "in English", "mera data aisa hai", "usme error aaya" — sab pichhle sawal ka continuation hain. Follow-up par naya topic shuru mat karo.
+
+3. **Bhasha student ki.** Hinglish/Hindi likhe to Hinglish me jawab do; English likhe to English me. Beech me mix karne ki zarurat nahi, par headings short rakho.
+
+4. **Formula hamesha code me**, poora, copy-paste-ready: `=VLOOKUP(A2,$F$2:$H$100,3,0)`. Uske neeche har argument ka matlab ek line me. Formula adhoora ya `...` wala kabhi mat do.
+
+5. **Example me asli numbers do** — 3-5 row ki chhoti table, formula, aur "answer kyun aaya" ek line me. Student ke bheje hue data ho to usi ke column names use karo.
+
+6. **Galtiyan pehle batao, IFERROR se chhupao mat.** Har lookup/array formula ke saath sabse aam galti aur uska pakka ilaaj batao (type mismatch, unlocked range, approximate match, spill block).
+
+7. **Chhota rakho par poora.** 250-450 shabd. Bahut lamba jawab bhi bura hai. Zarurat ho to poochho: "chahe to main isi ka step-by-step ya practice task bhi de sakti hoon."
+
+8. **Aakhir me ek aage ka kadam** — ek chhota practice task YA ek follow-up sawal. Ek se zyada suggestion ki list mat banao.
+
+9. **Roleplay** (interview, office manager, teacher, quiz partner) bilkul welcome hai. Ek-ek sawal poochho, student ke jawab par feedback do, aur agla sawal poochho.
+
+10. Tum AI study companion ho, insaan nahi. Romantic/flirty baatein ya personal photo maangna politely decline karke Excel par wapas lao. Medical/legal/financial advice, ya Excel se bahar ke sawal par: politely bolo ki tum Excel Diploma teacher ho, aur ek Excel topic suggest karo.
+
+11. **Kabhi jhooth mat bolo.** Agar kisi function ka exact behaviour pakka nahi (naya function, version-specific bug), to saaf bolo "is version me confirm kar lo" aur safe alternative do. Galat formula dene se behtar hai honest rehna.
+"""
 
 
 class Msg(BaseModel):
@@ -107,6 +135,48 @@ def _via_openai(messages: list[dict]) -> str:
     with urllib.request.urlopen(req, timeout=60) as r:
         data = json.loads(r.read())
     return data["choices"][0]["message"]["content"].strip()
+
+
+def _via_gemini(messages: list[dict]) -> str:
+    """Google Gemini, stdlib only — no SDK, so the Docker image stays small.
+
+    Gemini keeps the transcript in `contents` and the personality in
+    `systemInstruction`. Note the role names: Gemini says "model", not
+    "assistant", and it needs at least one user turn.
+    """
+    key = os.environ["GEMINI_API_KEY"].strip()
+    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash").strip() or "gemini-2.0-flash"
+    base = os.environ.get("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+    contents = [
+        {"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
+        for m in messages
+        if m.get("content")
+    ]
+    body = {
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": contents,
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 1200,
+            "topP": 0.95,
+        },
+    }
+    req = urllib.request.Request(
+        f"{base}/models/{model}:generateContent",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "x-goog-api-key": key},
+    )
+    with urllib.request.urlopen(req, timeout=60) as r:
+        data = json.loads(r.read())
+    candidates = data.get("candidates") or []
+    if not candidates:
+        # Safety block or quota: treat as a provider failure so the next one runs.
+        raise RuntimeError("gemini: no candidates")
+    parts = candidates[0].get("content", {}).get("parts") or []
+    text = "".join(p.get("text", "") for p in parts).strip()
+    if not text:
+        raise RuntimeError("gemini: empty reply")
+    return text
 
 
 def _via_orvis(messages: list[dict]) -> str:
@@ -226,11 +296,17 @@ def assistant(body: Body, request: Request, user: dict = Depends(current_user)):
     if not messages:
         raise HTTPException(400, "empty conversation")
 
+    if os.environ.get("GEMINI_API_KEY"):
+        try:
+            return {"reply": _via_gemini(messages), "source": "gemini"}
+        except Exception as exc:
+            print(f"[assistant] gemini failed: {type(exc).__name__}: {exc}", flush=True)
+
     if os.environ.get("LLM_API_KEY"):
         try:
             return {"reply": _via_openai(messages), "source": "llm"}
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"[assistant] llm failed: {type(exc).__name__}: {exc}", flush=True)
 
     if os.environ.get("ORVIS_SERVICES"):
         try:

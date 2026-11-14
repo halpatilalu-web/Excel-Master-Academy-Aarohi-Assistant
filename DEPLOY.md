@@ -53,6 +53,15 @@ envVars:
 
 Render → service → **Environment**:
 
+**Sabse aasan (free tier):** Google AI Studio se ek Gemini key banao aur sirf ye do lines daalo:
+
+```text
+GEMINI_API_KEY=AIza...
+GEMINI_MODEL=gemini-2.0-flash
+```
+
+**Ya koi bhi OpenAI-compatible provider** (OpenAI, Groq, OpenRouter, Ollama…):
+
 ```text
 LLM_API_KEY=sk-...
 LLM_BASE_URL=https://api.openai.com/v1
@@ -60,7 +69,11 @@ LLM_MODEL=gpt-4o-mini
 ```
 
 Key sirf Render ke environment me rakho — code, `.env` ya GitHub me kabhi nahi.
-Key na ho to Aarohi built-in offline Excel tutor se jawab deti hai (koi error nahi).
+Key na ho to Aarohi apne built-in brain (`src/lib/aarohi`) se jawab deti hai — koi
+error nahi, bas open-ended sawalon ka jawab thoda kam open hoga.
+
+Order: **Gemini → OpenAI-compatible → Orvis → built-in brain.** Ek provider fail
+ho to server agla try karta hai aur log me likhta hai kaunsa fail hua.
 
 `/api/assistant` rate limited hai (20/min per user, 40/min per IP, 120/min per
 process). Guest account banana free hai, isliye bina limit ke key ka paisa ud
@@ -138,7 +151,7 @@ hona chahiye (`chown -R 10001 /host/path`).
 | App khulta hai, data save nahi hota | `APP_DB_PATH` writable hai? Health endpoint 503 de raha hai? Disk mount hua? |
 | Login ke baad har request 401 | HTTPS par ho? Cookie `Secure` hai; `APP_ALLOWED_ORIGINS` sahi hai? |
 | Writes par 403 `cross-origin request blocked` | Browser ka origin app ke host se alag hai — `APP_ALLOWED_ORIGINS` set karo |
-| Aarohi har baar offline tutor se jawab deti hai | `LLM_API_KEY` set hai? Server logs me `[assistant] upstream failure` dekho |
+| Aarohi har baar offline tutor se jawab deti hai | `GEMINI_API_KEY` ya `LLM_API_KEY` set hai? Server logs me `[assistant] gemini failed` / `[assistant] llm failed` dekho |
 | 429 on login | Us (IP, email) par 5 galat attempts — ek minute ruko |
 | 429 on guest | Ek IP se 10 guests/minute ki limit hai — wait karo |
 | Build me `tsc` fail | `pnpm typecheck` locally chalao; CI bhi yahi check karta hai |

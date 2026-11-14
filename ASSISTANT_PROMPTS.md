@@ -4,31 +4,69 @@ Aarohi is implemented in the main app. There is no separate add-on copy to keep 
 
 ## Where things live
 
-- System prompt and online model call: `server/assistant.py` (`SYSTEM_PROMPT`, `POST /api/assistant`)
-- Browser client + Web Speech helpers: `src/lib/assistant.ts`
-- Chat UI: `src/views/Aarohi.tsx`
-- Offline Excel fallback: `src/data/tutor.ts` (`aarohiReply`, `SUGGESTIONS`)
+| Piece | File | What it does |
+|---|---|---|
+| Brain (offline teacher) | `src/lib/aarohi/brain.ts` | Reads the question's intent, composes the answer |
+| Intent reader | `src/lib/aarohi/intent.ts` | Is this a definition, how-to, error, example, comparison, practice, follow-up… |
+| Knowledge base | `src/data/aarohi/*.ts` | 35 concepts, each with steps, real examples, mistakes, practice |
+| Orchestrator | `src/lib/aarohi/respond.ts` | Brain first, model for open questions, brain as fallback |
+| Message renderer | `src/components/AssistantText.tsx` | Tables, formula blocks with copy, numbered step cards |
+| Chat UI | `src/views/Aarohi.tsx`, `src/components/FloatingAssistant.tsx` | Both surfaces use the same orchestrator |
+| Server endpoint | `server/assistant.py` | `POST /api/assistant` → Gemini / OpenAI-compatible / Orvis / built-in |
+| Last-resort tutor | `src/data/tutor.ts` (`aarohiReply`) | Synchronous one-liners if the brain chunk cannot load |
 
-## Behaviour
+## Why the brain exists
 
-- The endpoint requires the app's guest/account session.
-- Only the last 20 messages are sent, each capped at 4,000 characters, and the
-  whole payload is trimmed to ~24,000 characters before it leaves the server.
-- **Cost limits** (`server/assistant.py`): 20 requests/minute per user,
-  40/minute per IP and 120/minute per process. Guest accounts are free to create,
-  so limits are per-IP as well as per-account; without them a script could spend
-  the owner's LLM budget. 429s carry `Retry-After`.
-- Upstream failures return a friendly 502 (`Aarohi abhi online nahi hai…`) and log
-  the real exception server-side; the UI silently falls back to the offline tutor.
-- Chat history is kept in browser `localStorage` (`aarohi_excel_chat_v4`) and can be
-  cleared from the UI; the chosen avatar scene is saved under
-  `aarohi_avatar_scene_v1`. Both are **per student**: signing in as a different
-  account (or signing out) clears them, because classroom machines are shared.
-- Speech-to-text uses the browser Web Speech API (`hi-IN`) when available.
-- Text-to-speech uses `speechSynthesis`, strips code/markdown/emoji before
-  speaking, picks a Hindi voice (waiting for `voiceschanged` if the list is still
-  loading) and cancels previous speech when a new question is asked.
-- Without `LLM_API_KEY`/Orvis AI, the UI automatically falls back to the offline tutor data.
-- Aarohi is an Excel study companion. Romantic roleplay and personal-photo
-  generation are intentionally out of scope for this student app; the system
-  prompt redirects those requests back to Excel practice.
+The old tutor matched a keyword and printed one fixed paragraph. "VLOOKUP kya hai",
+"VLOOKUP step by step sikhao", "isme #N/A kyun aaya" and "A2 par kya hoga" all
+returned the same text, and a follow-up returned it again. The brain fixes that by
+reading the **intent** first and composing from parts:
+
+- **define** → what it is, the mental model, syntax, one worked example, practice
+- **howto** → numbered steps in Excel's own order, then every argument, then an example
+- **example** → a small sheet with real numbers, the formula, the result, and why
+- **debug** → symptom → cause → fix (matched to the error code the student typed)
+- **compare** → both concepts side by side, when to use which, both syntaxes
+- **practice** → a task built from the concept's own practice line
+- **follow-up** ("aur samjhao") → continues the previous topic instead of restarting
+
+A pasted table (`Name | Sales …`) or a pasted formula (`=VLOOKUP(...)`) is used
+literally in the answer, so the reply is about the student's own data.
+
+## Answer sources, in order
+
+1. **Brain** — instant, free, offline. Used whenever it recognises the topic
+   (`confident !== false`).
+2. **Online model** — only for questions the brain flags as unsure. Configure one:
+   - `GEMINI_API_KEY` (free tier) → `GEMINI_MODEL` (default `gemini-2.0-flash`)
+   - `LLM_API_KEY` + optional `LLM_BASE_URL` / `LLM_MODEL` (any OpenAI-compatible API)
+   - Orvis (`ORVIS_SERVICES`)
+3. **Brain text with an "offline" badge** — if the endpoint fails. The chat never
+   goes empty.
+
+The server logs which provider failed and tries the next one, so one dead provider
+never takes Aarohi down.
+
+## Bundle cost
+
+The brain is ~104 kB raw / 37 kB gzip, so it is a **lazy chunk**
+(`dist/assets/brain-*.js`), loaded on the first question and cached by the service
+worker afterwards. The entry bundle grew only ~6 kB gzip, and the home page does not
+download the brain at all.
+
+## Cost / abuse limits (unchanged)
+
+- 20 requests/minute per user, 40/minute per IP, 120/minute per process
+- Last 20 messages, each capped at 4,000 characters, ~24,000 characters total
+- 429s carry `Retry-After`; upstream failures return a friendly 502 and log the real error
+
+## Student-facing behaviour that must not regress
+
+- Chat history in `localStorage` (`aarohi_excel_chat_v5`), cleared per student so
+  classroom machines do not leak conversations.
+- Voice: Web Speech for input (`hi-IN`), `speechSynthesis` for output, with markdown
+  and emoji stripped before speaking.
+- Aarohi is a study companion: personal-photo and romantic requests are declined and
+  redirected to Excel. Off-topic questions get an honest "I teach Excel" answer.
+- She never invents a formula. Unknown functions produce an honest method-level
+  answer and a request for the function name.

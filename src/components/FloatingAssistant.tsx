@@ -1,20 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Maximize2, Mic, Send, Sparkles, Volume2, VolumeX, X } from "lucide-react";
-import { aarohiReply, SUGGESTIONS } from "../data/tutor";
-import {
-  askAssistant,
-  canListen,
-  canSpeak,
-  listen,
-  speak,
-  stopSpeaking,
-  type ChatMsg,
-} from "../lib/assistant";
+import { STARTER_CHIPS, respond, type Turn } from "../lib/aarohi/respond";
+import { AssistantText } from "./AssistantText";
+import { canListen, canSpeak, listen, speak, stopSpeaking } from "../lib/assistant";
 
 interface Msg {
   from: "me" | "bot";
   text: string;
+  chips?: string[];
+  source?: "brain" | "online";
 }
 
 const WELCOME: Msg = {
@@ -56,30 +51,22 @@ export function FloatingAssistant({
     setDraft("");
     setTyping(true);
 
-    const payload: ChatMsg[] = nextHistory.slice(-14).map((m) => ({
-      role: m.from === "me" ? "user" : "assistant",
-      content: m.text,
-    }));
+    const before: Turn[] = nextHistory.slice(0, -1).map((m) => ({ from: m.from, text: m.text }));
 
-    let reply: string;
+    let reply: Msg;
     try {
-      reply = await askAssistant(payload);
+      const answer = await respond(text, { history: before });
+      reply = { from: "bot", text: answer.text, chips: answer.chips, source: answer.source };
     } catch {
-      const lastUser =
-        [...nextHistory]
-          .reverse()
-          .slice(1)
-          .find((m) => m.from === "me")?.text || "";
-      const q = text.split(/\s+/).length < 6 && lastUser ? `${lastUser} ${text}` : text;
-      reply = aarohiReply(
-        q,
-        nextHistory.map((m) => m.text),
-      );
+      reply = {
+        from: "bot",
+        text: "Kuch technical dikkat aa gayi — ek baar dobara poochho, ya formula ka naam likho (jaise `VLOOKUP`).",
+      };
     }
 
-    setMsgs((cur) => [...cur, { from: "bot", text: reply }]);
+    setMsgs((cur) => [...cur, reply]);
     setTyping(false);
-    if (voiceOn) speak(reply);
+    if (voiceOn) speak(reply.text);
   }
 
   useEffect(() => {
@@ -213,13 +200,13 @@ export function FloatingAssistant({
                     />
                   )}
                   <div
-                    className={`max-w-[84%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 leading-relaxed ${
+                    className={`max-w-[86%] rounded-2xl px-3.5 py-2.5 leading-relaxed ${
                       m.from === "me"
-                        ? "bg-(--color-accent) text-white"
+                        ? "bg-(--color-accent) text-white whitespace-pre-wrap"
                         : "bg-(--color-accent-soft)"
                     }`}
                   >
-                    {m.text}
+                    {m.from === "me" ? m.text : <AssistantText text={m.text} />}
                   </div>
                 </div>
               ))}
@@ -231,7 +218,9 @@ export function FloatingAssistant({
 
             {/* Quick Prompts */}
             <div className="px-3 pb-2 flex gap-1.5 overflow-x-auto">
-              {SUGGESTIONS.slice(0, 4).map((s) => (
+              {([...msgs].reverse().find((m) => m.from === "bot" && m.chips?.length)?.chips ?? STARTER_CHIPS)
+                .slice(0, 4)
+                .map((s) => (
                 <button
                   key={s}
                   type="button"

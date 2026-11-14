@@ -1,5 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Search, Star } from "lucide-react";
+import {
+  BarChart3,
+  Check,
+  Copy,
+  Database,
+  Hash,
+  Layers,
+  Search,
+  Sigma,
+  Sparkles,
+  Star,
+  Type as TypeIcon,
+  Zap,
+} from "lucide-react";
 import { copyText } from "../lib/clipboard";
 import { CHAPTERS } from "../data/chapters";
 import { FORMULAS, FORMULA_CATS, FORMULA_COMPARISONS } from "../data/formulas";
@@ -9,6 +22,22 @@ import { Bilingual } from "../lib/lang";
 import { Card, Pill, inputCls } from "../components/ui";
 
 export type RefTab = "formulas" | "shortcuts" | "vba" | "compare";
+
+/**
+ * One tile per formula category. Icons and counts only — the colours come from
+ * the existing tokens, so the lavender/neumorphic theme is untouched.
+ */
+const CAT_META: Record<string, { icon: typeof Sigma; hint: string }> = {
+  Math: { icon: Sigma, hint: "SUM, ROUND, ABS" },
+  Logical: { icon: Layers, hint: "IF, IFS, AND" },
+  Text: { icon: TypeIcon, hint: "TRIM, LEFT, MID" },
+  Date: { icon: Hash, hint: "EOMONTH, DATEDIF" },
+  Lookup: { icon: Search, hint: "VLOOKUP, XLOOKUP" },
+  Statistical: { icon: BarChart3, hint: "AVERAGE, MEDIAN" },
+  Financial: { icon: Zap, hint: "PMT, NPV, IRR" },
+  "Dynamic Arrays": { icon: Sparkles, hint: "FILTER, UNIQUE" },
+  Database: { icon: Database, hint: "DSUM, DGET" },
+};
 
 function CopyBtn({ text }: { text: string }) {
   const [ok, setOk] = useState(false);
@@ -113,6 +142,36 @@ export function Reference({ tab, go, onTab, initialQuery = "" }: { tab: RefTab; 
           </button>
         ))}
       </div>
+      {tab === "formulas" && !q && cat === "All" && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {FORMULA_CATS.map((c) => {
+            const meta = CAT_META[c] ?? { icon: Sigma, hint: "" };
+            const Icon = meta.icon;
+            const count = FORMULAS.filter((f) => f.cat === c).length;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCat(c)}
+                aria-label={`${c} formulas (${count})`}
+                className="text-left rounded-2xl neu-btn p-3 transition hover:bg-(--color-accent-soft)"
+              >
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-(--color-accent-soft) text-(--color-accent-dark)">
+                  <Icon size={17} />
+                </span>
+                <span className="mt-2 block text-xs font-bold leading-tight">{c}</span>
+                <span className="block text-[11px] text-(--color-muted)">
+                  {count} formulas
+                </span>
+                {meta.hint && (
+                  <span className="mt-0.5 block text-[10px] text-(--color-muted)/80 truncate">{meta.hint}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="relative">
         <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-(--color-muted)" />
         <input className={`${inputCls} !pl-10`} placeholder={tab === "formulas" ? "Formula dhoondho (jaise VLOOKUP, round, date)…" : tab === "shortcuts" ? "Shortcut dhoondho (jaise Ctrl+C, filter, pivot)…" : "VBA code dhoondho (jaise loop, pdf, sort)…"} value={q} onChange={(e) => setQ(e.target.value)} />

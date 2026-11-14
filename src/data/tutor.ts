@@ -229,9 +229,29 @@ export const SUGGESTIONS = [
   "Quiz lo — test my Excel!",
 ];
 
-export function aarohiReply(input: string, historyTexts: string[] = []): string {
+export function aarohiReply(
+  input: string,
+  historyTexts: string[] = [],
+  /** Optional: the real conversation, so the brain can continue a follow-up. */
+  history?: { from: "me" | "bot"; text: string }[],
+): string {
   const raw = input.trim();
-  const t = raw.toLowerCase();
+  let t = raw.toLowerCase();
+
+  // A bare follow-up ("aur samjhao", "in English") is matched against the
+  // previous question instead of falling through to the generic welcome. The
+  // brain does this properly with intent; this keeps the synchronous fallback
+  // (brain chunk not loaded) usable for a follow-up too.
+  if (raw.split(/\s+/).length <= 5 && history?.length) {
+    // Skip the current question if the caller already appended it to `history`.
+    const previous = [...history]
+      .reverse()
+      .find((m) => m.from === "me" && m.text.trim() && m.text.trim().toLowerCase() !== t);
+    if (previous) t = `${previous.text.toLowerCase()} ${t}`;
+  } else if (raw.split(/\s+/).length <= 5 && historyTexts.length) {
+    const previous = [...historyTexts].reverse().find((m) => m.trim() && m.trim().toLowerCase() !== t);
+    if (previous) t = `${previous.toLowerCase()} ${t}`;
+  }
 
   // Structured 5-part AI Automation Prompt handler (from ProToolkit!)
   if (t.includes("i have an excel workbook named")) {
@@ -274,7 +294,10 @@ export function aarohiReply(input: string, historyTexts: string[] = []): string 
     ].join("\n");
   }
 
-  // Match rich bilingual KB entries
+  // The rich one-liners in `KB` are now the SAFETY NET only: the real teaching
+  // happens in the brain (`src/lib/aarohi`), which `respond()` loads lazily and
+  // prefers. This stays synchronous so a chat can always answer something, even
+  // if the brain chunk failed to download.
   const hits = KB.filter((e) => e.keys.some((k) => t.includes(k)));
   if (hits.length) {
     hits.sort(
@@ -283,7 +306,8 @@ export function aarohiReply(input: string, historyTexts: string[] = []): string 
         Math.max(...a.keys.filter((k) => t.includes(k)).map((k) => k.length)),
     );
     const best = hits[0];
-    return `${best.en}\n\n${best.hi}\n\n${best.example}\n\n👉 *${best.followUp}*`;
+    const followUp = history?.length ? "" : `\n\n👉 *${best.followUp}*`;
+    return `${best.en}\n\n${best.hi}\n\n${best.example}${followUp}`;
   }
 
   // Search 249 Formulas library!
@@ -320,8 +344,10 @@ export function aarohiReply(input: string, historyTexts: string[] = []): string 
     }
   }
 
-  // Search all 40 Diploma Chapters with Bilingual notes!
-  const words = t.split(/\W+/).filter((w) => w.length > 2);
+  // Search all 40 Diploma Chapters with Bilingual notes. Only the CURRENT
+  // message is used here: matching chapter intros against carried-over history
+  // makes almost every question look like "Excel Introduction".
+  const words = raw.toLowerCase().split(/\W+/).filter((w) => w.length > 2);
   const ch = CHAPTERS.find((c) => {
     const rich = getChapterRich(c.n);
     const hay = `${c.title} ${c.intro} ${rich.enIntro}`.toLowerCase();
