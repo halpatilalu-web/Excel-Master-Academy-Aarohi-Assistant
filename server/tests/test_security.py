@@ -128,6 +128,72 @@ def test_assistant_builtin_bilingual_reply(guest: TestClient) -> None:
     assert body["source"] == "builtin"
 
 
+def test_assistant_uses_gemini_when_a_key_is_configured(guest: TestClient, monkeypatch) -> None:
+    """With GEMINI_API_KEY set, the reply must come from Gemini — and the request
+    must look like Gemini's API, not OpenAI's. No real network call is made."""
+    import json as _json
+
+    import assistant as assistant_module
+
+    seen: dict = {}
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return _json.dumps(
+                {"candidates": [{"content": {"parts": [{"text": "Gemini ka jawab: =XLOOKUP(...)"}]}}]}
+            ).encode()
+
+    def fake_urlopen(request, timeout=0):
+        seen["url"] = request.full_url
+        seen["headers"] = dict(request.header_items())
+        seen["body"] = _json.loads(request.data)
+        return _Response()
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(assistant_module.urllib.request, "urlopen", fake_urlopen)
+
+    response = guest.post(
+        "/api/assistant",
+        json={
+            "messages": [
+                {"role": "user", "content": "VLOOKUP samjhao"},
+                {"role": "assistant", "content": "Ye raha…"},
+                {"role": "user", "content": "iska #N/A kyun aaya"},
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"reply": "Gemini ka jawab: =XLOOKUP(...)", "source": "gemini"}
+    assert "generateContent" in seen["url"]
+    assert "test-key" in str(seen["headers"])
+    # The system prompt is sent as instructions, and the transcript keeps order.
+    assert "Aarohi" in seen["body"]["systemInstruction"]["parts"][0]["text"]
+    assert [c["role"] for c in seen["body"]["contents"]] == ["user", "model", "user"]
+
+
+def test_assistant_falls_back_to_builtin_when_gemini_fails(guest: TestClient, monkeypatch) -> None:
+    """A provider outage must not empty the chat: the built-in tutor answers."""
+    import assistant as assistant_module
+
+    def boom(*_args, **_kwargs):
+        raise OSError("network down")
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(assistant_module.urllib.request, "urlopen", boom)
+
+    response = guest.post("/api/assistant", json={"messages": [{"role": "user", "content": "XLOOKUP samjhao"}]})
+    assert response.status_code == 200
+    assert response.json()["source"] == "builtin"
+    assert "XLOOKUP" in response.json()["reply"]
+
+
 def test_security_headers_are_set(client: TestClient) -> None:
     response = client.get("/api/health")
     assert response.headers["X-Content-Type-Options"] == "nosniff"

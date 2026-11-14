@@ -95,7 +95,8 @@ Backend variables are read from the process environment and `server/.env`
 | `WEB_PORT` / `HOST` | Vite dev port (default `5173`) / bind address (default `0.0.0.0`) |
 | `APP_DB_PATH` | SQLite path override (default `server/data.db`) |
 | `APP_ALLOWED_ORIGINS` | Extra origins allowed to send cookie-authenticated writes (comma separated) |
-| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | Optional OpenAI-compatible key for Aarohi |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Optional Google Gemini key for Aarohi (free tier available) |
+| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | Optional any-OpenAI-compatible key for Aarohi |
 | `ORVIS_API_URL`, `ORVIS_APP_ID`, `ORVIS_SECRET_KEY`, `ORVIS_SERVICES` | Optional Orvis platform connection |
 | `PAYMENTS_SERVER_PRICE_MINOR` | With the `payments` service: always charge this amount instead of the browser's |
 | `DEMO_ENABLED`, `DEMO_EMAIL`, `DEMO_PASSWORD` | Optional demo login; password has no default and must be 8+ chars |
