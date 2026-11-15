@@ -4,6 +4,7 @@ import {
   Bot,
   Mic,
   Send,
+  Settings2,
   Sparkles,
   Trash2,
   Volume2,
@@ -11,6 +12,8 @@ import {
 } from "lucide-react";
 import { Button, Card, inputCls } from "../components/ui";
 import { AssistantText } from "../components/AssistantText";
+import { AiSettings } from "../components/AiSettings";
+import { activeProvider, describeProvider, loadConfig, type AiConfig } from "../lib/aarohi/provider";
 import { respond, STARTER_CHIPS, type Turn } from "../lib/aarohi/respond";
 import {
   canListen,
@@ -27,6 +30,7 @@ interface Msg {
   /** "brain" answers come from the built-in tutor; "online" from the model. */
   source?: "brain" | "online";
   degraded?: boolean;
+  error?: string;
 }
 
 const HELLO: Msg = {
@@ -91,6 +95,8 @@ export function Aarohi() {
   const [typing, setTyping] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
+  const [aiConfig, setAiConfig] = useState<AiConfig>(loadConfig);
+  const [aiOpen, setAiOpen] = useState(false);
   const recRef = useRef<{ stop(): void } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const voiceOnRef = useRef(voiceOn);
@@ -128,13 +134,14 @@ export function Aarohi() {
 
     let reply: Msg;
     try {
-      const answer = await respond(text, { history: before });
+      const answer = await respond(text, { history: before, config: aiConfig });
       reply = {
         from: "bot",
         text: answer.text,
         chips: answer.chips,
         source: answer.source,
         degraded: answer.degraded,
+        error: answer.error,
       };
     } catch {
       reply = {
@@ -213,6 +220,16 @@ export function Aarohi() {
                 </p>
               </div>
               <div className="flex shrink-0 gap-1.5">
+                <button
+                  type="button"
+                  title="Aarohi ka AI settings"
+                  aria-label="Aarohi ka AI settings"
+                  aria-expanded={aiOpen}
+                  onClick={() => setAiOpen((open) => !open)}
+                  className={`p-2 rounded-full neu-btn ${aiOpen ? "text-(--color-accent)" : ""}`}
+                >
+                  <Settings2 size={17} />
+                </button>
                 {canSpeak && (
                   <button
                     type="button"
@@ -242,10 +259,18 @@ export function Aarohi() {
 
             <div className="mt-2.5 flex flex-wrap gap-1.5 text-[11px]">
               <span className="inline-flex items-center gap-1 rounded-full bg-(--color-accent-soft) px-2.5 py-1 font-semibold">
-                <Bot size={11} /> 17 topics · step-by-step
+                <Bot size={11} /> 27 topics · step-by-step
               </span>
               <span className="rounded-full bg-(--color-accent-soft) px-2.5 py-1 font-semibold">Follow-up yaad</span>
-              <span className="rounded-full bg-(--color-accent-soft) px-2.5 py-1 font-semibold">Hindi + English</span>
+              <span
+                className={`rounded-full px-2.5 py-1 font-semibold ${
+                  activeProvider(aiConfig) === "server"
+                    ? "bg-(--color-accent-soft)"
+                    : "bg-(--color-accent) text-white"
+                }`}
+              >
+                {describeProvider(aiConfig)}
+              </span>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
@@ -276,6 +301,12 @@ export function Aarohi() {
           </div>
         </div>
       </Card>
+
+      {aiOpen && (
+        <Card className="!p-3.5">
+          <AiSettings onClose={() => setAiOpen(false)} />
+        </Card>
+      )}
 
       {/* ---------------- Chat ---------------- */}
       <Card className="!p-0 flex flex-col h-[62vh] min-h-[380px] overflow-hidden">
@@ -313,7 +344,9 @@ export function Aarohi() {
                         <AssistantText text={message.text} />
                         {message.degraded && (
                           <p className="mt-2 text-[11px] text-(--color-muted)">
-                            Offline notes se jawab — online AI abhi uplabdh nahi.
+                            {message.error
+                              ? `AI se connect nahi hua: ${message.error} — upar ⚙️ se key check karo.`
+                              : "Offline notes se jawab — online AI abhi uplabdh nahi."}
                           </p>
                         )}
                       </>

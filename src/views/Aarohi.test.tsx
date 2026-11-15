@@ -10,6 +10,7 @@
 import { cleanup, configure, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Aarohi } from "./Aarohi";
+import { DEFAULT_CONFIG } from "../lib/aarohi/provider";
 
 configure({ asyncUtilTimeout: 5000 });
 
@@ -132,5 +133,62 @@ describe("Aarohi chat", () => {
     await waitFor(() => expect(lastAnswer()).toContain("Pivot"));
     fireEvent.click(screen.getByRole("button", { name: /Chat saaf karo/i }));
     await waitFor(() => expect(screen.queryByText(/Pivot Table —/)).toBeNull());
+  });
+});
+
+describe("Aarohi AI settings", () => {
+  it("opens the panel and saves a key without showing it back", async () => {
+    offlineFetch();
+    render(<Aarohi />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Aarohi ka AI settings/i }));
+
+    const key = screen.getByLabelText(/Gemini API key/i) as HTMLInputElement;
+    // A key typed here must be a password field by default.
+    expect(key.type).toBe("password");
+    fireEvent.change(key, { target: { value: "AIzaSECRET123" } });
+
+    // Saved, described by name, but never printed.
+    expect(screen.getByText(/saved/i)).toBeTruthy();
+    expect(document.body.textContent).not.toContain("AIzaSECRET123");
+    expect(localStorage.getItem("aarohi_ai_config_v1")).toContain("AIzaSECRET123");
+  });
+
+  it("shows a clear error when the key is rejected by the provider", async () => {
+    globalThis.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ error: { message: "API key not valid." } }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }),
+    ) as unknown as typeof fetch;
+    localStorage.setItem(
+      "aarohi_ai_config_v1",
+      JSON.stringify({ ...DEFAULT_CONFIG, provider: "gemini", geminiKey: "bad" }),
+    );
+
+    render(<Aarohi />);
+    await ask("quantum physics ka Frenet-Serret equation samjhao");
+
+    await waitFor(() => expect(screen.getByText(/AI se connect nahi hua/i)).toBeTruthy());
+    // The student still got a real answer from the brain.
+    expect(lastAnswer().length).toBeGreaterThan(100);
+    // And the provider chip says the key is in use.
+    expect(screen.getAllByText(/Gemini/).length).toBeGreaterThan(0);
+  });
+
+  it("never calls the network when 'sirf built-in' is chosen", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("offline");
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    localStorage.setItem(
+      "aarohi_ai_config_v1",
+      JSON.stringify({ ...DEFAULT_CONFIG, provider: "local", geminiKey: "AIzaX" }),
+    );
+
+    render(<Aarohi />);
+    await ask("quantum physics ka Frenet-Serret equation samjhao");
+    await waitFor(() => expect(lastAnswer().length).toBeGreaterThan(100));
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

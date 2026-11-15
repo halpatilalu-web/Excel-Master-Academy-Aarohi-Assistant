@@ -36,13 +36,36 @@ literally in the answer, so the reply is about the student's own data.
 ## Answer sources, in order
 
 1. **Brain** — instant, free, offline. Used whenever it recognises the topic
-   (`confident !== false`).
-2. **Online model** — only for questions the brain flags as unsure. Configure one:
+   (`confident === true`). No network call is made at all.
+2. **Browser key** (`src/lib/aarohi/provider.ts`) — if a key was pasted in
+   Aarohi → ⚙️, the provider is called **directly from the browser**. This is the
+   only way a static host (GitHub Pages, Vercel) can have a real model, because
+   those deployments have no `/api`. The key sits in `localStorage`
+   (`aarohi_ai_config_v1`) and is cleared when the signed-in account changes.
+3. **App server** — `/api/assistant`. The key lives in the server environment and
+   never reaches the browser. Configure one:
    - `GEMINI_API_KEY` (free tier) → `GEMINI_MODEL` (default `gemini-2.0-flash`)
    - `LLM_API_KEY` + optional `LLM_BASE_URL` / `LLM_MODEL` (any OpenAI-compatible API)
    - Orvis (`ORVIS_SERVICES`)
-3. **Brain text with an "offline" badge** — if the endpoint fails. The chat never
-   goes empty.
+4. **Brain text with an "offline" badge** and the actual reason — if the provider
+   fails (bad key, quota, blocked, no network). The chat never goes empty, and the
+   message says what to fix instead of a generic "unavailable".
+
+The provider picker has four modes: **Auto** (browser key if present, else
+server), **Gemini**, **OpenAI-compatible** (base URL + model are editable, so
+Groq/Ollama/OpenRouter work), and **Sirf built-in** (guarantees zero network
+calls).
+
+### Where the key lives — and why it matters
+
+| Deployment | Key location | Reaches the browser? |
+|---|---|---|
+| Docker / Render / local | server env (`GEMINI_API_KEY`) | never |
+| GitHub Pages / Vercel | `localStorage` via ⚙️ | yes — by design, there is no server |
+
+Because a classroom machine is shared, `aarohi_ai_config_v1` is in
+`USER_SCOPED_KEYS` (`src/lib/prefs.ts`): signing in as someone else, or signing
+out, removes the pasted key.
 
 The server logs which provider failed and tries the next one, so one dead provider
 never takes Aarohi down.

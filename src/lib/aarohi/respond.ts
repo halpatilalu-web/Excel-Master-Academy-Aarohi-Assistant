@@ -15,6 +15,7 @@
 import type { BrainReply, Lang } from "./brain";
 import { aarohiReply } from "../../data/tutor";
 import { askAssistant, type ChatMsg } from "../assistant";
+import { activeProvider, askDirect, loadConfig, type AiConfig } from "./provider";
 
 export interface Turn {
   from: "me" | "bot";
@@ -29,10 +30,14 @@ export interface Reply {
   chips?: string[];
   /** True when the model could not be reached and the offline answer is thin. */
   degraded?: boolean;
+  /** Human-readable reason the model failed, when it did. */
+  error?: string;
 }
 
 export interface RespondOptions {
   lang?: Lang;
+  /** Saved AI settings; read from localStorage when omitted. */
+  config?: AiConfig;
   /** The conversation BEFORE the question, oldest first. */
   history: Turn[];
   /** Set to false to stay strictly offline (static hosts, tests). */
@@ -83,6 +88,40 @@ export async function respond(question: string, options: RespondOptions): Promis
     .slice(-16)
     .map((m) => ({ role: m.from === "me" ? "user" : "assistant", content: m.text }));
 
+  const config: AiConfig = options.config ?? loadConfig();
+
+  // 1. A key saved in this browser (static hosts have no /api at all) — the
+  //    provider is called directly, so it works on GitHub Pages and Vercel.
+  if (activeProvider(config) !== "server") {
+    try {
+      const reply = await askDirect(config, messages);
+      return { text: reply, source: "online", conceptId: brain.conceptId, chips: brain.chips };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "AI se connect nahi ho paya.";
+      return {
+        text: [
+          brain.text,
+          "",
+          `_${message}_`,
+          "",
+          "_Yahan maine apne built-in notes se jawab diya. Aarohi → AI settings me key theek karke dobara poochho._",
+        ].join("\n"),
+        source: "brain",
+        conceptId: brain.conceptId,
+        chips: brain.chips,
+        degraded: true,
+        error: message,
+      };
+    }
+  }
+
+  // 2. "Sirf built-in" means exactly that: no request of any kind, ever.
+  if (config.provider === "local") {
+    return { text: brain.text, source: "brain", conceptId: brain.conceptId, chips: brain.chips };
+  }
+
+  // 3. The app's own server (Docker, Render, local dev), where the key lives in
+  //    the environment and never reaches the browser.
   try {
     const reply = await askAssistant(messages);
     return { text: reply, source: "online", conceptId: brain.conceptId, chips: brain.chips };
