@@ -6,7 +6,7 @@ Works anywhere. Configure ONE of these (server/.env or the host's dashboard):
 
   Google Gemini (free tier available)
     GEMINI_API_KEY=AIza...
-    GEMINI_MODEL=gemini-2.0-flash          (optional, default shown)
+    GEMINI_MODEL=gemini-3.8-flash          (optional; self-heals if retired)
 
   Any OpenAI-compatible provider (OpenAI, Groq, OpenRouter, Ollama, vLLM…)
     LLM_API_KEY=sk-...
@@ -28,7 +28,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
+import urllib.error
 import urllib.request
 from collections import defaultdict, deque
 from typing import Literal
@@ -137,30 +139,44 @@ def _via_openai(messages: list[dict]) -> str:
     return data["choices"][0]["message"]["content"].strip()
 
 
-def _via_gemini(messages: list[dict]) -> str:
-    """Google Gemini, stdlib only — no SDK, so the Docker image stays small.
+# Google retires Gemini models: gemini-2.0-flash was removed and the API now
+# answers "…is no longer available. Please update your code to use
+# models/gemini-3.8-flash". A hardcoded name therefore breaks every chat on a
+# date nobody controls, so the name is resolved at runtime instead.
+DEFAULT_GEMINI_MODEL = os.environ.get("DEFAULT_GEMINI_MODEL", "gemini-3.8-flash")
+GEMINI_FALLBACKS = [
+    "gemini-3.8-flash",
+    "gemini-3-flash",
+    "gemini-3.8-pro",
+    "gemini-3-pro",
+    "gemini-flash-latest",
+    "gemini-pro-latest",
+    "gemini-2.5-flash",
+]
+_gemini_model_cache: dict[str, str] = {}
 
-    Gemini keeps the transcript in `contents` and the personality in
-    `systemInstruction`. Note the role names: Gemini says "model", not
-    "assistant", and it needs at least one user turn.
-    """
-    key = os.environ["GEMINI_API_KEY"].strip()
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash").strip() or "gemini-2.0-flash"
-    base = os.environ.get("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
-    contents = [
-        {"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
-        for m in messages
-        if m.get("content")
-    ]
-    body = {
-        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-        "contents": contents,
-        "generationConfig": {
-            "temperature": 0.7,
-            "maxOutputTokens": 1200,
-            "topP": 0.95,
-        },
-    }
+
+def _gemini_models(key: str, base: str) -> list[str]:
+    """Models this key can actually call, best chat model first."""
+    req = urllib.request.Request(f"{base}/models?pageSize=200", headers={"x-goog-api-key": key})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        data = json.loads(r.read())
+    names = []
+    for model in data.get("models") or []:
+        if "generateContent" not in (model.get("supportedGenerationMethods") or []):
+            continue
+        name = str(model.get("name", "")).removeprefix("models/")
+        if not name or "gemini" not in name.lower():
+            continue
+        if any(skip in name.lower() for skip in ("embedding", "aqa", "imagen", "tts", "live")):
+            continue
+        names.append(name)
+    # Cheap and fast first: flash before pro, newest version number first.
+    names.sort(key=lambda n: (0 if "flash" in n else 1, -len(n)))
+    return list(dict.fromkeys(names))
+
+
+def _gemini_call(base: str, key: str, model: str, body: dict) -> str:
     req = urllib.request.Request(
         f"{base}/models/{model}:generateContent",
         data=json.dumps(body).encode(),
@@ -170,13 +186,74 @@ def _via_gemini(messages: list[dict]) -> str:
         data = json.loads(r.read())
     candidates = data.get("candidates") or []
     if not candidates:
-        # Safety block or quota: treat as a provider failure so the next one runs.
-        raise RuntimeError("gemini: no candidates")
-    parts = candidates[0].get("content", {}).get("parts") or []
-    text = "".join(p.get("text", "") for p in parts).strip()
+        raise RuntimeError(f"gemini({model}): no candidates")
+    text = "".join(p.get("text", "") for p in (candidates[0].get("content", {}).get("parts") or [])).strip()
     if not text:
-        raise RuntimeError("gemini: empty reply")
+        raise RuntimeError(f"gemini({model}): empty reply")
     return text
+
+
+def _via_gemini(messages: list[dict]) -> str:
+    """Google Gemini, stdlib only — no SDK, so the Docker image stays small.
+
+    Gemini keeps the transcript in `contents` and the personality in
+    `systemInstruction`. Note the role names: Gemini says "model", not
+    "assistant", and it needs at least one user turn.
+
+    A retired model heals itself: the configured name, then the replacement
+    Google names in its own error, then whatever the key can use, then the
+    shipped fallbacks. The working model is remembered per process.
+    """
+    key = os.environ["GEMINI_API_KEY"].strip()
+    base = os.environ.get("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+    body = {
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": [
+            {"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
+            for m in messages
+            if m.get("content")
+        ],
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1200, "topP": 0.95},
+    }
+
+    configured = os.environ.get("GEMINI_MODEL", "").strip()
+    queue = [configured or _gemini_model_cache.get("working") or DEFAULT_GEMINI_MODEL]
+    tried: list[str] = []
+    last: Exception | None = None
+
+    while queue:
+        model = queue.pop(0)
+        if not model or model in tried:
+            continue
+        tried.append(model)
+        try:
+            text = _gemini_call(base, key, model, body)
+            _gemini_model_cache["working"] = model
+            return text
+        except urllib.error.HTTPError as exc:
+            try:
+                detail = json.loads(exc.read() or b"{}").get("error", {}).get("message", "")
+            except Exception:  # noqa: BLE001 - a non-JSON error body is still an error
+                detail = ""
+            last = exc
+            retired = exc.code == 404 or "no longer available" in detail.lower() or "not found" in detail.lower()
+            if not retired:
+                raise RuntimeError(f"gemini({model}): {detail or exc.code}") from exc
+            match = re.search(r"use\s+(?:the\s+)?models/([\w.-]+)", detail, re.I)
+            if match and match.group(1) not in tried:
+                queue.insert(0, match.group(1))
+            if not _gemini_model_cache.get("discovered"):
+                try:
+                    _gemini_model_cache["discovered"] = "1"
+                    queue.extend([n for n in _gemini_models(key, base) if n not in tried])
+                except Exception:  # noqa: BLE001 - discovery is best effort
+                    pass
+            queue.extend([n for n in GEMINI_FALLBACKS if n not in tried])
+        except Exception as exc:  # noqa: BLE001 - network/JSON failures fall through to the next provider
+            last = exc
+            break
+
+    raise RuntimeError(f"gemini: {last}")
 
 
 def _via_orvis(messages: list[dict]) -> str:

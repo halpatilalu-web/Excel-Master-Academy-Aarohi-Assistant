@@ -44,7 +44,7 @@ literally in the answer, so the reply is about the student's own data.
    (`aarohi_ai_config_v1`) and is cleared when the signed-in account changes.
 3. **App server** — `/api/assistant`. The key lives in the server environment and
    never reaches the browser. Configure one:
-   - `GEMINI_API_KEY` (free tier) → `GEMINI_MODEL` (default `gemini-2.0-flash`)
+   - `GEMINI_API_KEY` (free tier) → `GEMINI_MODEL` (optional — see below)
    - `LLM_API_KEY` + optional `LLM_BASE_URL` / `LLM_MODEL` (any OpenAI-compatible API)
    - Orvis (`ORVIS_SERVICES`)
 4. **Brain text with an "offline" badge** and the actual reason — if the provider
@@ -55,6 +55,27 @@ The provider picker has four modes: **Auto** (browser key if present, else
 server), **Gemini**, **OpenAI-compatible** (base URL + model are editable, so
 Groq/Ollama/OpenRouter work), and **Sirf built-in** (guarantees zero network
 calls).
+
+### When Google retires a model
+
+It happened: `gemini-2.0-flash` was removed and the API started answering
+"…is no longer available. Please update your code to use models/gemini-3.8-flash",
+which broke every chat that had a saved model name. Both sides now heal
+themselves, so a retirement is a one-second hiccup instead of an outage:
+
+1. the configured model,
+2. **the model Google names in its own error message** (regex on `models/<name>`),
+3. `GET /v1beta/models` — every model the key can actually use, flash preferred,
+4. `MODEL_FALLBACKS` / `GEMINI_FALLBACKS` shipped with the build.
+
+Only a *retired model* triggers the fallback (`404` or "no longer available").
+A bad key or a quota error fails once, immediately — no stampede.
+
+The panel's model field is a dropdown with an **Auto** option (empty = use the
+default) plus a 🔄 button that lists what the key can use. If a saved model is no
+longer offered, the panel switches to Auto and says so. `describeProvider()` and
+the Test button report the model that **actually answered**, so the UI can never
+claim a retired model is working.
 
 ### Where the key lives — and why it matters
 

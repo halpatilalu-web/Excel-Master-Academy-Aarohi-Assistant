@@ -12,7 +12,13 @@ import {
   activeProvider,
   clearKeys,
   DEFAULT_CONFIG,
+  DEFAULT_GEMINI_MODEL,
   describeProvider,
+  isRetiredModelError,
+  listModels,
+  modelFromMessage,
+  resetWorkingModel,
+  workingModel,
   hasBrowserKey,
   loadConfig,
   saveConfig,
@@ -36,7 +42,10 @@ const geminiConfig = (over: Partial<AiConfig> = {}): AiConfig => ({
   ...over,
 });
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  resetWorkingModel();
+});
 afterEach(() => vi.restoreAllMocks());
 
 describe("saved AI settings", () => {
@@ -87,7 +96,8 @@ describe("direct Gemini calls", () => {
     expect(answer).toContain("Gemini");
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("generativelanguage.googleapis.com");
-    expect(url).toContain("gemini-2.0-flash:generateContent");
+    // The default model is whatever ships in this build, not a hardcoded name.
+    expect(url).toContain(`${DEFAULT_GEMINI_MODEL}:generateContent`);
     expect((init.headers as Record<string, string>)["x-goog-api-key"]).toBe("AIzaTESTKEY");
     const body = JSON.parse(String(init.body));
     expect(body.systemInstruction.parts[0].text).toContain("Aarohi");
@@ -233,5 +243,127 @@ describe("routing between brain, browser key and app server", () => {
 
     expect(result.source).toBe("brain");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("a model Google retires", () => {
+  const RETIRED =
+    "This model models/gemini-2.0-flash is no longer available. Please update your code to use models/gemini-3.8-flash for the latest features and improvements.";
+
+  it("reads the replacement out of Google's own error", () => {
+    expect(modelFromMessage(RETIRED)).toBe("gemini-3.8-flash");
+    expect(modelFromMessage("no suggestion here")).toBeUndefined();
+  });
+
+  it("recognises a retired model, and only that", () => {
+    expect(isRetiredModelError(404, "")).toBe(true);
+    expect(isRetiredModelError(400, RETIRED)).toBe(true);
+    expect(isRetiredModelError(400, "API key not valid. Please pass a valid API key.")).toBe(false);
+    expect(isRetiredModelError(429, "quota exceeded")).toBe(false);
+  });
+
+  it("switches to the model Google named, and remembers it", async () => {
+    const seen: string[] = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("?pageSize")) return reply({ models: [] });
+      const model = /models\/([^:]+):generateContent/.exec(url)?.[1] ?? "";
+      seen.push(model);
+      if (model === "gemini-2.0-flash") return reply({ error: { message: RETIRED } }, 404);
+      void init;
+      return reply(GEMINI_OK);
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    // A saved config from the previous release still asks for 2.0-flash.
+    const result = await respond("quantum physics ka Frenet-Serret equation samjhao", {
+      history: [],
+      config: geminiConfig({ geminiModel: "gemini-2.0-flash" }),
+    });
+
+    expect(result.source).toBe("online");
+    expect(seen).toEqual(["gemini-2.0-flash", "gemini-3.8-flash"]);
+    // The UI now reports the model that really answered.
+    expect(workingModel(geminiConfig({ geminiModel: "gemini-2.0-flash" }))).toBe("gemini-3.8-flash");
+  });
+
+  it("asks the key for its models when Google gives no suggestion", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("?pageSize")) {
+        return reply({
+          models: [
+            { name: "models/gemini-embedding-001", supportedGenerationMethods: ["embedContent"] },
+            { name: "models/gemini-3.8-pro", supportedGenerationMethods: ["generateContent"] },
+            { name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] },
+          ],
+        });
+      }
+      if (url.includes("gemini-1.5-old")) return reply({ error: { message: "not found" } }, 404);
+      return reply(GEMINI_OK);
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await respond("quantum physics ka Frenet-Serret equation samjhao", {
+      history: [],
+      config: geminiConfig({ geminiModel: "gemini-1.5-old" }),
+    });
+
+    // Flash preferred over pro, and the embedding model never tried.
+    expect(workingModel(geminiConfig())).toBe("gemini-3.8-flash");
+  });
+
+  it("lists only chat models the key can use", async () => {
+    globalThis.fetch = vi.fn(async () =>
+      reply({
+        models: [
+          { name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] },
+          { name: "models/gemini-embedding-001", supportedGenerationMethods: ["embedContent"] },
+          { name: "models/imagen-4", supportedGenerationMethods: ["generateContent"] },
+          { name: "models/gemini-tts", supportedGenerationMethods: ["generateContent"] },
+        ],
+      }),
+    ) as unknown as typeof fetch;
+
+    const models = await listModels(geminiConfig());
+    expect(models).toEqual(["gemini-3.8-flash"]);
+  });
+
+  it("defaults to a model that exists today", () => {
+    expect(DEFAULT_GEMINI_MODEL).not.toBe("gemini-2.0-flash");
+    expect(describeProvider({ ...geminiConfig(), geminiModel: "" })).toContain(DEFAULT_GEMINI_MODEL);
+  });
+
+  it("says something actionable when every model is gone", async () => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("?pageSize")) return reply({ models: [] });
+      return reply({ error: { message: RETIRED } }, 404);
+    }) as unknown as typeof fetch;
+
+    const result = await respond("quantum physics ka Frenet-Serret equation samjhao", {
+      history: [],
+      config: geminiConfig({ geminiModel: "gemini-2.0-flash" }),
+    });
+
+    expect(result.source).toBe("brain");
+    expect(result.error).toMatch(/band kar diya|replacement/i);
+    expect(result.text.length).toBeGreaterThan(200);
+  });
+
+  it("does not swallow a real key error as if it were a retired model", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      return reply({ error: { message: "API key not valid. Please pass a valid API key." } }, 400);
+    }) as unknown as typeof fetch;
+
+    const result = await respond("quantum physics ka Frenet-Serret equation samjhao", {
+      history: [],
+      config: geminiConfig({ geminiKey: "bad" }),
+    });
+
+    expect(result.error).toMatch(/key accept/i);
+    // One call, not a stampede through every model.
+    expect(calls.filter((u) => u.includes("generateContent")).length).toBe(1);
   });
 });

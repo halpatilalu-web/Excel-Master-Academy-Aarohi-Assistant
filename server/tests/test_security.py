@@ -178,6 +178,87 @@ def test_assistant_uses_gemini_when_a_key_is_configured(guest: TestClient, monke
     assert [c["role"] for c in seen["body"]["contents"]] == ["user", "model", "user"]
 
 
+def test_assistant_heals_a_retired_gemini_model(guest: TestClient, monkeypatch) -> None:
+    """Google retires models. gemini-2.0-flash was removed; the API answers 404 with
+    the replacement's name. The server must switch by itself instead of failing
+    every chat until someone redeploys."""
+    import io
+    import json as _json
+    import urllib.error
+
+    import assistant as assistant_module
+
+    calls: list[str] = []
+    retired = (
+        "This model models/gemini-2.0-flash is no longer available. "
+        "Please update your code to use models/gemini-3.8-flash for the latest features."
+    )
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return _json.dumps({"candidates": [{"content": {"parts": [{"text": "naya model chal gaya"}]}}]}).encode()
+
+    def fake_urlopen(request, timeout=0):
+        url = request.full_url
+        if "?pageSize" in url:
+            raise urllib.error.HTTPError(url, 404, "no", {}, io.BytesIO(b"{}"))
+        model = url.split("/models/")[1].split(":")[0]
+        calls.append(model)
+        if model == "gemini-2.0-flash":
+            raise urllib.error.HTTPError(
+                url, 404, "Not Found", {}, io.BytesIO(_json.dumps({"error": {"message": retired}}).encode())
+            )
+        return _Response()
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("GEMINI_MODEL", "gemini-2.0-flash")
+    monkeypatch.setattr(assistant_module.urllib.request, "urlopen", fake_urlopen)
+
+    response = guest.post("/api/assistant", json={"messages": [{"role": "user", "content": "VLOOKUP samjhao"}]})
+
+    assert response.status_code == 200
+    assert response.json() == {"reply": "naya model chal gaya", "source": "gemini"}
+    assert calls == ["gemini-2.0-flash", "gemini-3.8-flash"]
+
+
+def test_assistant_does_not_retry_a_bad_key_across_models(guest: TestClient, monkeypatch) -> None:
+    """A rejected key must fail once, not stampede through every model name."""
+    import io
+    import json as _json
+    import urllib.error
+
+    import assistant as assistant_module
+
+    calls: list[str] = []
+
+    def fake_urlopen(request, timeout=0):
+        calls.append(request.full_url)
+        raise urllib.error.HTTPError(
+            request.full_url,
+            400,
+            "Bad Request",
+            {},
+            io.BytesIO(_json.dumps({"error": {"message": "API key not valid. Please pass a valid API key."}}).encode()),
+        )
+
+    monkeypatch.setenv("GEMINI_API_KEY", "bad")
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
+    monkeypatch.setattr(assistant_module.urllib.request, "urlopen", fake_urlopen)
+
+    response = guest.post("/api/assistant", json={"messages": [{"role": "user", "content": "XLOOKUP samjhao"}]})
+
+    # The built-in tutor answers, and only one Gemini request was attempted.
+    assert response.status_code == 200
+    assert response.json()["source"] == "builtin"
+    assert len([u for u in calls if "generateContent" in u]) == 1
+
+
 def test_assistant_falls_back_to_builtin_when_gemini_fails(guest: TestClient, monkeypatch) -> None:
     """A provider outage must not empty the chat: the built-in tutor answers."""
     import assistant as assistant_module
