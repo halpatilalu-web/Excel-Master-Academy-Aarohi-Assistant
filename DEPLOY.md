@@ -79,7 +79,7 @@ Render → service → **Environment**:
 
 ```text
 GEMINI_API_KEY=AIza...
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-3.8-flash   # optional
 ```
 
 **Ya koi bhi OpenAI-compatible provider** (OpenAI, Groq, OpenRouter, Ollama…):

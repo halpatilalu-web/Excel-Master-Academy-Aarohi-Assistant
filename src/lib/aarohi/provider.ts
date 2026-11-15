@@ -24,6 +24,7 @@ export interface AiConfig {
   /** auto = use this browser's key if there is one, else the app server. */
   provider: ProviderId;
   geminiKey: string;
+  /** Empty means "use a known-good default" (`DEFAULT_GEMINI_MODEL`). */
   geminiModel: string;
   openaiKey: string;
   openaiBase: string;
@@ -32,10 +33,33 @@ export interface AiConfig {
 
 const KEY = "aarohi_ai_config_v1";
 
+/**
+ * Google retires models. `gemini-2.0-flash` was removed and the API now answers
+ * "…is no longer available. Please update your code to use gemini-3.8-flash",
+ * which broke every chat with a saved config. So the model is not treated as a
+ * constant any more:
+ *
+ *  - `MODEL_FALLBACKS` is tried in order when a model is retired;
+ *  - `listModels()` asks the key which models it can actually use;
+ *  - `describeProvider()` shows the model that really answered.
+ */
+export const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
+
+export const MODEL_FALLBACKS = [
+  "gemini-3.8-flash",
+  "gemini-3-flash",
+  "gemini-3.8-pro",
+  "gemini-3-pro",
+  "gemini-flash-latest",
+  "gemini-pro-latest",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+];
+
 export const DEFAULT_CONFIG: AiConfig = {
   provider: "auto",
   geminiKey: "",
-  geminiModel: "gemini-2.0-flash",
+  geminiModel: DEFAULT_GEMINI_MODEL,
   openaiKey: "",
   openaiBase: "https://api.openai.com/v1",
   openaiModel: "gpt-4o-mini",
@@ -81,9 +105,27 @@ export function activeProvider(config: AiConfig): "gemini" | "openai" | "server"
   return "server";
 }
 
+/**
+ * The model that actually answered last, so the UI can never claim a retired
+ * model is working. Reset when the key or model field changes.
+ */
+let lastWorkingModel = "";
+
+export function rememberWorkingModel(model: string): void {
+  lastWorkingModel = model;
+}
+
+export function resetWorkingModel(): void {
+  lastWorkingModel = "";
+}
+
+export function workingModel(config: AiConfig): string {
+  return lastWorkingModel || config.geminiModel.trim() || DEFAULT_GEMINI_MODEL;
+}
+
 export function describeProvider(config: AiConfig): string {
   const active = activeProvider(config);
-  if (active === "gemini") return `Gemini · ${config.geminiModel || "gemini-2.0-flash"}`;
+  if (active === "gemini") return `Gemini · ${workingModel(config)}`;
   if (active === "openai") return `Online AI · ${config.openaiModel || "gpt-4o-mini"}`;
   return "App server";
 }
@@ -132,8 +174,72 @@ interface GeminiResponse {
   error?: { message?: string; status?: string };
 }
 
-async function askGemini(config: AiConfig, messages: ChatMsg[], signal?: AbortSignal): Promise<string> {
-  const model = config.geminiModel.trim() || "gemini-2.0-flash";
+interface GeminiModelList {
+  models?: { name?: string; supportedGenerationMethods?: string[]; displayName?: string }[];
+  error?: { message?: string };
+}
+
+/**
+ * The models this key can actually use for `generateContent`.
+ *
+ * Returned newest-first-ish as the API gives them, with the retired ones gone —
+ * this is what makes the panel self-healing instead of a list of names that rot.
+ */
+export async function listModels(config: AiConfig, signal?: AbortSignal): Promise<string[]> {
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {
+    method: "GET",
+    headers: { "x-goog-api-key": config.geminiKey.trim() },
+    signal,
+  });
+  if (!response.ok) {
+    let detail = "";
+    try {
+      detail = ((await response.json()) as GeminiModelList).error?.message ?? "";
+    } catch {
+      /* non-JSON */
+    }
+    throw new ProviderError(detail || `Model list nahi mili (${response.status})`, response.status);
+  }
+  const body = (await response.json()) as GeminiModelList;
+  const usable = (body.models ?? [])
+    .filter((m) => (m.supportedGenerationMethods ?? []).includes("generateContent"))
+    .map((m) => (m.name ?? "").replace(/^models\//, ""))
+    // Chat models only: skip embeddings, TTS, image and vision-only variants.
+    .filter((name) => /gemini/i.test(name) && !/embedding|aqa|imagen|tts|native-audio|live/i.test(name));
+  return [...new Set(usable)];
+}
+
+/**
+ * Google's own message names the replacement, e.g.
+ *   "This model models/gemini-2.0-flash is no longer available. Please update
+ *    your code to use models/gemini-3.8-flash …"
+ * Reading it means we fix ourselves using the vendor's advice, not a guess.
+ */
+export function modelFromMessage(message: string): string | undefined {
+  const match = /use\s+(?:the\s+)?models\/([A-Za-z0-9._-]+)/i.exec(message);
+  return match?.[1];
+}
+
+/** Does this error mean "that model is gone, try another"? */
+export function isRetiredModelError(status: number, message: string): boolean {
+  const text = message.toLowerCase();
+  if (/no longer available|not found|not supported|deprecated|retired|does not exist/.test(text)) return true;
+  return status === 404;
+}
+
+interface GeminiResponse {
+  candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
+  promptFeedback?: { blockReason?: string };
+  error?: { message?: string; status?: string };
+}
+
+/** One request, one model. Throws ProviderError with the vendor's message. */
+async function geminiOnce(
+  config: AiConfig,
+  model: string,
+  messages: ChatMsg[],
+  signal?: AbortSignal,
+): Promise<string> {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
@@ -151,17 +257,15 @@ async function askGemini(config: AiConfig, messages: ChatMsg[], signal?: AbortSi
   if (!response.ok) {
     let detail = "";
     try {
-      const body = (await response.json()) as GeminiResponse;
-      detail = body.error?.message ?? "";
+      detail = ((await response.json()) as GeminiResponse).error?.message ?? "";
     } catch {
       /* non-JSON */
     }
-    // 400 with "API key not valid" is the one people actually hit.
-    if (response.status === 400 || response.status === 403) {
-      throw new ProviderError(
-        detail || "Gemini ne key accept nahi ki — key check karo ya nayi banao.",
-        response.status,
-      );
+    if (response.status === 400 && /api key not valid|api_key_invalid/i.test(detail)) {
+      throw new ProviderError("Gemini ne key accept nahi ki — key check karo ya nayi banao.", response.status);
+    }
+    if (response.status === 403) {
+      throw new ProviderError(detail || "Is key ke paas Gemini ka access nahi hai.", response.status);
     }
     if (response.status === 429) {
       throw new ProviderError("Gemini ka free quota khatam ho gaya — thodi der baad try karo.", 429);
@@ -176,6 +280,66 @@ async function askGemini(config: AiConfig, messages: ChatMsg[], signal?: AbortSi
   const text = (body.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
   if (!text) throw new ProviderError("Gemini ne khali jawab diya.", 0);
   return text;
+}
+
+/**
+ * Ask Gemini, healing a retired model on the way.
+ *
+ * Order: the configured model → the model Google named in its own error → the
+ * list of models this key can use → the built-in fallback list. A retired model
+ * is therefore a one-second hiccup, not a broken chat.
+ */
+async function askGemini(config: AiConfig, messages: ChatMsg[], signal?: AbortSignal): Promise<string> {
+  const wanted = config.geminiModel.trim();
+  const tried: string[] = [];
+  const queue: string[] = wanted ? [wanted] : [DEFAULT_GEMINI_MODEL];
+
+  let lastError: ProviderError | undefined;
+  let discovered: string[] | undefined;
+
+  while (queue.length) {
+    const model = queue.shift() as string;
+    if (tried.includes(model)) continue;
+    tried.push(model);
+    try {
+      const text = await geminiOnce(config, model, messages, signal);
+      rememberWorkingModel(model);
+      return text;
+    } catch (error) {
+      const provider = error instanceof ProviderError ? error : new ProviderError("Gemini se connect nahi hua.");
+      lastError = provider;
+      if (!isRetiredModelError(provider.status, provider.message)) throw provider;
+
+      // 1. Google's own suggestion, first: it is the exact replacement.
+      const suggested = modelFromMessage(provider.message);
+      if (suggested && !tried.includes(suggested)) queue.unshift(suggested);
+
+      // 2. Ask the key what exists. One extra request, only when we are healing.
+      if (!discovered) {
+        try {
+          discovered = await listModels(config, signal);
+        } catch {
+          discovered = [];
+        }
+        // Prefer flash models (cheap/fast) but accept anything usable.
+        discovered
+          .filter((name) => !tried.includes(name))
+          .sort((a, b) => Number(/flash/.test(b)) - Number(/flash/.test(a)))
+          .forEach((name) => queue.push(name));
+      }
+
+      // 3. Last resort: the names shipped with this build.
+      MODEL_FALLBACKS.filter((name) => !tried.includes(name)).forEach((name) => queue.push(name));
+    }
+  }
+
+  const message = lastError?.message ?? "Koi bhi Gemini model kaam nahi kiya.";
+  throw new ProviderError(
+    /no longer available/i.test(message)
+      ? `Google ne ye model band kar diya aur koi replacement nahi mila. Aarohi → ⚙️ me model ka naam khaali karke Test karo — main khud naya chun lungi.`
+      : message,
+    lastError?.status ?? 0,
+  );
 }
 
 async function askOpenAiCompatible(config: AiConfig, messages: ChatMsg[], signal?: AbortSignal): Promise<string> {

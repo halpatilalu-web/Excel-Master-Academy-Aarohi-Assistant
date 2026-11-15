@@ -149,7 +149,9 @@ describe("Aarohi AI settings", () => {
     fireEvent.change(key, { target: { value: "AIzaSECRET123" } });
 
     // Saved, described by name, but never printed.
-    expect(screen.getByText(/saved/i)).toBeTruthy();
+    // The badge sits inside the Gemini block (the OpenAI block has its own).
+    expect(screen.getAllByText(/^saved$/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByLabelText(/Gemini model/i).length).toBe(1);
     expect(document.body.textContent).not.toContain("AIzaSECRET123");
     expect(localStorage.getItem("aarohi_ai_config_v1")).toContain("AIzaSECRET123");
   });

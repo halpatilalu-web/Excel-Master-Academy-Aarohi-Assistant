@@ -15,16 +15,31 @@
  * The panel never prints a saved key back — it only says "saved".
  */
 import { useState } from "react";
-import { AlertTriangle, Check, Eye, EyeOff, KeyRound, Loader2, Server, Sparkles, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  RefreshCw,
+  Server,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { Button, inputCls } from "./ui";
 import {
   activeProvider,
   clearKeys,
+  DEFAULT_GEMINI_MODEL,
   describeProvider,
   hasBrowserKey,
+  listModels,
   loadConfig,
+  resetWorkingModel,
   saveConfig,
   testProvider,
+  workingModel,
   type AiConfig,
   type ProviderId,
 } from "../lib/aarohi/provider";
@@ -34,12 +49,16 @@ const label = "text-[11px] font-bold uppercase tracking-wide text-(--color-muted
 export function AiSettings({ onClose }: { onClose?: () => void }) {
   const [config, setConfig] = useState<AiConfig>(loadConfig);
   const [showKey, setShowKey] = useState(false);
+  const [models, setModels] = useState<string[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
   const [status, setStatus] = useState<{ kind: "idle" | "testing" | "ok" | "bad"; text: string }>({
     kind: "idle",
     text: "",
   });
 
   const update = (patch: Partial<AiConfig>) => {
+    // A changed key or model invalidates "the model that worked last".
+    if ("geminiKey" in patch || "geminiModel" in patch) resetWorkingModel();
     setConfig((current) => {
       const next = { ...current, ...patch };
       saveConfig(next);
@@ -54,7 +73,9 @@ export function AiSettings({ onClose }: { onClose?: () => void }) {
     setStatus({ kind: "testing", text: "Test chal raha hai…" });
     try {
       const answer = await testProvider(config);
-      setStatus({ kind: "ok", text: `Chal gaya ✅ — jawab: "${answer}"` });
+      const active = activeProvider(config);
+      const model = active === "gemini" ? ` (${workingModel(config)})` : "";
+      setStatus({ kind: "ok", text: `Chal gaya ✅${model} — jawab: "${answer}"` });
     } catch (error) {
       setStatus({
         kind: "bad",
@@ -142,15 +163,61 @@ export function AiSettings({ onClose }: { onClose?: () => void }) {
               {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
-          <input
-            className={`${inputCls} mt-1.5`}
-            aria-label="Gemini model"
-            placeholder="gemini-2.0-flash"
-            value={config.geminiModel}
-            onChange={(event) => update({ geminiModel: event.target.value })}
-          />
+          <div className="mt-1.5 flex gap-1.5">
+            <select
+              className={inputCls}
+              aria-label="Gemini model"
+              value={config.geminiModel}
+              onChange={(event) => update({ geminiModel: event.target.value })}
+            >
+              <option value="">Auto — jo chalega wahi ({DEFAULT_GEMINI_MODEL})</option>
+              {models.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+              {config.geminiModel && !models.includes(config.geminiModel) && (
+                <option value={config.geminiModel}>{config.geminiModel} (saved)</option>
+              )}
+            </select>
+            <button
+              type="button"
+              aria-label="Available models laao"
+              disabled={!config.geminiKey.trim() || loadingModels}
+              onClick={() => {
+                setLoadingModels(true);
+                // Ask the key which models it can actually use — this is what
+                // stops "model retired" from ever being a dead end again.
+                void listModels(config)
+                  .then((list) => {
+                    setModels(list);
+                    const current = config.geminiModel.trim();
+                    if (current && !list.includes(current)) {
+                      // The saved model is gone: move to auto instead of failing.
+                      update({ geminiModel: "" });
+                      setStatus({
+                        kind: "ok",
+                        text: `"${current}" ab available nahi hai — Auto par set kar diya. Ab Test karo.`,
+                      });
+                    } else {
+                      setStatus({ kind: "ok", text: `${list.length} models mile. List se chuno, ya Auto rakho.` });
+                    }
+                  })
+                  .catch((error: unknown) =>
+                    setStatus({ kind: "bad", text: error instanceof Error ? error.message : "List nahi mile." }),
+                  )
+                  .finally(() => setLoadingModels(false));
+              }}
+              className="neu-btn shrink-0 px-2 text-(--color-muted)"
+              title="Is key se kaun se model chalte hain"
+            >
+              {loadingModels ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            </button>
+          </div>
           <p className="mt-1 text-[10px] text-(--color-muted)">
-            Free key: <span className="font-mono">aistudio.google.com/apikey</span> → Create API key
+            Free key: <span className="font-mono">aistudio.google.com/apikey</span> → Create API key.
+            <br />
+            Google model band kar de to <b>Auto</b> khud naya chun lega — 🔄 dabao to list bhi dekh sakte ho.
           </p>
         </div>
       )}
