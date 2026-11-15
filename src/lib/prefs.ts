@@ -17,7 +17,16 @@ function parseJSON<T>(raw: string, fallback: T): T {
  * shared: without this, the next student opened Aarohi and read the previous
  * student's chat, and inherited their streak and badges.
  */
-const USER_SCOPED_KEYS = ["ema_streak", "ema_badges", "aarohi_excel_chat_v4", "aarohi_avatar_scene_v1"];
+const USER_SCOPED_KEYS = [
+  "ema_streak",
+  "ema_badges",
+  "aarohi_excel_chat_v4",
+  "aarohi_excel_chat_v5",
+  "aarohi_avatar_scene_v1",
+  // An AI key pasted by the owner must NOT survive into the next student's
+  // session on a shared classroom machine.
+  "aarohi_ai_config_v1",
+];
 const LAST_USER_KEY = "ema_last_user";
 
 export function resetUserLocalState() {

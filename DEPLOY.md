@@ -51,6 +51,28 @@ envVars:
 
 ## 3. Optional: Aarohi ko online AI do
 
+Do jagah key lag sakti hai. Kaunsi chuno, ye depend karta hai ki app **kahan chal
+rahi hai**:
+
+| App kahan chal rahi hai | Key kahan daalo | Kyun |
+|---|---|---|
+| **GitHub Pages** (`halpatilalu-web.github.io/...`) | Aarohi screen → ⚙️ → Gemini key | Pages par koi server nahi hota. Browser se seedha Gemini call hota hai. |
+| **Vercel** (`*.vercel.app`) | Aarohi screen → ⚙️ → Gemini key | Vercel static deploy hai — `/api` wahan nahi chalta. |
+| **Render / Docker / local** (`pnpm dev:all`) | Render dashboard → Environment → `GEMINI_API_KEY` | Key server par rehti hai, browser tak kabhi nahi aati. Sabse safe. |
+
+### Rasta A — Browser me key (static host ke liye)
+
+1. [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → **Create API key**
+2. App kholo → **Aarohi** screen → upar **⚙️ (Aarohi ka AI settings)**
+3. Gemini key paste karo → **Test karo** → "Chal gaya ✅" aana chahiye
+4. Ab koi bhi open-ended sawal poochho (jaise "mera data aisa hai…")
+
+Key **sirf us browser** me rehti hai. Us device ka devtools kholne wala use dekh
+sakta hai, isliye **shared classroom computer par mat chhodo** — "Keys hatao"
+dabao, ya sign-out karo (account badalte hi key apne aap saaf ho jaati hai).
+
+### Rasta B — Server me key (Render / Docker / local)
+
 Render → service → **Environment**:
 
 **Sabse aasan (free tier):** Google AI Studio se ek Gemini key banao aur sirf ye do lines daalo:
