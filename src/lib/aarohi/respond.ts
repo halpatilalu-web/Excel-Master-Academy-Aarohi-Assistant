@@ -1,13 +1,18 @@
 /**
  * One place where Aarohi decides where her answer comes from.
  *
- *   1. The built-in brain, when it knows the topic. This is instant, free and
- *      works offline, so the student never waits for a network round trip just
- *      to hear what VLOOKUP is.
- *   2. The online model (`/api/assistant` → Gemini / OpenAI-compatible / Orvis),
- *      for anything the brain flags as low confidence and for genuinely open
- *      questions.
- *   3. The brain's text as the fallback when the network fails.
+ *   0. "Sirf built-in" (`provider: "local"`) — the brain, no request of any kind.
+ *      This is checked first, because it is a promise, not a preference.
+ *   1. The model, when a key exists: a browser key straight from the page
+ *      (static hosts), or the app's own `/api/assistant`.
+ *   2. The brain, when there is no key, the model fails, or the answer came back
+ *      empty.
+ *
+ * The model goes FIRST on purpose. It used to be the other way round: any topic
+ * the offline brain recognised was answered from its notes, so a student with a
+ * working Gemini key still got the same canned template for VLOOKUP and even for
+ * "Hello". A model that is connected has to be the one that talks; the brain is
+ * the safety net, not the first responder.
  *
  * Both chat surfaces (the full Aarohi screen and the floating panel) call this,
  * so they always behave the same way.
@@ -58,11 +63,6 @@ function loadBrain(): Promise<BrainModule | null> {
   return brainPromise;
 }
 
-/** The offline answer should yield to the model when the brain is guessing. */
-function needsModel(reply: BrainReply): boolean {
-  return reply.confident === false;
-}
-
 export async function respond(question: string, options: RespondOptions): Promise<Reply> {
   const { history, lang, online = true } = options;
   const module = await loadBrain();
@@ -75,7 +75,10 @@ export async function respond(question: string, options: RespondOptions): Promis
         source: "brain",
       };
 
-  if (!needsModel(brain) || !online) {
+  const offlineOnly = !online || (options.config ?? loadConfig()).provider === "local";
+
+  // No key, or "sirf built-in": the brain is the whole answer, instantly.
+  if (offlineOnly) {
     return {
       text: brain.text,
       source: brain.source,
@@ -113,11 +116,6 @@ export async function respond(question: string, options: RespondOptions): Promis
         error: message,
       };
     }
-  }
-
-  // 2. "Sirf built-in" means exactly that: no request of any kind, ever.
-  if (config.provider === "local") {
-    return { text: brain.text, source: "brain", conceptId: brain.conceptId, chips: brain.chips };
   }
 
   // 3. The app's own server (Docker, Render, local dev), where the key lives in

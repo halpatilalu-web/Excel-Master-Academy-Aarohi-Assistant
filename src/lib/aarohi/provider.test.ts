@@ -190,11 +190,72 @@ describe("openai-compatible providers", () => {
 });
 
 describe("routing between brain, browser key and app server", () => {
-  it("does not call any network for a topic the brain knows", async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(""));
+  // The model is the first responder when a key exists. It used to be the other
+  // way round, which is why "Hello" and even "VLOOKUP kya hai" always got the
+  // same brain template even with a working Gemini key.
+  it("asks the model for a topic the brain also knows", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => reply(GEMINI_OK));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await respond("VLOOKUP kya hai", { history: [], config: geminiConfig() });
+
+    expect(result.source).toBe("online");
+    expect(result.text).toBe("Ye Gemini ka jawab hai: =XLOOKUP(A2,B:B,C:C)");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks the model for a plain hello, and says hello back", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      reply({
+        candidates: [{ content: { parts: [{ text: "Namaste! 👋 Main Aarohi — Excel sikhati hoon. Aaj kya karna hai?" }] } }],
+      }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await respond("Hello", { history: [], config: geminiConfig() });
+
+    expect(result.source).toBe("online");
+    expect(result.text).toContain("Namaste");
+    // The brain's fixed welcome block must not be what a hello produces.
+    expect(result.text).not.toContain("VLOOKUP vs XLOOKUP");
+    const body = JSON.parse(String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body));
+    expect(body.contents.at(-1).parts[0].text).toBe("Hello");
+    // Rule one of the prompt: do not answer everything from one template.
+    expect(body.systemInstruction.parts[0].text).toMatch(/ek jaisa mat do/i);
+  });
+
+  it("sends the whole conversation so follow-ups make sense", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => reply(GEMINI_OK));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await respond("aur uske baare me batao", {
+      history: [
+        { from: "me", text: "VLOOKUP kya hai" },
+        { from: "bot", text: "VLOOKUP ek lookup function hai." },
+        { from: "me", text: "Hello" },
+        { from: "bot", text: "Namaste!" },
+      ],
+      config: geminiConfig(),
+    });
+
+    const body = JSON.parse(String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body));
+    expect(body.contents.map((c: { role: string }) => c.role)).toEqual([
+      "user",
+      "model",
+      "user",
+      "model",
+      "user",
+    ]);
+  });
+
+  it("does not call any network when the app has no key and no server", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      throw new Error("offline");
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    // Static host, no browser key, no /api behind it.
+    const result = await respond("VLOOKUP kya hai", { history: [], config: DEFAULT_CONFIG, online: false });
 
     expect(result.source).toBe("brain");
     expect(fetchMock).not.toHaveBeenCalled();

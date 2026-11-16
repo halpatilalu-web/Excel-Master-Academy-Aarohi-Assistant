@@ -35,6 +35,34 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
+/** A working browser key, with a fake network whose replies differ per question. */
+function geminiFetch(answers: Record<string, string>) {
+  const seen: { question: string; history: number }[] = [];
+  globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (!url.includes("generativelanguage.googleapis.com")) throw new TypeError("offline");
+    const body = JSON.parse(String(init?.body ?? "{}")) as {
+      contents?: { role: string; parts: { text: string }[] }[];
+    };
+    const contents = body.contents ?? [];
+    const question = contents.at(-1)?.parts[0].text ?? "";
+    seen.push({ question, history: contents.length });
+    const text = answers[question] ?? `jawab: ${question}`;
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as unknown as typeof fetch;
+  return seen;
+}
+
+function saveGeminiKey() {
+  localStorage.setItem(
+    "aarohi_ai_config_v1",
+    JSON.stringify({ provider: "gemini", geminiKey: "k-1", geminiModel: "" }),
+  );
+}
+
 /** The app's `/api/assistant` is unreachable here, so the offline brain answers. */
 function offlineFetch() {
   globalThis.fetch = vi.fn(async () => {
@@ -101,8 +129,19 @@ describe("Aarohi chat", () => {
   });
 
   it("uses an online model when the endpoint answers", async () => {
+    // Static hosts have no /api, so the browser key is what usually answers.
+    localStorage.setItem(
+      "aarohi_ai_config_v1",
+      JSON.stringify({ provider: "gemini", geminiKey: "k-1", geminiModel: "" }),
+    );
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("generativelanguage.googleapis.com")) {
+        return new Response(
+          JSON.stringify({ candidates: [{ content: { parts: [{ text: "**Gemini:** `=XLOOKUP(A2,B:B,C:C)` ye line-by-line…" }] } }] }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
       if (url === "/api/assistant") {
         return new Response(JSON.stringify({ reply: "**Gemini:** `=XLOOKUP(A2,B:B,C:C)` ye line-by-line…", source: "gemini" }), {
           status: 200,
@@ -115,7 +154,7 @@ describe("Aarohi chat", () => {
     render(<Aarohi />);
     // A question the brain flags as low confidence gets sent to the model.
     await ask("quantum physics ka Frenet-Serret equation samjhao");
-    await waitFor(() => expect(screen.getByText(/Online AI/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/^AI$/)).toBeTruthy());
     expect(screen.getByText(/ye line-by-line/)).toBeTruthy();
   });
 
@@ -192,5 +231,67 @@ describe("Aarohi AI settings", () => {
     await ask("quantum physics ka Frenet-Serret equation samjhao");
     await waitFor(() => expect(lastAnswer().length).toBeGreaterThan(100));
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("with a Gemini key saved", () => {
+  it("answers a plain hello like a person, not with the notes block", async () => {
+    saveGeminiKey();
+    const seen = geminiFetch({
+      Hello: "Namaste! 👋 Main Aarohi — Excel sikhati hoon. Aaj kya karna hai?",
+    });
+    render(<Aarohi />);
+
+    await ask("Hello");
+
+    await waitFor(() => expect(lastAnswer()).toMatch(/Namaste/));
+    expect(seen.map((c) => c.question)).toEqual(["Hello"]);
+    // The offline welcome block is not what a hello produces any more.
+    expect(lastAnswer()).not.toMatch(/VLOOKUP vs XLOOKUP/);
+    expect(lastAnswer()).not.toMatch(/Aarohi notes/i);
+  });
+
+  it("gives a different answer to each question, and remembers the chat", async () => {
+    saveGeminiKey();
+    const seen = geminiFetch({
+      "Hello": "Namaste! 👋 Kya seekhna hai?",
+      "VLOOKUP kya hai?": "VLOOKUP ek column me value dhoondh kar doosre column ki value laata hai.",
+      "aur usme error aaye to?": "IFNA lagao — `=IFNA(VLOOKUP(A2,F:H,3,0),\"Not found\")`.",
+    });
+    render(<Aarohi />);
+
+    await ask("Hello");
+    await waitFor(() => expect(lastAnswer()).toMatch(/Namaste/));
+    const first = lastAnswer();
+
+    await ask("VLOOKUP kya hai?");
+    await waitFor(() => expect(lastAnswer()).toMatch(/column me value dhoondh/));
+
+    await ask("aur usme error aaye to?");
+    await waitFor(() => expect(lastAnswer()).toMatch(/IFNA/));
+
+    // Three distinct answers, not one paragraph three times.
+    expect(new Set([first, lastAnswer()]).size).toBe(2);
+    // The third request carried the earlier turns, so "aur" makes sense.
+    expect(seen.at(-1)?.history).toBeGreaterThanOrEqual(6);
+    expect(seen.at(-1)?.question).toBe("aur usme error aaye to?");
+  });
+
+  it("still answers from the notes when the key is rejected, and offers the fix", async () => {
+    saveGeminiKey();
+    globalThis.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ error: { message: "API key not valid. Please pass a valid API key." } }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }),
+    ) as unknown as typeof fetch;
+    render(<Aarohi />);
+
+    await ask("VLOOKUP kya hai?");
+
+    await waitFor(() => expect(screen.getByText(/AI se connect nahi hua/i)).toBeTruthy());
+    expect(lastAnswer()).toMatch(/VLOOKUP/);
+    // One tap from the failure to the panel that fixes it.
+    expect(screen.getByRole("button", { name: /AI key lagao/i })).toBeTruthy();
   });
 });
