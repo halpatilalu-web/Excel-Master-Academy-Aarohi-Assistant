@@ -97,6 +97,12 @@ error nahi, bas open-ended sawalon ka jawab thoda kam open hoga.
 Order: **Gemini → OpenAI-compatible → Orvis → built-in brain.** Ek provider fail
 ho to server agla try karta hai aur log me likhta hai kaunsa fail hua.
 
+Browser wala rasta (Rasta A) bhi ab **model-first** hai: key save hai to har
+sawal — "Hello" bhi — Gemini par jaata hai. Built-in brain sirf tab aata hai jab
+key na ho, key reject ho jaye, ya quota khatam ho. Aisa isliye badla, kyunki
+pehle brain ke pahunchne wale topics (VLOOKUP jaise) par Gemini call hi nahi
+hoti thi aur jawab hamesha ek jaisa lagta tha.
+
 `/api/assistant` rate limited hai (20/min per user, 40/min per IP, 120/min per
 process). Guest account banana free hai, isliye bina limit ke key ka paisa ud
 jayega — limit hatao mat.

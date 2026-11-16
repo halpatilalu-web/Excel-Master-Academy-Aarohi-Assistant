@@ -134,7 +134,9 @@ export function Aarohi() {
 
     let reply: Msg;
     try {
-      const answer = await respond(text, { history: before, config: aiConfig });
+      // Read the saved settings fresh: the student may have just pasted a key
+      // in ⚙️ and asked again without reloading the page.
+      const answer = await respond(text, { history: before, config: loadConfig() });
       reply = {
         from: "bot",
         text: answer.text,
@@ -304,7 +306,13 @@ export function Aarohi() {
 
       {aiOpen && (
         <Card className="!p-3.5">
-          <AiSettings onClose={() => setAiOpen(false)} />
+          <AiSettings
+            onClose={() => {
+              setAiOpen(false);
+              // A new key or mode changes what the chip should say.
+              setAiConfig(loadConfig());
+            }}
+          />
         </Card>
       )}
 
@@ -343,11 +351,25 @@ export function Aarohi() {
                       <>
                         <AssistantText text={message.text} />
                         {message.degraded && (
-                          <p className="mt-2 text-[11px] text-(--color-muted)">
-                            {message.error
-                              ? `AI se connect nahi hua: ${message.error} — upar ⚙️ se key check karo.`
-                              : "Offline notes se jawab — online AI abhi uplabdh nahi."}
-                          </p>
+                          <div className="mt-2 text-[11px] text-(--color-muted)">
+                            <p>
+                              {message.error
+                                ? `AI se connect nahi hua: ${message.error}`
+                                : "Ye jawab built-in notes se hai — online AI abhi uplabdh nahi."}
+                            </p>
+                            {(
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAiOpen(true);
+                                  window.scrollTo({ top: 0, behavior: "smooth" });
+                                }}
+                                className="mt-1 font-semibold text-(--color-accent-dark) underline-offset-2 hover:underline"
+                              >
+                                ⚙️ AI key lagao — phir asli Gemini jawab milega
+                              </button>
+                            )}
+                          </div>
                         )}
                       </>
                     )}
@@ -366,7 +388,7 @@ export function Aarohi() {
                         </button>
                       )}
                       <span className="text-[10px] uppercase tracking-wide text-(--color-muted)/70">
-                        {message.source === "online" ? "Online AI" : "Aarohi notes"}
+                        {message.source === "online" ? "AI" : "Built-in notes"}
                       </span>
                     </div>
                   )}

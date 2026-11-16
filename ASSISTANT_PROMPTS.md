@@ -56,6 +56,24 @@ server), **Gemini**, **OpenAI-compatible** (base URL + model are editable, so
 Groq/Ollama/OpenRouter work), and **Sirf built-in** (guarantees zero network
 calls).
 
+### Who answers — model first, notes second
+
+The order used to be the wrong way round: the offline brain answered any topic it
+recognised, so a student with a working Gemini key still got the same canned
+VLOOKUP template, and "Hello" got a fixed welcome block. Now:
+
+1. `provider: "local"` (**Sirf built-in**) → brain, no request of any kind.
+2. A browser key or `/api/assistant` → **the model answers**, including for
+   topics the brain knows and for greetings.
+3. Brain → only when there is no key, the model fails, or the reply comes back
+   empty. The chat says so under the message, with a one-tap link to ⚙️.
+
+Blame the prompt, not just the routing: the model was told to produce a six-part
+teaching block for every message. Both prompts now put "do not answer everything
+from one template" first, and ask for a 1–3 line reply to a 1-line question. A
+test asserts the system prompt still carries that rule and that a hello is sent
+to the model as-is.
+
 ### When Google retires a model
 
 It happened: `gemini-2.0-flash` was removed and the API started answering
